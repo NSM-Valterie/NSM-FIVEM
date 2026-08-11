@@ -1,0 +1,59 @@
+#pragma once
+
+#include <ComponentHolder.h>
+
+#include "ReassembledEventPacket.h"
+
+#ifdef COMPILING_CITIZEN_RESOURCES_CORE
+#define CRC_EXPORT DLL_EXPORT
+#else
+#define CRC_EXPORT DLL_IMPORT
+#endif
+
+namespace fx
+{
+class Resource;
+class ResourceManager;
+
+class CRC_EXPORT EventReassemblySink
+{
+public:
+	virtual void SendPacket(int target, std::string_view data) = 0;
+
+	virtual void SendPacketV2(int target, net::packet::ReassembledEventV2Packet& packet) = 0;
+
+	virtual bool LimitEvent(int source) 
+	{
+		return false;
+	}
+};
+
+class CRC_EXPORT EventReassemblyComponent : public fwRefCountable, public IAttached<ResourceManager>
+{
+public:
+	virtual ~EventReassemblyComponent() override = default;
+
+	virtual void SetSink(EventReassemblySink* sink) = 0;
+
+	virtual void RegisterTarget(int id, uint8_t maxPendingEvents) = 0;
+
+	virtual void UnregisterTarget(int id) = 0;
+
+	virtual void HandlePacket(int source, std::string_view data) = 0;
+
+	virtual void HandlePacketV2(int source, const net::packet::ReassembledEventV2& packet) = 0;
+
+#ifndef IS_FXSERVER
+	virtual void TriggerEvent(int target, std::string_view eventName, std::string_view eventPayload, int bytesPerSecond = 50000) = 0;
+#endif
+
+	virtual void TriggerEventV2(int target, std::string_view eventName, std::string_view eventPayload, int bytesPerSecond = 50000) = 0;
+
+	virtual void NetworkTick() = 0;
+
+public:
+	static fwRefContainer<EventReassemblyComponent> Create();
+};
+}
+
+DECLARE_INSTANCE_TYPE(fx::EventReassemblyComponent);

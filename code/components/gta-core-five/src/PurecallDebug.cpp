@@ -1,0 +1,50 @@
+/*
+* This file is part of the Cfx project - https://cfx.re/
+*
+* See LICENSE in the root of the source tree for information
+* regarding licensing.
+*/
+
+#include "StdInc.h"
+#include "Hooking.h"
+
+#include <Error.h>
+#include <CrossBuildRuntime.h>
+
+#include <CustomRtti.h>
+
+#include <typeinfo>
+
+
+static void PurecallHandler(void* self)
+{
+	// get the type name of the object
+	const std::string typeName = SearchTypeName(self, true);
+
+	// get the module base
+	const char* moduleBaseString = "";
+	HMODULE module;
+
+	if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)_ReturnAddress(), &module))
+	{
+		char filename[MAX_PATH];
+		GetModuleFileNameA(module, filename, _countof(filename));
+
+		moduleBaseString = va(" - %s+%X", strrchr(filename, '\\') + 1, (char*)_ReturnAddress() - (char*)module);
+	}
+
+	// format a fatal error message with the right data
+	FatalError("Pure virtual function call in GTA function (type %s, called from %p%s)", typeName, _ReturnAddress(), moduleBaseString);
+}
+
+static HookFunction hookFunction([] ()
+{
+	if (xbr::IsGameBuildOrGreater<2545>())
+	{
+		hook::jump(hook::pattern("74 02 FF D0 B9 19 00 00 00").count(1).get(0).get<void>(-20), PurecallHandler);
+	}
+	else
+	{
+		hook::jump(hook::pattern("48 83 EC 28 B9 79 38 F4 43 E8").count(1).get(0).get<void>(0), PurecallHandler);
+	}
+});
