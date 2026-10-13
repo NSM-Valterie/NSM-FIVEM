@@ -49,10 +49,9 @@ jobs:
       - name: Build (upstream Cfx CI script)
         shell: pwsh
         run: |
-          $script = if ('${{ inputs.product }}' -eq 'fivem') { 'build_client.ps1' } else { 'build_server_windows.ps1' }
-          Write-Host "=== running $script ==="
           Set-Location code/tools/ci
-          ./$script
+          if ('${{ inputs.product }}' -eq 'fivem') { Write-Host '=== running build_client.ps1 ==='; & .\build_client.ps1 }
+          else { Write-Host '=== running build_server_windows.ps1 ==='; & .\build_server_windows.ps1 }
 
       - name: Upload binaries and caches (always)
         if: always()
