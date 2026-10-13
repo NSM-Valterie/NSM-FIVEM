@@ -30,6 +30,16 @@ function Invoke-RunMSBuild {
         Remove-Item -Force -ErrorAction Ignore $errorsLogPath
     }
 
+    # [NSM] GitHub-hosted runners may not ship the premake-pinned Windows SDK (10.0.22000.0).
+    # Resolve the newest installed Windows 10 SDK and retarget the build to it.
+    $sdkVersion = "10.0.22621.0"
+    $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Include"
+    if (Test-Path $sdkRoot) {
+        $newestSdk = (Get-ChildItem $sdkRoot -Directory | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+        if ($newestSdk) { $sdkVersion = $newestSdk }
+    }
+    Write-Host "[NSM] retargeting MSBuild to Windows SDK $sdkVersion"
+
     # set the env vars for MSBuild
     $env:UseMultiToolTask = "true"
     $env:TargetPlatformVersion = "10.0.15063.0"
@@ -57,6 +67,7 @@ function Invoke-RunMSBuild {
             "-p:Configuration=release"
             "-p:RestorePackagesConfig=true"
             "-p:PreferredToolArchitecture=x64"
+            "-p:WindowsTargetPlatformVersion=$sdkVersion"
         )
 
         Test-LastExitCode "MSBuild failed"
