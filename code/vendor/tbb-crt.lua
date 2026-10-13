@@ -1,1 +1,0 @@
-return loadfile('tbb.lua')(true)

@@ -1,1 +1,0 @@
-return loadfile('curl-crt.lua')(true, true)

@@ -1,1 +1,0 @@
-return loadfile('xz-crt.lua')(true)

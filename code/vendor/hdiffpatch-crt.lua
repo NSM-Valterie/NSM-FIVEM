@@ -1,1 +1,0 @@
-return loadfile('hdiffpatch.lua')(true)

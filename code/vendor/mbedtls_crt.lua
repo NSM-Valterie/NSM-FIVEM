@@ -1,1 +1,0 @@
-return loadfile('mbedtls.lua')(true)

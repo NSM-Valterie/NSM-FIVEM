@@ -1,1 +1,0 @@
-includedirs { '../../../vendor/vulkan-headers/include/' }

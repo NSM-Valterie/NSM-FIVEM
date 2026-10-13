@@ -1,1 +1,0 @@
-return loadfile('minhook.lua')(true)

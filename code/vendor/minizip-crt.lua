@@ -1,1 +1,0 @@
-return loadfile('minizip.lua')(true)

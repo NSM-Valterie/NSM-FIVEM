@@ -1,4 +1,0 @@
-EXPORTS
-	malloc
-	free
-	realloc

@@ -1,3 +1,0 @@
-return function()
-	filter {}
-end

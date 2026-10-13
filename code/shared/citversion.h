@@ -1,1 +1,0 @@
-#define BASE_EXE_VERSION 1000000

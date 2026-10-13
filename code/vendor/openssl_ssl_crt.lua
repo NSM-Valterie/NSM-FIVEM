@@ -1,1 +1,0 @@
-return loadfile('openssl_ssl.lua')(true)
