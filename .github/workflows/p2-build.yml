@@ -40,8 +40,18 @@ jobs:
       - name: Install MSYS2 (pacman needed by prebuild)
         run: choco install -y msys2 --params "/InstallDir:C:\msys64"
 
-      - name: Python setuptools (py >= 3.12)
-        run: py -m pip install setuptools
+      - name: Python setuptools for every Python (node-gyp needs distutils)
+        shell: pwsh
+        run: |
+          $pythons = @()
+          $cmd = Get-Command python -ErrorAction SilentlyContinue
+          if ($cmd) { $pythons += $cmd.Source }
+          $pythons += (& py -0p 2>$null | ForEach-Object { ($_ -split '\s+')[-1] } | Where-Object { $_ -like '*python.exe' })
+          $pythons | Select-Object -Unique | ForEach-Object {
+            Write-Host "setuptools -> $_"
+            & $_ -m pip install --quiet setuptools
+            if ($LASTEXITCODE -ne 0) { Write-Host "WARN: setuptools install failed for $_" }
+          }
 
       - name: Ensure yarn (system resources build)
         run: npm install -g yarn
