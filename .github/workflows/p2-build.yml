@@ -1,0 +1,65 @@
+name: P2 stock build
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: 'Product to build (fxserver = server, fivem = client)'
+        required: true
+        default: 'fxserver'
+        type: choice
+        options:
+          - fxserver
+          - fivem
+
+concurrency:
+  group: p2-build-${{ inputs.product }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 350
+    env:
+      CI: 'true'
+      CFX_DRY_RUN: 'true'
+      CFX_PRODUCT_NAME: ${{ inputs.product }}
+      CI_COMMIT_REF_NAME: ${{ github.ref_name }}
+      CI_COMMIT_SHA: ${{ github.sha }}
+      CI_PROJECT_DIR: ${{ github.workspace }}
+    steps:
+      - name: Enable git symlinks
+        run: git config --global core.symlinks true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          # submodules are cloned by the Cfx CI script itself (shallow, tag-aware)
+
+      - name: Install MSYS2 (pacman needed by prebuild)
+        run: choco install -y msys2 --params "/InstallDir:C:\msys64"
+
+      - name: Python setuptools (py >= 3.12)
+        run: py -m pip install setuptools
+
+      - name: Ensure yarn (system resources build)
+        run: npm install -g yarn
+
+      - name: Build (upstream Cfx CI script)
+        shell: pwsh
+        run: |
+          Set-Location code/tools/ci
+          if ('${{ inputs.product }}' -eq 'fivem') { Write-Host '=== running build_client.ps1 ==='; & .\build_client.ps1 }
+          else { Write-Host '=== running build_server_windows.ps1 ==='; & .\build_server_windows.ps1 }
+
+      - name: Upload binaries and caches (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-${{ inputs.product }}-output
+          path: |
+            .build-cache/bin/
+            caches/
+          retention-days: 7
+          if-no-files-found: warn

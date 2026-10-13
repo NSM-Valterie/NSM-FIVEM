@@ -1,0 +1,106 @@
+/*
+ * This file is part of the Cfx project - https://cfx.re/
+ *
+ * See LICENSE in the root of the source tree for information
+ * regarding licensing.
+ */
+
+#pragma once
+
+#include <fiDevice.h>
+
+namespace rage
+{
+	template<typename T, uint32_t chunkSize, uint32_t chunksCountUnused>
+	struct chunkyArray
+	{
+		chunkyArray(): count(0)
+		{
+		}
+
+		T& operator[](uint32_t index)
+		{
+			return memory[index / chunkSize][index % chunkSize];
+		}
+
+		uint32_t GetCount()
+		{
+			return count;
+		}
+
+		T* memory[chunksCountUnused];
+		uint32_t count;
+	};
+
+	class fiCollection : public fiDevice
+	{
+	public:
+		// basically, packfile entry; no idea what uses this like that though
+		struct FileEntry
+		{
+			uint64_t nameOffset : 16;
+			uint64_t size : 24;
+			uint64_t offset : 24;
+
+			uint32_t virtFlags;
+			uint32_t physFlags;
+		};
+		
+		struct RawEntry
+		{
+			char m_pad[32];
+			const char* fileName;
+		};
+
+		char m_pad[1448];
+		chunkyArray<RawEntry, 1024, 64> m_entries;
+	public:
+		virtual void m_0() = 0;
+
+		virtual void m_8() = 0;
+
+		virtual void m_10() = 0;
+
+		virtual void m_18() = 0;
+
+		virtual void m_20() = 0;
+
+		virtual void m_28() = 0;
+
+		virtual void m_30() = 0;
+
+		virtual void m_38() = 0;
+
+		virtual void m_40() = 0;
+
+		virtual void m_48() = 0;
+
+		virtual void m_50() = 0;
+
+		virtual void m_58() = 0;
+
+		virtual void m_60() = 0;
+
+		virtual void m_68() = 0;
+
+		virtual void m_70() = 0;
+
+		virtual void HasEntries() = 0;
+
+		virtual uint32_t GetEntryCount() = 0;
+
+		virtual void GetEntryPhysicalSortKey() = 0;
+
+		virtual uint32_t GetEntryNameHash(uint32_t id) = 0;
+
+		virtual int GetEntryFileExtId(uint32_t id) = 0;
+
+		virtual void GetEntryName() = 0;
+
+		virtual void GetEntryFullName() = 0;
+
+		virtual uint32_t GetEntryByName(uint32_t nameHash, bool unk) = 0; // GetEntryIndex
+
+		virtual uint32_t GetEntryByName(const char* name) = 0;
+	};
+}
