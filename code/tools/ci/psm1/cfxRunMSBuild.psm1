@@ -35,7 +35,7 @@ function Invoke-RunMSBuild {
     $sdkVersion = "10.0.22621.0"
     $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Include"
     if (Test-Path $sdkRoot) {
-        $newestSdk = (Get-ChildItem $sdkRoot -Directory | Sort-Object -Property Name -Descending | Select-Object -First 1).Name
+        $newestSdk = (Get-ChildItem $sdkRoot -Directory | Where-Object { $_.Name -match '^\d+(\.\d+){3}$' } | Sort-Object -Property { [version]$_.Name } -Descending | Select-Object -First 1).Name
         if ($newestSdk) { $sdkVersion = $newestSdk }
     }
     Write-Host "[NSM] retargeting MSBuild to Windows SDK $sdkVersion"
