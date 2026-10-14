@@ -12,6 +12,7 @@ on:
           - fxserver
           - fivem
           - fxserver-linux
+          - crt
 
 concurrency:
   group: p2-build-${{ inputs.product }}
@@ -34,12 +35,14 @@ jobs:
         run: git config --global core.symlinks true
 
       - name: Checkout
+        if: inputs.product != 'crt'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           # submodules are cloned by the Cfx CI script itself (shallow, tag-aware)
 
       - name: Materialize repo symlinks as junctions
+        if: inputs.product != 'crt'
         shell: pwsh
         run: |
           $links = git ls-files -s | Where-Object { $_ -match '^120000' }
@@ -60,9 +63,11 @@ jobs:
           }
 
       - name: Install MSYS2 (pacman needed by prebuild)
+        if: inputs.product != 'crt'
         run: choco install -y msys2 --params "/InstallDir:C:\msys64"
 
       - name: Python setuptools for every Python (node-gyp needs distutils)
+        if: inputs.product != 'crt'
         shell: pwsh
         run: |
           $pythons = @()
@@ -76,9 +81,39 @@ jobs:
           }
 
       - name: Ensure yarn (system resources build)
+        if: inputs.product != 'crt'
         run: npm install -g yarn
 
+      - name: Fetch toolset CRT
+        if: inputs.product == 'crt'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsdir = & $vswhere -latest -prerelease -property installationPath -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+          Write-Host "VS install: $vsdir"
+          $toolset = (Get-ChildItem (Join-Path $vsdir 'VC\Tools\MSVC') | Sort-Object Name -Descending | Select-Object -First 1).Name
+          Write-Host "toolset: $toolset"
+          $redist = (Get-ChildItem (Join-Path $vsdir 'VC\Redist\MSVC') | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          Write-Host "redist: $redist"
+          $crt = Join-Path $redist 'x64\Microsoft.VC143.CRT'
+          if (!(Test-Path $crt)) { throw "no CRT at $crt" }
+          New-Item -ItemType Directory -Force -Path crt-output | Out-Null
+          Get-ChildItem $crt -Filter *.dll | ForEach-Object {
+            Write-Host "CRT $($_.Name) $($_.VersionInfo.FileVersion) $($_.Length)"
+            Copy-Item $_.FullName -Destination crt-output
+          }
+
+      - name: Upload toolset CRT
+        if: inputs.product == 'crt'
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolset-crt
+          path: crt-output/
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Build (upstream Cfx CI script)
+        if: inputs.product != 'crt'
         shell: pwsh
         run: |
           Set-Location code/tools/ci
@@ -86,7 +121,7 @@ jobs:
           else { Write-Host '=== running build_server_windows.ps1 ==='; & .\build_server_windows.ps1 }
 
       - name: Upload binaries and caches (always)
-        if: always()
+        if: always() && inputs.product != 'crt'
         uses: actions/upload-artifact@v4
         with:
           name: p2-${{ inputs.product }}-output
