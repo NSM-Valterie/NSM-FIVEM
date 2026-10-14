@@ -96,7 +96,9 @@ function Invoke-PackClient {
     Copy-Item -Force $bootstrapperPath $cachesRoot\CitizenFX.exe
 
     # From closed
-    Copy-Item -Force $binRoot\RGL-ElevationHelper.exe $packRoot\
+    if (Test-Path "$binRoot\RGL-ElevationHelper.exe") {
+        Copy-Item -Force $binRoot\RGL-ElevationHelper.exe $packRoot\
+    }
 
     # upload review jobs will use this compressed bootstrap file
     Remove-Item -Force -ErrorAction ignore $bootstrapperCompressedPath
