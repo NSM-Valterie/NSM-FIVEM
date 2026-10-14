@@ -96,13 +96,15 @@ jobs:
           $redistRoot = Join-Path $vsdir 'VC\Redist\MSVC'
           Get-ChildItem $redistRoot -Recurse -Depth 3 | ForEach-Object { Write-Host "REDIST-TREE $($_.FullName)" }
           $crtDir = $null
-          $probe = Get-ChildItem $redistRoot -Recurse -Filter msvcp140.dll -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '(^|\\)x64([^A-Za-z]|$)' } | Select-Object -First 1
+          $probe = Get-ChildItem $redistRoot -Recurse -Filter msvcp140.dll -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '(^|\\)x64([^A-Za-z]|$)' -and $_.FullName -notmatch 'debug_nonredist|onecore|arm64' } |
+            Sort-Object { [version]$_.VersionInfo.FileVersion } -Descending |
+            Select-Object -First 1
           if ($probe) { $crtDir = $probe.Directory.FullName }
-          if (!$crtDir) {
-            $probe = Get-ChildItem $redistRoot -Recurse -Filter msvcp140.dll -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($probe) { $crtDir = $probe.Directory.FullName }
-          }
           if (!$crtDir) { throw "no msvcp140.dll found under $redistRoot" }
+          $redistVer = [version]$probe.VersionInfo.FileVersion
+          $toolsetVer = [version]($toolset + '.0')
+          if ($redistVer -lt [version]::new($toolsetVer.Major, $toolsetVer.Minor, 0, 0)) { throw "redist $redistVer older than toolset $toolset" }
           Write-Host "CRT dir: $crtDir"
           New-Item -ItemType Directory -Force -Path crt-output | Out-Null
           Get-ChildItem $crtDir -Filter *.dll | ForEach-Object {
