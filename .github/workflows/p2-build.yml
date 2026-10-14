@@ -39,6 +39,26 @@ jobs:
           fetch-depth: 1
           # submodules are cloned by the Cfx CI script itself (shallow, tag-aware)
 
+      - name: Materialize repo symlinks as junctions
+        shell: pwsh
+        run: |
+          $links = git ls-files -s | Where-Object { $_ -match '^120000' }
+          foreach ($l in $links) {
+            $parts = $l -split '\s+'
+            $path = ($parts[3] -replace '^"', '' -replace '"$', '')
+            $target = (git cat-file -p $parts[1]).Trim()
+            $linkDir = Split-Path $path -Parent
+            $absTarget = Resolve-Path (Join-Path $linkDir $target) -ErrorAction SilentlyContinue
+            if ($absTarget) {
+              $item = Get-Item $path -Force -ErrorAction SilentlyContinue
+              if (-not $item.LinkType) {
+                Remove-Item $path -Force
+                New-Item -ItemType Junction -Path $path -Target $absTarget.Path | Out-Null
+                Write-Host "junction: $path -> $($absTarget.Path)"
+              }
+            } else { Write-Host "WARN: symlink target missing for $path ($target)" }
+          }
+
       - name: Install MSYS2 (pacman needed by prebuild)
         run: choco install -y msys2 --params "/InstallDir:C:\msys64"
 
@@ -92,7 +112,7 @@ jobs:
           mkdir -p /tmp/ctx/code/tools/ci/docker-builder
           cp code/tools/ci/docker-builder/Dockerfile /tmp/ctx/code/tools/ci/docker-builder/
           cp code/tools/ci/docker-builder/proot_prepare.sh /tmp/ctx/code/tools/ci/docker-builder/
-          docker build -t nsm-builder /tmp/ctx
+          docker build -f /tmp/ctx/code/tools/ci/docker-builder/Dockerfile -t nsm-builder /tmp/ctx
 
       - name: Build Linux server (upstream Cfx recipe)
         run: |
