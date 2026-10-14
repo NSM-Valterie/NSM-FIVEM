@@ -121,15 +121,15 @@ mkdir -p /tmp/symbols
 dotnet restore
 dotnet run -- -o/tmp/symbols $PWD/../../alpine/opt/cfx-server/*.so $PWD/../../alpine/opt/cfx-server/FXServer $PWD/../../alpine/opt/cfx-server/*.dbg $PWD/../../alpine/lib/*.so* $PWD/../../alpine/usr/lib/*.so* $PWD/../../alpine/usr/lib/debug/lib/*.debug
 
-eval $(ssh-agent -s)
-echo "$SSH_SYMBOLS_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-
 if [ "$CFX_DRY_RUN" = "true" ]; then
     echo "DRY RUN: Would upload debug symbols"
 else
+    eval $(ssh-agent -s)
+    echo "$SSH_SYMBOLS_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+
+    mkdir -p ~/.ssh
+    chmod 700 ~/.ssh
+
     rsync -rav -e "$RSH_SYMBOLS_COMMAND" /tmp/symbols/ $SSH_SYMBOLS_TARGET || true
 fi
 
