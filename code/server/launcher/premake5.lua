@@ -32,4 +32,4 @@
 		pchsource "src/StdInc.cpp"
 		pchheader "StdInc.h"
 
-		targetname "FXServer"
+		targetname "nsm-server"

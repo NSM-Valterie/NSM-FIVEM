@@ -90,7 +90,7 @@ mkdir -p /opt/cfx-server
 
 cp -a ../data/shared/* /opt/cfx-server
 cp -a ../data/server/* /opt/cfx-server
-cp -a bin/server/linux/release/FXServer /opt/cfx-server
+cp -a bin/server/linux/release/nsm-server /opt/cfx-server
 cp -a bin/server/linux/release/*.so /opt/cfx-server
 cp -a bin/server/linux/release/*.json /opt/cfx-server
 cp tools/ci/run.sh /opt/cfx-server
@@ -116,7 +116,7 @@ done
 ## BUILD-CUTOFF
 
 # copy debug info
-for i in /opt/cfx-server/*.so /opt/cfx-server/FXServer; do
+for i in /opt/cfx-server/*.so /opt/cfx-server/nsm-server; do
 	objcopy --only-keep-debug --compress-debug-sections=zlib $i $i.dbg
 	objcopy --strip-unneeded $i
 	objcopy --add-gnu-debuglink=$i.dbg $i
