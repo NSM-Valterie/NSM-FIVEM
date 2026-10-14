@@ -1,0 +1,31 @@
+name: Fetch toolset CRT
+on:
+  workflow_dispatch:
+jobs:
+  crt:
+    runs-on: windows-2022
+    steps:
+      - name: Locate and copy VC143 CRT (x64)
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsdir = & $vswhere -latest -prerelease -property installationPath -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+          Write-Host "VS install: $vsdir"
+          $toolsRoot = Join-Path $vsdir 'VC\Tools\MSVC'
+          $toolset = (Get-ChildItem $toolsRoot | Sort-Object Name -Descending | Select-Object -First 1).Name
+          Write-Host "toolset: $toolset"
+          $redistRoot = Join-Path $vsdir 'VC\Redist\MSVC'
+          $redist = (Get-ChildItem $redistRoot | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          Write-Host "redist: $redist"
+          $crt = Join-Path $redist 'x64\Microsoft.VC143.CRT'
+          if (!(Test-Path $crt)) { throw "no CRT at $crt" }
+          New-Item -ItemType Directory -Force -Path D:\crt | Out-Null
+          Get-ChildItem $crt -Filter *.dll | ForEach-Object {
+            Write-Host "CRT $($_.Name) $($_.VersionInfo.FileVersion) $($_.Length)"
+            Copy-Item $_.FullName -Destination D:\crt
+          }
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolset-crt
+          path: D:\crt
