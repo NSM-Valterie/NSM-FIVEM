@@ -34,7 +34,10 @@ try {
             $fullName = $entry.FullName
             $entry.Delete()
             $newEntry = $zip.CreateEntry($fullName)
-            $writer = New-Object System.IO.StreamWriter($newEntry.Open(), [System.Text.Encoding]::UTF8)
+            # UTF8Encoding($false) = no BOM (a BOM would also be fine for JS,
+            # but keep the patched bytes as close to original as possible)
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+            $writer = New-Object System.IO.StreamWriter($newEntry.Open(), $utf8NoBom)
             $writer.Write($content)
             $writer.Close()
             $patched++
