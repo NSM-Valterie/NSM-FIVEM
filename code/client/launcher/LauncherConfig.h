@@ -8,7 +8,7 @@
 #pragma once
 
 #ifndef CFX_UPDATER_URL
-#define CFX_UPDATER_URL "https://content.cfx.re/updates"
+#define CFX_UPDATER_URL "http://194.104.146.133/updates"
 #endif
 
 #if defined(GTA_NY)
