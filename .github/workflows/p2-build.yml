@@ -11,6 +11,7 @@ on:
         options:
           - fxserver
           - fivem
+          - fxserver-linux
 
 concurrency:
   group: p2-build-${{ inputs.product }}
@@ -18,6 +19,7 @@ concurrency:
 
 jobs:
   build:
+    if: inputs.product != 'fxserver-linux'
     runs-on: windows-2022
     timeout-minutes: 350
     env:
@@ -70,6 +72,43 @@ jobs:
           name: p2-${{ inputs.product }}-output
           path: |
             .build-cache/bin/
+            caches/
+          retention-days: 7
+          if-no-files-found: warn
+
+  build-linux:
+    if: inputs.product == 'fxserver-linux'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Build the upstream Cfx Alpine builder image
+        run: |
+          mkdir -p /tmp/ctx/code/tools/ci/docker-builder
+          cp code/tools/ci/docker-builder/Dockerfile /tmp/ctx/code/tools/ci/docker-builder/
+          cp code/tools/ci/docker-builder/proot_prepare.sh /tmp/ctx/code/tools/ci/docker-builder/
+          docker build -t nsm-builder /tmp/ctx
+
+      - name: Build Linux server (upstream Cfx recipe)
+        run: |
+          docker run --rm -v "$PWD:/build/fivem" -w /build/fivem \
+            -e CI=true -e CFX_DRY_RUN=true -e CFX_PRODUCT_NAME=fxserver \
+            -e CI_COMMIT_REF_NAME="$GITHUB_REF_NAME" -e CI_COMMIT_SHA="$GITHUB_SHA" \
+            -e CI_PIPELINE_ID="$GITHUB_RUN_ID" \
+            nsm-builder sh -c "mkdir -p /builds && sh code/tools/ci/build_server_docker_alpine.sh"
+
+      - name: Upload Linux server artifact (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-fxserver-linux-output
+          path: |
+            fx.tar.xz
             caches/
           retention-days: 7
           if-no-files-found: warn

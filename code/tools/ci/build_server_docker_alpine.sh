@@ -8,18 +8,23 @@ CURRENT_FOLDER_NAME=$(basename "$PWD")
 
 cd ..
 
-# clone fivem-private
-if [ ! -d fivem-private ]; then
-    git clone $FIVEM_PRIVATE_URI -b master
-else
-    cd fivem-private
-    git remote set-url origin $FIVEM_PRIVATE_URI
-    git fetch origin
-    git reset --hard origin/master
-    cd ..
-fi
+# clone fivem-private (optional: skip when FIVEM_PRIVATE_URI is unset, like the Windows CI no-op)
+if [ -n "$FIVEM_PRIVATE_URI" ]; then
+    if [ ! -d fivem-private ]; then
+        git clone $FIVEM_PRIVATE_URI -b master
+    else
+        cd fivem-private
+        git remote set-url origin $FIVEM_PRIVATE_URI
+        git fetch origin
+        git reset --hard origin/master
+        cd ..
+    fi
 
-echo "private_repo '../../fivem-private/'" >fivem/code/privates_config.lua
+    echo "private_repo '../../fivem-private/'" >fivem/code/privates_config.lua
+else
+    echo "[NSM] FIVEM_PRIVATE_URI not set; building without private components"
+    mkdir -p fivem-private
+fi
 
 # start building
 cd $CURRENT_FOLDER_NAME
