@@ -98,11 +98,11 @@ jobs:
           $crtDir = $null
           $probe = Get-ChildItem $redistRoot -Recurse -Filter msvcp140.dll -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -match '(^|\\)x64([^A-Za-z]|$)' -and $_.FullName -notmatch 'debug_nonredist|onecore|arm64' } |
-            Sort-Object { [version]$_.VersionInfo.FileVersion } -Descending |
+            Sort-Object { [version](($_.VersionInfo.FileVersion -split ' ')[0]) } -Descending |
             Select-Object -First 1
           if ($probe) { $crtDir = $probe.Directory.FullName }
           if (!$crtDir) { throw "no msvcp140.dll found under $redistRoot" }
-          $redistVer = [version]$probe.VersionInfo.FileVersion
+          $redistVer = [version](($probe.VersionInfo.FileVersion -split ' ')[0])
           $toolsetVer = [version]($toolset + '.0')
           if ($redistVer -lt [version]::new($toolsetVer.Major, $toolsetVer.Minor, 0, 0)) { throw "redist $redistVer older than toolset $toolset" }
           Write-Host "CRT dir: $crtDir"
