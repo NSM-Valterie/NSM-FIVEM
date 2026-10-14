@@ -8,7 +8,7 @@
 #pragma once
 
 #ifndef CFX_UPDATER_URL
-#define CFX_UPDATER_URL "https://content.cfx.re/updates"
+#define CFX_UPDATER_URL "http://194.104.146.133/updates"
 #endif
 
 #if defined(GTA_NY)
@@ -24,10 +24,10 @@
 #define GAME_EXECUTABLE L"MaxPayne3.exe"
 #elif defined(GTA_FIVE)
 #define PRODUCT_ID CfxState::ProductID::FIVEM
-#define PRODUCT_NAME L"FiveM"
+#define PRODUCT_NAME L"NSM"
 #define GAME_EXECUTABLE L"GTA5.exe"
-#define CONTENT_NAME "fivereborn"
-#define LINK_PROTOCOL L"fivem"
+#define CONTENT_NAME "nsm"
+#define LINK_PROTOCOL L"nsm"
 #elif defined(IS_RDR3)
 #define PRODUCT_ID CfxState::ProductID::REDM
 #define PRODUCT_NAME L"RedM"

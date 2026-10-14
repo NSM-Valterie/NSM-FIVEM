@@ -53,6 +53,12 @@ function Invoke-UploadClientSymbols {
         [CfxBuildTools] $Tools
     )
 
+    # [NSM] dry-run builds don't need symbol upload; skip it
+    if ($Context.IsDryRun) {
+        Write-Output "DRY RUN: skipping client symbol upload"
+        return
+    }
+
     $rsync = $Tools.getRsync()
     $symstore = $Tools.getSymstore()
     $dump_syms = $Tools.getDumpSyms()
