@@ -9,6 +9,13 @@ function Invoke-UploadServerSymbols {
         [string[]] $AdditionalSentryProjects = @()
     )
 
+    # [NSM] dry-run builds don't need symbol upload; skip it (also avoids
+    # requiring symstore/dump_syms/rsync tooling and the sym-upload cache dir)
+    if ($Context.IsDryRun) {
+        Write-Output "DRY RUN: skipping server symbol upload"
+        return
+    }
+
     $rsync = $Tools.getRsync()
     $symstore = $Tools.getSymstore()
     $dump_syms = $Tools.getDumpSyms()
