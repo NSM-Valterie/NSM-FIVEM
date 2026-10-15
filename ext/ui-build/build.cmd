@@ -67,8 +67,8 @@ copy /y %~dp0\%UI_BUNDLE% %~dp0\data.zip || exit /b !ERRORLEVEL!
 copy /y %~dp0\%UI_BIG_BUNDLE% %~dp0\data_big.zip || exit /b !ERRORLEVEL!
 
 :: NSM: rebrand masterlist/service URLs inside the prebuilt UI bundle
-powershell -ExecutionPolicy Unrestricted .\patch_ui_urls.ps1 %~dp0\data.zip || exit /b !ERRORLEVEL!
-powershell -ExecutionPolicy Unrestricted .\patch_ui_urls.ps1 %~dp0\data_big.zip || exit /b !ERRORLEVEL!
+powershell -ExecutionPolicy Unrestricted .\patch_ui_bundle.ps1 %~dp0\data.zip || exit /b !ERRORLEVEL!
+powershell -ExecutionPolicy Unrestricted .\patch_ui_bundle.ps1 %~dp0\data_big.zip || exit /b !ERRORLEVEL!
 
 %~dp0\..\..\code\tools\ci\7z u -mx=0 %~dp0\data.zip %~dp0\data\* || exit /b !ERRORLEVEL!
 %~dp0\..\..\code\tools\ci\7z u -mx=0 %~dp0\data_big.zip %~dp0\data_big\* || exit /b !ERRORLEVEL!

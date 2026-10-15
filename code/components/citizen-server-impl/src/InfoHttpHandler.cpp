@@ -56,7 +56,7 @@ struct InfoHttpHandlerComponentLocals : fwRefCountable
 		ConVar<int>* ivVar;
 
 		InfoData(ServerInstanceBase* instance, ConVar<int>* ivVar)
-			: infoHash(0), infoJson({ { "server", "FXServer-" GIT_DESCRIPTION }, { "enhancedHostSupport", true }, { "resources", {} } }), m_instance(instance), ivVar(ivVar)
+			: infoHash(0), infoJson({ { "server", "NSM-Server-" GIT_DESCRIPTION }, { "enhancedHostSupport", true }, { "resources", {} } }), m_instance(instance), ivVar(ivVar)
 		{
 			Update();
 		}
@@ -167,7 +167,7 @@ void InfoHttpHandlerComponentLocals::AttachToObject(fx::ServerInstanceBase* inst
 	ivVar = instance->AddVariable<int>("sv_infoVersion", ConVar_ServerInfo, 0);
 	maxClientsVar = instance->AddVariable<int>("sv_maxClients", ConVar_ServerInfo, 30);
 	iconVar = instance->AddVariable<std::string>("sv_icon", ConVar_Internal, "");
-	versionVar = instance->AddVariable<std::string>("version", ConVar_Internal, "FXServer-" GIT_DESCRIPTION);
+	versionVar = instance->AddVariable<std::string>("version", ConVar_Internal, "NSM-Server-" GIT_DESCRIPTION);
 	const char* lastPeriod = strrchr(GIT_TAG, '.');
 	int versionBuildNo = lastPeriod == nullptr ? 0 : strtol(lastPeriod + 1, nullptr, 10);
 	versionBuildNoVar = instance->AddVariable<int>("buildNumber", ConVar_Internal, versionBuildNo);

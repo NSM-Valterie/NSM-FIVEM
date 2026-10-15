@@ -30,6 +30,6 @@
 	</dependency>
 	<assemblyIdentity
 		type="win32"
-		name="FXServer"
+		name="NSMServer"
 		version="1.0.0.0" />
 </assembly>

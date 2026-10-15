@@ -13,6 +13,10 @@
 #include <cfx_version.h>
 
 #ifdef _WIN32
+#include <Windows.h>
+#endif
+
+#ifdef _WIN32
 void InitializeMiniDumpOverride();
 #endif
 
@@ -32,6 +36,9 @@ namespace fx
 {
 	void Server::Start(int argc, char* argv[])
 	{
+#ifdef _WIN32
+		SetConsoleTitleW(L"NSM Server");
+#endif
 		ComponentLoader* loader = ComponentLoader::GetInstance();
 
 #ifdef _WIN32
@@ -56,8 +63,10 @@ namespace fx
 
 		// get the right component
 		auto compName = "citizen:server:main";
-
-		if (argStr.find("\"+exec\" ") == std::string::npos)
+		// NSM: never launch the txAdmin monitor by default - run the plain
+		// server directly. The monitor stays available via -txadmin / -monitor.
+		if (argStr.find("\"-txadmin\"") != std::string::npos ||
+			argStr.find("\"-monitor\"") != std::string::npos)
 		{
 			compName = "citizen:server:monitor";
 		}
@@ -66,11 +75,10 @@ namespace fx
 			argStr.find("\"--start-node\"") == std::string::npos) ||
 			argStr.find("\"-V\"") != std::string::npos)
 		{
-			fmt::printf("Cfx.re Platform Server (FXServer) %s\n", GIT_DESCRIPTION);
+			fmt::printf("NSM Server (AxiomFX) %s\n", GIT_DESCRIPTION);
 			fmt::printf("Build date: %s\n", __DATE__);
 			fmt::printf("\n");
-			fmt::printf("Usage restrictions apply, see <https://fivem.net/terms> for further information.\n");
-			fmt::printf("Commercial usage is not permitted without prior approval.\n");
+			fmt::printf("NSM Community - https://discord.gg/UXj5QfCX88\n");
 			return;
 		}
 
@@ -78,7 +86,7 @@ namespace fx
 			argStr.find("\"--start-node\"") == std::string::npos) ||
 			argStr.find("\"-?\"") != std::string::npos)
 		{
-			fmt::printf("Usage:\n\n\t%s <+startupargs>\n\nSee https://docs.fivem.net/ for more usage information.\n", argv[0]);
+			fmt::printf("Usage:\n\n\t%s <+startupargs>\n\nJoin the community: https://discord.gg/UXj5QfCX88\n", argv[0]);
 			fmt::printf("\n");
 			fmt::printf("Now... go make something great.\n");
 			return;
@@ -91,6 +99,12 @@ namespace fx
 			compName = "citizen:server:fxdk";
 		}
 #endif
+
+		// NSM: default to executing server.cfg when no +exec was given
+		if (compName == "citizen:server:main" && argStr.find("\"+exec\" ") == std::string::npos)
+		{
+			argStr += "\"+exec\" \"server.cfg\" ";
+		}
 
 		fwRefContainer<ComponentData> serverComponent = loader->LoadComponent(compName);
 

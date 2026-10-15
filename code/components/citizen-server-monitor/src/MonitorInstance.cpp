@@ -169,14 +169,9 @@ namespace fx
 			consoleCtx->ExecuteBuffer();
 		});
 
-		trace(R"(^2  _______  ______                           
- |  ___\ \/ / ___|  ___ _ ____   _____ _ __ 
- | |_   \  /\___ \ / _ \ '__\ \ / / _ \ '__|
- |  _|  /  \ ___) |  __/ |   \ V /  __/ |   
- |_|   /_/\_\____/ \___|_|    \_/ \___|_|   
--------------------------------- ^3txAdmin^2 ---^7
+		trace("^2  _   _  ___  ____  ^7 ^5NSM Server^7 - ^5AxiomFX^7 ^2(monitor mode)^7
 
-)");
+");
 
 		// disable QuickEdit in *monitor mode only*
 		// #TODO: detect if we're running under Windows Terminal, in which case
@@ -200,7 +195,7 @@ namespace fx
 		std::shared_ptr<ConVar<std::string>> rootVar;
 
 		auto monitorVar = AddVariable<bool>("monitorMode", ConVar_None, true);
-		auto versionVar = AddVariable<std::string>("version", ConVar_None, "FXServer-" GIT_DESCRIPTION);
+		auto versionVar = AddVariable<std::string>("version", ConVar_None, "NSM-Server-" GIT_DESCRIPTION);
 
 		{
 			se::ScopedPrincipal principalScope(se::Principal{ "system.console" });
