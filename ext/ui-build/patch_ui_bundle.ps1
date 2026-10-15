@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not (Test-Path $ZipPath)) { throw "patch_ui_bundle: zip not found: $ZipPath" }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $invite = 'https://discord.gg/UXj5QfCX88'
@@ -37,7 +38,7 @@ $replacements = @(
     @('Cfx.re', 'AxiomFX'),
     @('https://x.com/FiveM/status/', 'https://x.com/scravenz101/status/'),
     @('FiveM', 'NSM'),
-    @('CitizenFX', 'AxiomFX'),
+    @('CitizenFX', 'AxiomFX')
 )
 
 $zip = [System.IO.Compression.ZipFile]::Open($ZipPath, 'Update')
