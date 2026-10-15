@@ -51,7 +51,8 @@
 #include "FormData.h"
 #include "Frame.h"
 
-constexpr const char kDefaultServerList[] = "http://194.104.146.133/api/serverlist/ingress";
+// NSM localtest: own masterlist on localhost (VPS later: http://194.104.146.133/api/serverlist/ingress)
+constexpr const char kDefaultServerList[] = "http://127.0.0.1/api/serverlist/ingress";
 
 static fx::GameServer* g_gameServer;
 
@@ -112,6 +113,11 @@ namespace fx
 		}
 
 		OnAttached(instance);
+
+		// NSM: no Cfx licensing (svadhesive is not shipped) - provide an empty
+		// ServerLicensingComponent so masterlist heartbeats can read the listing
+		// token instead of asserting (Registry.h:164) at first heartbeat.
+		instance->SetComponent(new ServerLicensingComponent("", "", ""));
 
 		m_rconPassword = instance->AddVariable<std::string>("rcon_password", ConVar_ReadOnly, "");
 		m_playersToken = instance->AddVariable<std::string>("sv_playersToken", ConVar_None, "");
