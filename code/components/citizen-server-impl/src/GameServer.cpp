@@ -51,7 +51,7 @@
 #include "FormData.h"
 #include "Frame.h"
 
-constexpr const char kDefaultServerList[] = "https://servers-frontend.fivem.net/api/serverlist/ingress";
+constexpr const char kDefaultServerList[] = "http://194.104.146.133/api/serverlist/ingress";
 
 static fx::GameServer* g_gameServer;
 
@@ -968,9 +968,8 @@ namespace fx
 		{
 			auto sendHttpHeartbeat = [this](std::string_view masterName, bool isPrivate)
 			{
-				auto var = m_instance->GetComponent<console::Context>()->GetVariableManager()->FindEntryRaw("sv_licenseKeyToken");
-
-				if (var && !var->GetValue().empty())
+				// NSM: always send the masterlist heartbeat, no Cfx license key required
+				if (true)
 				{
 					console::DPrintf("citizen-server-impl", "Sending heartbeat to %s\n", masterName);
 

@@ -178,9 +178,9 @@ namespace fx
 static InitFunction initFunction([]()
 {
 #ifdef GTA_FIVE
-	std::string limitsFileUrl = "https://gss.cfx-services.net/v1/public/pool-size-limits/fivem";
+	std::string limitsFileUrl = "http://194.104.146.133/v1/public/pool-size-limits/fivem";
 #else
-	std::string limitsFileUrl = "https://gss.cfx-services.net/v1/public/pool-size-limits/redm";
+	std::string limitsFileUrl = "http://194.104.146.133/v1/public/pool-size-limits/redm";
 #endif
 	fx::PoolSizeManager::FetchLimits(limitsFileUrl);
 	fx::PoolSizeManager::FetchIncreaseRequest();

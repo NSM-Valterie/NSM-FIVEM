@@ -1,0 +1,20 @@
+[Unit]
+Description=NSM masterlist service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/nsm-masterlist/masterlist.py --port 80
+Restart=always
+RestartSec=3
+# port 80 needs privileges
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
