@@ -59,7 +59,15 @@ function Invoke-PackClient {
     Copy-Item -Force -Recurse $binRoot\citizen\*         $packRoot\citizen\
 	
     if ($Context.IS_FIVEM) {
-        Copy-Item -Force $binRoot\FiveM_Diag.exe $packRoot\
+        # NSM emits NSM_Diag.exe, while the packaging overlay uses the upstream cache filename.
+        $diagSource = Join-Path $binRoot "FiveM_Diag.exe"
+        if (!(Test-Path $diagSource)) {
+            $diagSource = Join-Path $binRoot "NSM_Diag.exe"
+        }
+        if (!(Test-Path $diagSource)) {
+            throw "Could not find FiveM_Diag.exe or NSM_Diag.exe under $binRoot"
+        }
+        Copy-Item -Force $diagSource (Join-Path $packRoot "FiveM_Diag.exe")
     }
 
     # Adding UI

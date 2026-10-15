@@ -19,7 +19,7 @@
 #ifdef IS_FXSERVER
 #define PRODUCT_NAME "Server"
 #elif defined(GTA_FIVE)
-#define PRODUCT_NAME "NSM"
+#define PRODUCT_NAME "FiveM" // Keep CitizenFX.FiveM.* CLR assemblies compatible with premake and C# outputs.
 #elif defined(IS_RDR3)
 #define PRODUCT_NAME "RedM"
 #elif defined(GTA_NY)
