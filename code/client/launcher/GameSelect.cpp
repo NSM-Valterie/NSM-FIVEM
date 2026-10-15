@@ -161,7 +161,7 @@ std::optional<int> EnsureGamePath()
 				// Clear "wrong" path entry
 				WritePrivateProfileString(L"Game", pathKey, nullptr, fpath.c_str());
 
-				static constexpr auto GEN9_ERROR = L"Your selected game installation folder points to the Enhanced edition of GTA V, which is currently not supported by FiveM.\n\n"
+				static constexpr auto GEN9_ERROR = L"Your selected game installation folder points to the Enhanced edition of GTA V, which is currently not supported by NSM.\n\n"
 					L"Please select the installation folder for the Legacy version of GTA V.";
 				MessageBox(nullptr, GEN9_ERROR, PRODUCT_NAME, MB_OK | MB_ICONWARNING);
 			}
@@ -405,7 +405,7 @@ std::optional<int> EnsureGamePath()
 	if (const std::wstring lastComponent = std::filesystem::path(gamePath).parent_path().filename().wstring();
 		lastComponent.find(L"V Enhanced") != std::wstring::npos || lastComponent.find(L"VEnhanced") != std::wstring::npos)
 	{
-		static constexpr auto GEN9_ERROR = L"Your selected game installation folder points to the Enhanced edition of GTA V, which is currently not supported by FiveM.\n\n"
+		static constexpr auto GEN9_ERROR = L"Your selected game installation folder points to the Enhanced edition of GTA V, which is currently not supported by NSM.\n\n"
 			L"Please select the installation folder for the Legacy version of GTA V.";
 		MessageBox(nullptr, GEN9_ERROR, PRODUCT_NAME, MB_OK | MB_ICONWARNING);
 		return 0;

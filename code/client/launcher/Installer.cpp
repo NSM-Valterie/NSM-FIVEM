@@ -65,7 +65,7 @@ static std::wstring GetRootPath()
 	if (!appDataPath.empty())
 	{
 #ifdef GTA_FIVE
-		appDataPath += L"\\FiveM";
+		appDataPath += L"\\NSM";
 #elif defined(IS_RDR3)
 		appDataPath += L"\\RedM";
 #else
@@ -101,11 +101,11 @@ static void CreateUninstallEntryIfNeeded()
 
 	setUninstallString(L"DisplayName", PRODUCT_NAME);
 	setUninstallString(L"DisplayIcon", filename + std::wstring(L",0"));
-	setUninstallString(L"HelpLink", L"https://cfx.re/");
+	setUninstallString(L"HelpLink", L"https://discord.gg/UXj5QfCX88");
 	setUninstallString(L"InstallLocation", GetRootPath());
-	setUninstallString(L"Publisher", L"Cfx.re");
+	setUninstallString(L"Publisher", L"NSM Community");
 	setUninstallString(L"UninstallString", fmt::sprintf(L"\"%s\" -uninstall app", filename));
-	setUninstallString(L"URLInfoAbout", L"https://cfx.re/");
+	setUninstallString(L"URLInfoAbout", L"https://discord.gg/UXj5QfCX88");
 	setUninstallDword(L"NoModify", 1);
 	setUninstallDword(L"NoRepair", 1);
 }

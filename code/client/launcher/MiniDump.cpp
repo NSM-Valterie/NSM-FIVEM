@@ -451,7 +451,7 @@ static void OverloadCrashData(TASKDIALOGCONFIG* config)
 	if (blame)
 	{
 		static std::wstring errTitle = fmt::sprintf(L"%s encountered an error", blame);
-		static std::wstring errDescription = fmt::sprintf(L"FiveM crashed due to %s.\n%s", blame, blame_two);
+		static std::wstring errDescription = fmt::sprintf(L"NSM crashed due to %s.\n%s", blame, blame_two);
 
 		config->pszMainInstruction = errTitle.c_str();
 		config->pszContent = errDescription.c_str();
@@ -953,7 +953,7 @@ void InitializeDumpServer(int inheritedHandle, int parentPid)
 													if (wcsstr(filename, L".exe") != nullptr)
 													{
 #ifdef GTA_FIVE
-														wcscpy(filename, L"\\FiveM.exe");
+														wcscpy(filename, L"\\NSM.exe");
 #elif defined(IS_RDR3)
 														wcscpy(filename, L"\\RedM.exe");
 #else
@@ -1376,7 +1376,7 @@ void InitializeDumpServer(int inheritedHandle, int parentPid)
 
 						if (!cd.empty())
 						{
-							mainInstruction = gettext(L"FiveM crashed... but we're on it!");
+							mainInstruction = gettext(L"NSM crashed... but we're on it!");
 							cd += "\n\n";
 						}
 
