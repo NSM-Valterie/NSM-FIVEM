@@ -1,5 +1,5 @@
 // Windows NT Portable Executable file loader written by The_GTA.
-// Inspired by Bas Timmer's PE loading inside of FiveM.
+// Inspired by Bas Timmer's PE loading inside of NSM.
 
 // Target spec: Revision 10 – June 15, 2016
 // https://www.microsoft.com/en-us/download/details.aspx?id=19509

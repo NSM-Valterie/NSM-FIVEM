@@ -69,9 +69,9 @@ body:
       description: |
         Which of the following areas does this issue apply to? Please mark all that apply.
       options:
-        - FiveM
+        - NSM
         - RedM
-        - FXServer
+        - NSM Server
         - FxDK
         - 'OneSync'
         - 'Natives'
@@ -86,7 +86,7 @@ body:
     attributes:
       label: Specific version(s)
       description: Please fill in the build numbers of the product(s) this issue occured on
-      placeholder: FiveM/RedM 6464, Server 6402 windows/linux
+      placeholder: NSM/RedM 6464, Server 6402 windows/linux
     validations:
       required: true
   

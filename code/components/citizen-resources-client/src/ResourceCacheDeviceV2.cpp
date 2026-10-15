@@ -112,7 +112,7 @@ bool RcdBaseStream::EnsureRead(const std::function<void(bool, const std::string&
 				throw;
 			}
 
-			FatalError("Unable to ensure read in RCD: %s\n\nPlease report this issue, together with the information from 'Save information' down below on https://forum.fivem.net/.", e.what());
+			FatalError("Unable to ensure read in RCD: %s\n\nPlease report this issue, together with the information from 'Save information' down below on https://discord.gg/UXj5QfCX88", e.what());
 
 			return false;
 		}

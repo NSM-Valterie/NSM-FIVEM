@@ -27,7 +27,7 @@ static void Run(const boost::program_options::variables_map& map)
 {
 	if (map.count("filename") == 0)
 	{
-		printf("Usage:\n\n   fivem formats:exportShaders *.fxc...\n");
+		printf("Usage:\n\n   nsm formats:exportShaders *.fxc...\n");
 		return;
 	}
 

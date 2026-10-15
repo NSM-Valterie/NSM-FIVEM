@@ -1,4 +1,4 @@
-# FiveM server typings
+# NSM server typings
 
 ## Breaking changes
 

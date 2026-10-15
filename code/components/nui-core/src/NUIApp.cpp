@@ -225,7 +225,7 @@ void NUIApp::OnBeforeCommandLineProcessing(const CefString& process_type, CefRef
 	// prevent widewine from downloading
 	command_line->AppendSwitch("disable-component-update");
 
-	// register the CitizenFX game view plugin
+	// register the AxiomFX game view plugin
 #if !GTA_NY
 	command_line->AppendSwitchWithValue("register-pepper-plugins", fmt::sprintf("%s;application/x-cfx-game-view", ToNarrow(MakeRelativeCitPath(L"bin\\d3d_rendering.dll"))));
 #endif

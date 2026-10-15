@@ -677,7 +677,7 @@ LONG WINAPI RegOpenKeyExWStub(HKEY key, const wchar_t* subKey, DWORD options, RE
 {
 	if (subKey && wcsstr(subKey, L"Rockstar Games Social Club"))
 	{
-		//LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\CitizenFX\\Social Club", 0, nullptr, 0, KEY_READ, nullptr, outKey, nullptr);
+		//LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\AxiomFX\\Social Club", 0, nullptr, 0, KEY_READ, nullptr, outKey, nullptr);
 		auto setValue = [&] (const wchar_t* name, const wchar_t* keyString)
 		{
 			RegSetKeyValue(HKEY_CURRENT_USER, L"SOFTWARE\\CitizenFX\\Social Club", name, REG_SZ, keyString, (wcslen(keyString) * 2) + 2);

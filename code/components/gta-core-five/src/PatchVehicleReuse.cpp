@@ -5,7 +5,7 @@
 //
 // GH-2425: Ensure the CVehicle flag associated with "Using Pretend Occupants" 
 // is reset when a vehicle is being recycled from the reuse pool. At the moment 
-// FXServer does the repopulate the entire synctree with calls to CREATE_VEHICLE_SERVER_SETTER
+// NSM Server does the repopulate the entire synctree with calls to CREATE_VEHICLE_SERVER_SETTER
 // causing this value to leak from previous vehicles.
 //
 

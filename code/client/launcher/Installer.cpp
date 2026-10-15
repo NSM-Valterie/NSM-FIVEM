@@ -112,7 +112,7 @@ static void CreateUninstallEntryIfNeeded()
 
 void Install_Uninstall(const wchar_t* directory)
 {
-	// check if this is actually a FiveM directory we're trying to uninstall
+	// check if this is actually a NSM directory we're trying to uninstall
 	if (GetFileAttributes(fmt::sprintf(L"%s\\%s", directory, PRODUCT_NAME L".app").c_str()) == INVALID_FILE_ATTRIBUTES)
 	{
 		return;

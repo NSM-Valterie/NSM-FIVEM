@@ -2,7 +2,7 @@
 * Dynamic CPool<>
 * Copyright (c) 2014 LINK/2012 <dma_2012@hotmail.com>
 * Licensed under the MIT License (http://opensource.org/licenses/MIT)
-* Modified for the CitizenFX framework, removing GTA III dependencies.
+* Modified for the AxiomFX framework, removing GTA III dependencies.
 */
 #pragma once
 

@@ -8,7 +8,7 @@ apiset: shared
 BOOL IS_DUPLICITY_VERSION();
 ```
 
-Gets whether or not this is the CitizenFX server.
+Gets whether or not this is the AxiomFX server.
 
 ## Return value
 A boolean value.

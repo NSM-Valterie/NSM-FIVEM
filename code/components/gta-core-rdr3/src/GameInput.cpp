@@ -86,7 +86,7 @@ static void DispatchBindingCommand(const std::string& command, bool isDownEvent)
 {
 	std::string_view commandString = command;
 
-	// '~!' is a UI-only prefix (fivem#2084); strip it for execution.
+	// '~!' is a UI-only prefix (nsm#2084); strip it for execution.
 	if (commandString.rfind("~!", 0) == 0)
 	{
 		commandString = commandString.substr(2);

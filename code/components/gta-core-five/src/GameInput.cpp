@@ -550,7 +550,7 @@ void Binding::Update()
 				std::string thisString = thisCmd.str();
 				thisCmd.str("");
 
-				// suppress any missing commands (requested via https://forum.cfx.re/t/1859314/3)
+				// suppress any missing commands (requested via https://discord.gg/UXj5QfCX88
 				bool ignore = false;
 
 				if (!m_tag.empty())
@@ -1439,7 +1439,7 @@ static HookFunction hookFunction([]()
 		}
 	});
 
-	game::AddCustomText("PM_PANE_CFX", "FiveM");
+	game::AddCustomText("PM_PANE_CFX", "NSM");
 
 	// Snapmatic gallery error message when not logged-in to the forum / Discourse account
 	game::AddCustomText("SG_PH_LS_CL_FL", "To upload Snapmatic photos to the forum, please log in to your Cfx.re account in the main menu.");

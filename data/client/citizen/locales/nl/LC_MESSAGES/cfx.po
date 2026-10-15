@@ -227,7 +227,7 @@ msgstr "%s uitpakken (scannen)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM werkt niet meer... maar we weten er van af!"
+msgstr "NSM werkt niet meer... maar we weten er van af!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -235,8 +235,8 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM kan niet gestart worden met verhoogde bevoegdheden. Wijzig je "
-"instellingen in Windows zodat FiveM niet als beheerder gestart wordt.\n"
+"NSM kan niet gestart worden met verhoogde bevoegdheden. Wijzig je "
+"instellingen in Windows zodat NSM niet als beheerder gestart wordt.\n"
 "Het spel zal zichzelf nu afsluiten."
 
 #: client/launcher/MiniDump.cpp:1308

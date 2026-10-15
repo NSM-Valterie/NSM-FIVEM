@@ -48,7 +48,7 @@ void MumbleAudioInput::Initialize()
 {
 	m_bitrateVar = std::make_shared<ConVar<int>>("voice_inBitrate", ConVar_None, m_curBitrate, &m_curBitrate);
 	// NOTE: If the maximum here is ever increased we need to properly split audio packets into smaller buffers so we don't send packets
-	// that are to large to the server, for FiveM mumble sending too large of a packet will result in the client being dropped, in the mumble-server
+	// that are to large to the server, for NSM mumble sending too large of a packet will result in the client being dropped, in the mumble-server
 	// implementation this will just cause the packet to be ignored.
 	m_bitrateVar->GetHelper()->SetConstraints(16000, 128000);
 
@@ -428,7 +428,7 @@ void MumbleAudioInput::SendQueuedOpusPackets()
 
 		const auto& [packet, frames] = packetChunk;
 
-		// Maximum size of Opus audio frames is 8191, but we *can't* actually send that much, FiveMs mumble will drop the player, while other implementations will just ignore the packet.
+		// Maximum size of Opus audio frames is 8191, but we *can't* actually send that much, NSMs mumble will drop the player, while other implementations will just ignore the packet.
 		// This should be split into multiple packets for higher voice bitrates.
 		// https://mumble-protocol.readthedocs.io/en/latest/voice_data.html#packet-format 
 		// https://mumble-protocol.readthedocs.io/en/latest/voice_data.html#opus-audio-frames

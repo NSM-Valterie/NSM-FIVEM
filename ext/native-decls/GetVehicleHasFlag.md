@@ -8,7 +8,7 @@ apiset: client
 bool GET_VEHICLE_HAS_FLAG(Vehicle vehicle, int flagIndex);
 ```
 
-**Note**: Flags are not the same based on your `gamebuild`. Please see [here](https://docs.fivem.net/docs/game-references/vehicle-references/vehicle-flags) to see a complete list of all vehicle flags.
+**Note**: Flags are not the same based on your `gamebuild`. Please see [here](https://discord.gg/UXj5QfCX88 to see a complete list of all vehicle flags.
 
 Get vehicle.meta flag by index. Useful examples include `FLAG_LAW_ENFORCEMENT` (31), `FLAG_RICH_CAR` (36), `FLAG_IS_ELECTRIC` (43), `FLAG_IS_OFFROAD_VEHICLE` (48).
 

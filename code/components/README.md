@@ -1,6 +1,6 @@
 # `components/`
 
-CitizenFX implementation components.
+AxiomFX implementation components.
 
 ## List
 

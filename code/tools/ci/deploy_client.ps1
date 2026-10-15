@@ -39,7 +39,7 @@ try {
         $cacheDir = [IO.Path]::Combine($ctx.CachesRoot, $clientCacheName)
         $cacheName = $clientCacheName
 
-        # Fix up cache name for RedM, it uses the same cache dir as FiveM, but has it's own name
+        # Fix up cache name for RedM, it uses the same cache dir as NSM, but has it's own name
         if ($ctx.IS_REDM) {
             $cacheName = "redm"
         }

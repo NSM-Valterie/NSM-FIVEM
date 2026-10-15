@@ -9,7 +9,7 @@ game: gta5
 void REGISTER_STREAMING_FILE_FROM_KVS(char* kvsKey);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Registers a KVP value as an asset with the GTA streaming module system. This function currently won't work.
 

@@ -225,7 +225,7 @@ msgstr "Extrayendo %s (escaneando)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM crasheó... ¡Pero estamos en ello!"
+msgstr "NSM crasheó... ¡Pero estamos en ello!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -233,8 +233,8 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM no apoya el correr bajo privilegios elevados. Por favor, cambie su "
-"configuración de Windows para no ejecutar FiveM como administrador.\n"
+"NSM no apoya el correr bajo privilegios elevados. Por favor, cambie su "
+"configuración de Windows para no ejecutar NSM como administrador.\n"
 "El juego se cerrará ahora."
 
 #: client/launcher/MiniDump.cpp:1308

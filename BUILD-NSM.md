@@ -39,10 +39,10 @@ Outputs land in `code\bin\five\debug\` (client) and `code\bin\server\` (server).
 
 - `v8.dll` etc. are copied automatically after the build.
 - Optional: symlink `game-storage` to save disk:
-  `mklink /d game-storage "%localappdata%\FiveM\FiveM.app\data\game-storage"`
+  `mklink /d game-storage "%localappdata%\NSM\NSM.app\data\game-storage"`
   (inside `code\bin\five\debug\data\`).
 - If the game starts but shows only background + cursor + F8 console:
-  copy `citizen\ui` from an installed FiveM (`%LocalAppData%\FiveM\FiveM.app\citizen\ui`)
+  copy `citizen\ui` from an installed NSM (`%LocalAppData%\NSM\NSM.app\citizen\ui`)
   into `code\bin\five\debug\citizen\ui`.
 
 ## Known issues (from upstream docs)

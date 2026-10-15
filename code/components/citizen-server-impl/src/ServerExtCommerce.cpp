@@ -80,7 +80,7 @@ static std::string ParseIdentifier(const std::string& id)
 {
 	if (id.find(":") == std::string::npos)
 	{
-		return fmt::sprintf("fivem:%s", id);
+		return fmt::sprintf("nsm:%s", id);
 	}
 
 	return id;
@@ -557,7 +557,7 @@ std::optional<int> ClientExtCommerceComponent::GetUserId()
 
 	for (const auto& identifier : identifiers)
 	{
-		if (identifier.find("fivem:") == 0)
+		if (identifier.find("nsm:") == 0)
 		{
 			int userId = atoi(identifier.substr(6).c_str());
 

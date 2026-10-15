@@ -222,7 +222,7 @@ msgstr "%s 추출중 (스캔하는중)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM이 충돌하였습니다... 하지만 우리가 해결할게요!"
+msgstr "NSM이 충돌하였습니다... 하지만 우리가 해결할게요!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -230,7 +230,7 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM은 관리자 권한으로 실행 할 수 없습니다. FiveM을 관리자 권한으로 실행하"
+"NSM은 관리자 권한으로 실행 할 수 없습니다. NSM을 관리자 권한으로 실행하"
 "지 않도록 윈도우 설정을 변경해주세요.\n"
 "게임이 곧 종료 됩니다."
 

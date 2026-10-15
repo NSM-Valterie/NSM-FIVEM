@@ -8,7 +8,7 @@ apiset: shared
 void REMOVE_STATE_BAG_CHANGE_HANDLER(int cookie);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Removes a handler for changes to a state bag.
 

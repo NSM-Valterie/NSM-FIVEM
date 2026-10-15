@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Modified for integration with CitizenFX by removing dependencies.
+// Modified for integration with AxiomFX by removing dependencies.
 
 #pragma once
 

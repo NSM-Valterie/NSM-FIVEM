@@ -10,7 +10,7 @@ int GET_NET_TYPE_FROM_ENTITY(Entity entity);
 
 Gets the specific entity type (as an integer), which can be one of the following defined down below:
 
-#### FiveM:
+#### NSM:
 ```c
 enum eNetObjEntityType
 {

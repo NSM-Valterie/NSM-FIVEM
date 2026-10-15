@@ -1,4 +1,4 @@
-# FiveM client typings
+# NSM client typings
 
 ## Breaking changes
 

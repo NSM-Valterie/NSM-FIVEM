@@ -115,7 +115,7 @@ void* rage_pgStreamer_ctor(void* self)
 	// the game's own raw streamer
 	auto ret = g_orig_rage_pgStreamer_ctor(self);
 
-	// for fivem
+	// for nsm
 	AddRawStreamer();
 
 	// for mod loader

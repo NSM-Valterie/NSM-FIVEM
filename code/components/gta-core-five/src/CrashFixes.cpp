@@ -749,7 +749,7 @@ static HookFunction hookFunction{[] ()
 	}
 
 	// netobj cloning: door count check
-	// signature (1103): FiveM.exe@0xefeae1
+	// signature (1103): NSM.exe@0xefeae1
 	static struct : jitasm::Frontend
 	{
 		void InternalMain() override
@@ -773,7 +773,7 @@ static HookFunction hookFunction{[] ()
 		hook::call_reg<2>(location, carFixStub3.GetCode());
 	}
 
-	// something related to netobjs, crash sig FiveM.exe@0x5cd7e4
+	// something related to netobjs, crash sig NSM.exe@0x5cd7e4
 	// (on disconnecting with certain cars)
 	{
 		auto matches = hook::pattern("41 0F B6 80 4A 03 00 00 3B D0").count(2);
@@ -783,7 +783,7 @@ static HookFunction hookFunction{[] ()
 		MH_EnableHook(MH_ALL_HOOKS);
 	}
 
-	// crash signature FiveM.exe@0x75c050
+	// crash signature NSM.exe@0x75c050
 	// CPed collision handling with phInstFrag in certain cases (climbing on cars?)
 	static struct : jitasm::Frontend
 	{

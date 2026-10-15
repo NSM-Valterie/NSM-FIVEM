@@ -306,7 +306,7 @@ static InitFunction initFunction([] ()
 #ifdef IS_FXSERVER
 		"fxserver"
 #elif defined(GTA_FIVE)
-		"fivem"
+		"nsm"
 #elif defined(GTA_NY)
 		"libertym"
 #elif defined(IS_RDR3)

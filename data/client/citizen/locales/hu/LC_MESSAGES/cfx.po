@@ -222,7 +222,7 @@ msgstr "%s kibontása (ellenőrzés)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "A FiveM crashelt... de rajta vagyunk!"
+msgstr "A NSM crashelt... de rajta vagyunk!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -230,8 +230,8 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"A FiveM nem támogatja a megemelt jogosultságokkal való futtatást. Kérjük, "
-"módosítsa a Windows beállításait, hogy ne futtassa a FiveM-et "
+"A NSM nem támogatja a megemelt jogosultságokkal való futtatást. Kérjük, "
+"módosítsa a Windows beállításait, hogy ne futtassa a NSM-et "
 "rendszergazdaként.\n"
 "A játék most kilép."
 

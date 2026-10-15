@@ -244,7 +244,7 @@ void DLL_EXPORT scriptUnregister(HMODULE hMod) // 372+ API
 	}
 }
 
-// CitizenFX doesn't have globals normally - this is therefore a no-op
+// AxiomFX doesn't have globals normally - this is therefore a no-op
 DLL_EXPORT uint64_t* getGlobalPtr(int)
 {
 	// let the user party on a dummy global (allocate some buffer size at the end, though)

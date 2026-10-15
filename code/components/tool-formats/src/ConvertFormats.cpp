@@ -465,7 +465,7 @@ static void FormatsConvert_Run(const boost::program_options::variables_map& map)
 {
 	if (map.count("filename") == 0)
 	{
-		printf("Usage:\n\n   fivem formats:convert filename<1-n>...\n\nCurrently, GTA:NY static bounds (wbn), drawables (wdr) and texture dictionaries (wtd) are supported.\nSee your vendor for details.\n");
+		printf("Usage:\n\n   nsm formats:convert filename<1-n>...\n\nCurrently, GTA:NY static bounds (wbn), drawables (wdr) and texture dictionaries (wtd) are supported.\nSee your vendor for details.\n");
 		return;
 	}
 

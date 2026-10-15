@@ -48,7 +48,7 @@
 #include "server.h"
 
 #define MAX_TEXT 512
-// fivem usernames can be 200 characters long + 8 for the max prefix size "[65535] "
+// nsm usernames can be 200 characters long + 8 for the max prefix size "[65535] "
 #define MAX_USERNAME 208
 
 #define NO_CELT_MESSAGE "<strong>WARNING:</strong> Your client doesn't support the CELT codec, you won't be able to talk to or hear most clients. Please make sure your client was built with CELT support."

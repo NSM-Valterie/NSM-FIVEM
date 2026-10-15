@@ -224,7 +224,7 @@ msgstr "Paketerar upp %s (Söker igenom)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM kraschade... men vi är på det!"
+msgstr "NSM kraschade... men vi är på det!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -232,8 +232,8 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM stödjer inte körning under administratörsrättigheter. Vänliga ändra "
-"dina Windows inställningar till att inte köra FiveM som administratör.\n"
+"NSM stödjer inte körning under administratörsrättigheter. Vänliga ändra "
+"dina Windows inställningar till att inte köra NSM som administratör.\n"
 "Spelet avslutas."
 
 #: client/launcher/MiniDump.cpp:1308

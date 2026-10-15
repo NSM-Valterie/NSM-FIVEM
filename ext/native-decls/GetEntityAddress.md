@@ -8,7 +8,7 @@ apiset: client
 Any* GET_ENTITY_ADDRESS(Entity entity);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Returns the memory address of an entity.
 

@@ -15,7 +15,7 @@ Possible values:
 | Return value | Meaning                        |
 | ------------ | ------------------------------ |
 | `fxserver`   | Server-side code ('Duplicity') |
-| `fivem`      | FiveM for GTA V                |
+| `nsm`      | NSM for GTA V                |
 | `libertym`   | LibertyM for GTA IV            |
 | `redm`       | RedM for Red Dead Redemption 2 |
 

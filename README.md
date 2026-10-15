@@ -1,6 +1,6 @@
 # NSM-FIVEM
 
-NSM Multiplayer client — **A1 build**: the full FiveM (CitizenFX) client/server stack,
+NSM Multiplayer client — **A1 build**: the full NSM (AxiomFX) client/server stack,
 rebranded and re-pointed at NSM infrastructure.
 
 - **Origin:** snapshot of `citizenfx/fivem` (imported via `platinum-cfx/fivem-source` @ `06215ba`).

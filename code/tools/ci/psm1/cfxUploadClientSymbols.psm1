@@ -174,10 +174,10 @@ function Invoke-UploadClientSymbols {
             }
         }
 
-        # CitizenFX_SubProcess_chrome -> ChromeBrowser
+        # AxiomFX_SubProcess_chrome -> ChromeBrowser
         Rename-SymstoreEntry $symUploadDir "CitizenFX_SubProcess_chrome.exe" "${aliasPrefix}_ChromeBrowser"
 
-        # CitizenFX_SubProcess_game_mtl -> ROSLauncher + ROSService
+        # AxiomFX_SubProcess_game_mtl -> ROSLauncher + ROSService
         Copy-SymstoreEntry $symUploadDir "CitizenFX_SubProcess_game_mtl.exe" "${aliasPrefix}_ROSService"
         Rename-SymstoreEntry $symUploadDir "CitizenFX_SubProcess_game_mtl.exe" "${aliasPrefix}_ROSLauncher"
 

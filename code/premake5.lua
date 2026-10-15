@@ -181,7 +181,7 @@ workspace "CitizenMP"
 		vectorextensions 'SSSE3'
 	end
 
-	-- special build dirs for FXServer
+	-- special build dirs for NSM Server
 	if _OPTIONS['game'] == 'server' then
 		location ((_OPTIONS['builddir'] or "build/") .. "server/" .. os.target())
 		architecture 'x64'

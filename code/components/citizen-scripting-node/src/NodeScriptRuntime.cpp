@@ -460,7 +460,7 @@ result_t NodeScriptRuntime::Create(IScriptHost* host)
 		// store the ScRT in the context
 		context->SetEmbedderData(16, v8::External::New(m_isolate, this));
 
-		// allow "eval" and "new Function" (required by some fivem scripts)
+		// allow "eval" and "new Function" (required by some nsm scripts)
 		context->AllowCodeGenerationFromStrings(true);
 
 		// context scope is required for environment creation

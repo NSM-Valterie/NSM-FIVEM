@@ -962,7 +962,7 @@ bool netSyncTree::WriteTreeCfx(int flags, int objFlags, rage::netObject* object,
 						trace("Node type: %s\n", typeid(*node).name());
 						trace("Start offset: %d\n", startPos);
 
-						FatalError("Tried to write a bad node length of %d bits in a '%s'. There should only ever be 8192 bits. Please report this on https://forum.fivem.net/t/318260 together with the .zip file from 'save information' below.", length, typeid(*node).name());
+						FatalError("Tried to write a bad node length of %d bits in a '%s'. There should only ever be 8192 bits. Please report this on https://discord.gg/UXj5QfCX88 together with the .zip file from 'save information' below.", length, typeid(*node).name());
 					}
 #endif
 

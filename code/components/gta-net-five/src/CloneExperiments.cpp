@@ -1506,7 +1506,7 @@ static rlGamerInfo* NetGamePlayerGetGamerInfo(CNetGamePlayer* self)
 	FatalError("CNetGamePlayer::GetGamerInfo returned nullptr, this is a fatal error.\n"
 		"Physical player index: %d\nActive player index: %d\nPlayer address: %x\n\n"
 		"Please report this issue, together with the information from 'Save information' down below on\n"
-		"https://forum.cfx.re/t/cnetgameplayer-getgamerinfo-returns-nullptr-causing-crashes",
+		"https://discord.gg/UXj5QfCX88",
 		self->physicalPlayerIndex(), self->activePlayerIndex(), (uint64_t)self);
 }
 

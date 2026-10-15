@@ -20,7 +20,7 @@ enum_VehicleLockStatus = {
 }
 ```
 
-It should be [noted](https://forum.cfx.re/t/4863241) that while the [client-side command](#_0x25BC98A59C2EA962) and its
+It should be [noted](https://discord.gg/UXj5QfCX88 that while the [client-side command](#_0x25BC98A59C2EA962) and its
 setter distinguish between states 0 (unset) and 1 (unlocked), the game will synchronize both as state 0, so the server-side
 command will return only '0' if unlocked.
 

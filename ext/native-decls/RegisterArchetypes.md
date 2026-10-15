@@ -9,7 +9,7 @@ game: gta5
 void REGISTER_ARCHETYPES(func factory);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Registers a set of archetypes with the game engine. These should match `CBaseArchetypeDef` class information from the game.
 

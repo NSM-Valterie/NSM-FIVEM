@@ -218,7 +218,7 @@ msgstr "正在匯出 %s (搜尋中)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM崩潰了...但是我們在繼續！"
+msgstr "NSM崩潰了...但是我們在繼續！"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -226,8 +226,8 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM不支持在以管理員身分下執行。 請更改您的Windows設定為不以管理員身分運行"
-"FiveM。\n"
+"NSM不支持在以管理員身分下執行。 請更改您的Windows設定為不以管理員身分運行"
+"NSM。\n"
 "現在遊戲將會關閉。"
 
 #: client/launcher/MiniDump.cpp:1308

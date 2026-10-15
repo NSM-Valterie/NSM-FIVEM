@@ -18,7 +18,7 @@ static InitFunction initFunction([]
 		/#*
 		 * An event that is triggered when the game triggers an internal network event.
 		 * CEventName can be any event name that GTA 5 throws, e.g.: "CEventShockingCarCrash".
-		 * see: https://docs.fivem.net/docs/game-references/game-events/ for a list of known events.
+		 * see: https://discord.gg/UXj5QfCX88 for a list of known events.
 		 *
 		 * @param entities - All entities receiving/emitting the event, can be empty.
 		 * @param eventEntity - Entity the event is related to.

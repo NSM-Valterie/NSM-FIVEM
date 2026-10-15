@@ -8,7 +8,7 @@ apiset: server
 char* REGISTER_RESOURCE_ASSET(char* resourceName, char* fileName);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Registers a cached resource asset with the resource system, similar to the automatic scanning of the `stream/` folder.
 

@@ -890,7 +890,7 @@ static HookFunction initFunction([]()
 	fx::ScriptEngine::RegisterNativeHandler("GET_VEHICLE_TYPE_RAW", std::bind(readVehicleMemory<int32_t, &VehicleTypeOffset>, _1, "GET_VEHICLE_TYPE_RAW"));
 	fx::ScriptEngine::RegisterNativeHandler("GET_VEHICLE_TYPE", [](fx::ScriptContext& context)
 	{
-		// Parity with FXServer.
+		// Parity with NSM Server.
 		//
 		// #HACK: Ripped from ServerGameState_Scripting.cpp. For now everything
 		// is hard-coded instead of redefining NetObjEntityType.

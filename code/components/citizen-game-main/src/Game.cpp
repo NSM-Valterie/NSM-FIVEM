@@ -125,7 +125,7 @@ public:
 
 				connIp = hostnameStr;
 
-				RunMod("fivem", "");
+				RunMod("nsm", "");
 
 				cmp("Starting the target game.", 0, 1);
 			}

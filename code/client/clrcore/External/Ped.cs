@@ -1685,7 +1685,7 @@ namespace CitizenFX.Core
 		///  Enables an AI Blip for this <see cref="Ped"/> with color
 		/// </summary>
 		/// <param name="sprite">Blip sprite for the AI Blip</param>
-		/// <param name="color">Color for the AI Blip (see <see href="https://docs.fivem.net/docs/game-references/blips/#blip-colors">the docs</see> (blip colors))</param>
+		/// <param name="color">Color for the AI Blip (see <see href="https://discord.gg/UXj5QfCX88">the docs</see> (blip colors))</param>
 		public void AIBlipEnable(int sprite, int color)
 		{
 			API.SetPedHasAiBlipWithColor(Handle, true, color);

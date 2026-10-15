@@ -536,7 +536,7 @@ namespace CitizenFX.Core
 		/// <param name="halfAngle">'Width' of the cone (0.0f - pi)</param>
 		/// <param name="distance">Distance of the cone</param>
 		/// <param name="heading">Heading of the cone in radians (degrees * pi / 180)</param>
-		/// <param name="color">Color of the cone (see <see href="https://docs.fivem.net/docs/game-references/hud-colors/">hud colors</see>/></param>
+		/// <param name="color">Color of the cone (see <see href="https://discord.gg/UXj5QfCX88">hud colors</see>/></param>
 		/// <param name="unk0">Unknown at this time</param>
 		/// <param name="unk1">Unknown at this time</param>
 		/// <param name="unk2">Unknown at this time</param>

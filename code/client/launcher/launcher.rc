@@ -23,7 +23,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #ifdef GTA_NY
 IDI_ICON1               ICON                    "citizeniv.ico"
 #elif defined(GTA_FIVE)
-IDI_ICON1               ICON                    "fivem.ico"
+IDI_ICON1               ICON                    "nsm.ico"
 #elif defined(IS_RDR3)
 IDI_ICON1               ICON                    "redm.ico"
 #endif
@@ -32,8 +32,8 @@ IDI_ICON1               ICON                    "redm.ico"
 IDI_SNAIL				ICON					"snail.ico"
 
 #if defined(GTA_FIVE)
-IDI_SP					ICON					"fivem_sp.ico"
-IDI_SDK					ICON					"fivem_sdk.ico"
+IDI_SP					ICON					"nsm_sp.ico"
+IDI_SDK					ICON					"nsm_sdk.ico"
 #endif
 #endif
 

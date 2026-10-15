@@ -12,7 +12,7 @@ Returns the internal build number of the current game being executed.
 
 Possible values:
 
-* FiveM
+* NSM
   * 1604
   * 2060
   * 2189
@@ -36,7 +36,7 @@ Possible values:
   * 1491
 * LibertyM
   * 43
-* FXServer
+* NSM Server
   * 0
 
 ## Return value

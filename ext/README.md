@@ -1,4 +1,4 @@
-# CitizenFX External Projects
+# AxiomFX External Projects
 
 This directory contains external projects which are _generally_ part of the core build in some way, but not considered
 part of the main project.
@@ -11,6 +11,6 @@ part of the main project.
 * [**natives/**](./natives): Code generation tooling to convert a native function database in 'intermediate' Lua format to runnable Lua/JS/C# and other intermediate formats.
 * [**nuget/**](./nuget): Build files for the `CitizenFX.Core.Client` and `CitizenFX.Core.Server` NuGet packages.
 * [**symbol-upload/**](./symbol-upload): A tool to collect Linux build symbols to upload to a .NET Core-style symbol server.
-* [**system-resources/**](./system-resources): System resources bundled with FXServer by default.
+* [**system-resources/**](./system-resources): System resources bundled with NSM Server by default.
 * [**typings/**](./typings): Build files for the `@citizenfx/client` and `@citizenfx/server` NPM packages.
 * [**ui-build/**](./ui-build): Scripts and data files for building `citizen/ui.zip` including root helpers, legacy UI scripts and a packed version of `cfx-ui`.

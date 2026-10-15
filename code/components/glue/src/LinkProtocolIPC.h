@@ -9,7 +9,7 @@ namespace cfx::glue
 /**
  * IPC related to handling of protocol links.
  *
- * When user clicks a protocol link, e.g. fivem://connect/...
+ * When user clicks a protocol link, e.g. nsm://connect/...
  * Windows will launch our executable and LinkProtocolIPC
  * will handle sending of a message to the master process.
  *

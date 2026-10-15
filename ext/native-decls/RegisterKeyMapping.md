@@ -17,8 +17,8 @@ Below you can find some examples on how to create these keybindings as well as t
 ## Parameters
 * **commandString**: The command to execute, and the identifier of the binding.
 * **description**: A description for in the settings menu.
-* **defaultMapper**: The [mapper ID](https://docs.fivem.net/docs/game-references/input-mapper-parameter-ids/) to use for the default binding, e.g. `keyboard`.
-* **defaultParameter**: The [IO parameter ID](https://docs.fivem.net/docs/game-references/input-mapper-parameter-ids/) to use for the default binding, e.g. `f3`.
+* **defaultMapper**: The [mapper ID](https://discord.gg/UXj5QfCX88 to use for the default binding, e.g. `keyboard`.
+* **defaultParameter**: The [IO parameter ID](https://discord.gg/UXj5QfCX88 to use for the default binding, e.g. `f3`.
 
 ## Examples
 

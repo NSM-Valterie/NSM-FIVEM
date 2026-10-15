@@ -222,7 +222,7 @@ msgstr "Çıkartılıyor %s (taranıyor)"
 
 #: client/launcher/MiniDump.cpp:1245
 msgid "FiveM crashed... but we're on it!"
-msgstr "FiveM hata verdi... üzerinde çalışıyoruz!"
+msgstr "NSM hata verdi... üzerinde çalışıyoruz!"
 
 #: client/launcher/Main.cpp:633
 msgid ""
@@ -230,7 +230,7 @@ msgid ""
 "Windows settings to not run FiveM as administrator.\n"
 "The game will exit now."
 msgstr ""
-"FiveM özel izinler ile çalıştırılmayı desteklememektedir. Lütfen FiveM' i "
+"NSM özel izinler ile çalıştırılmayı desteklememektedir. Lütfen NSM' i "
 "yönetici yetkisi ile çalıştırmayın.\n"
 "Oyun şimdi kapatılacak."
 

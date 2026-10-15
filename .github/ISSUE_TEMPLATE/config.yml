@@ -8,9 +8,9 @@ contact_links:
     url: https://github.com/citizenfx/fivem-docs
     about: For all docs.fivem.net related requests and issues
     
-  - name: FiveM native documentation
+  - name: NSM native documentation
     url: https://github.com/citizenfx/natives
-    about: For issues related to FiveM game natives
+    about: For issues related to NSM game natives
     
   - name: RedM native documentation
     url: https://github.com/citizenfx/natives_rdr3

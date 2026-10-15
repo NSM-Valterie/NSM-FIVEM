@@ -150,7 +150,7 @@ MonoAssembly* MonoComponentHost::AssemblyResolve(MonoAssemblyName* assemblyName,
 
 	//trace("Searching for assembly: %s (%d.%d.%d.%d)\n", name, version[0], version[1], version[2], version[3]);
 
-	// only checking major version 2 assemblies and "CitizenFX.*" names for an early out, until more are required
+	// only checking major version 2 assemblies and "AxiomFX.*" names for an early out, until more are required
 	if (version[0] == uint16_t(2u) && strncmp(name, "CitizenFX.", 10) == 0)
 	{
 		std::string strAssemblyName(name);

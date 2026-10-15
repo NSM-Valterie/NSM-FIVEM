@@ -271,7 +271,7 @@ int RealMain()
 	// this needs to be before *any* MakeRelativeCitPath use in main process
 	auto initState = CfxState::Get();
 
-	// set link protocol, e.g. fivem or redm
+	// set link protocol, e.g. nsm or redm
 	initState->SetLinkProtocol(LINK_PROTOCOL);
 
 	// set product ID
@@ -634,7 +634,7 @@ int RealMain()
 #ifndef LAUNCHER_PERSONALITY_CHROME
 	// NSM: explicitly initialize the Steam client API after loading the SDK,
 	// so the process registers with Steam as playing steam_appid.txt's app
-	// (Source SDK Base 2007), the same behavior FiveM's client has.
+	// (Source SDK Base 2007), the same behavior NSM's client has.
 	{
 		HMODULE steamApi = GetModuleHandleW(MakeRelativeCitPath(L"steam_api64.dll").c_str());
 		if (steamApi)
@@ -679,12 +679,12 @@ int RealMain()
 			// create the mutex
 			CreateMutex(nullptr, TRUE, L"CitizenFX_LogMutex");
 
-			// rotate any CitizenFX.log files cleanly
+			// rotate any NSM.log files cleanly
 			const int MaxLogs = 10;
 
 			auto makeLogName = [](int idx)
 			{
-				return MakeRelativeCitPath(va(L"CitizenFX.log%s", (idx == 0) ? L"" : va(L".%d", idx)));
+				return MakeRelativeCitPath(va(L"NSM.log%s", (idx == 0) ? L"" : va(L".%d", idx)));
 			};
 
 			for (int i = (MaxLogs - 1); i >= 0; i--)

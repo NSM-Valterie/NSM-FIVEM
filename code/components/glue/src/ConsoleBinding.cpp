@@ -13,7 +13,7 @@
 #if defined(IS_RDR3)
 #define CONFIG_NAME "redm"
 #elif defined(GTA_FIVE)
-#define CONFIG_NAME "fivem"
+#define CONFIG_NAME "nsm"
 #elif defined (GTA_NY)
 #define CONFIG_NAME "citizeniv"
 #endif

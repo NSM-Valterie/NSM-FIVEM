@@ -1,5 +1,5 @@
 name: Documentation Improvement
-description: Improve request for FiveM, RedM, or FXServer's documentation
+description: Improve request for NSM, RedM, or NSM Server's documentation
 labels: ["documentation", "triage"]
 assignees:
   - 
@@ -57,9 +57,9 @@ body:
       description: |
         Which of the following areas does this request apply to? Please mark all that apply.
       options:
-        - FiveM
+        - NSM
         - RedM
-        - FXServer
+        - NSM Server
         - FxDK
         - 'OneSync'
         - 'Natives'

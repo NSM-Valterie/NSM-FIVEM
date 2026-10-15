@@ -1062,7 +1062,7 @@ static void Run(const boost::program_options::variables_map& map)
 {
 	if (map.count("filename") == 0)
 	{
-		printf("Usage:\n\n   fivem formats:gltfImport *.gltf/*.glb...\n");
+		printf("Usage:\n\n   nsm formats:gltfImport *.gltf/*.glb...\n");
 		return;
 	}
 

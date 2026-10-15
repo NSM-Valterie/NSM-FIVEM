@@ -1469,7 +1469,7 @@ public:
 			return;
 		}
 
-		// can only be used on FiveM, RDR doesn't have its sync nodes filled out
+		// can only be used on NSM, RDR doesn't have its sync nodes filled out
 #ifdef STATE_FIVE
 		// this will be ignored by DELETE_TRAIN so calling on any part of the train will delete the entire thing
 		if constexpr (!IgnoreTrainChecks)

@@ -128,7 +128,7 @@ static void Run(const boost::program_options::variables_map& map)
 {
 	if (map.count("filename") == 0)
 	{
-		printf("Usage:\n\n   fivem tool:vehrec *.rrr...\n");
+		printf("Usage:\n\n   nsm tool:vehrec *.rrr...\n");
 		return;
 	}
 

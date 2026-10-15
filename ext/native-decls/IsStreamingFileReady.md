@@ -9,7 +9,7 @@ game: gta5
 BOOL IS_STREAMING_FILE_READY(char* registerAs);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Returns whether an asynchronous streaming file registration completed.
 

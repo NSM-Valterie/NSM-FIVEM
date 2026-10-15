@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       product:
-        description: 'Product to build (fxserver = server, fivem = client)'
+        description: 'Product to build (NSM server or client)'
         required: true
         default: 'fxserver'
         type: choice

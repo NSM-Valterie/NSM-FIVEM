@@ -218,7 +218,7 @@ build_proot_linux:
     - job: build_client_rdr3
       artifacts: true
 
-# FiveM deployments
+# NSM deployments
 fivem_deploy_canary:
   extends: [.base_fivem_deploy]
   environment:

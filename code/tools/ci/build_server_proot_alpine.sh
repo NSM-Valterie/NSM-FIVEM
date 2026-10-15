@@ -54,7 +54,7 @@ fi
 
 ## SETUP-CUTOFF
 
-# build CitizenFX
+# build AxiomFX
 cd /src/code
 
 premake5 gmake2 --game=server --cc=clang --dotnet=msnet

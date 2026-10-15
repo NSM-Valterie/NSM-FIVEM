@@ -6135,7 +6135,7 @@ declare function givePedScriptedTaskEvent(sender: number, data: {
 	 #/
 	entityNetId: number,
 	/#*
-	 * The ID of the assigned task. See [GetIsTaskActive](https://docs.fivem.net/natives/?_0xB0760331C7AA4155)
+	 * The ID of the assigned task. See [GetIsTaskActive](https://discord.gg/UXj5QfCX88
 	 #/
 	taskId: number,
 	

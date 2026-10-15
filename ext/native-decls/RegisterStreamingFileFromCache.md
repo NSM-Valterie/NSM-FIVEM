@@ -9,7 +9,7 @@ game: gta5
 void REGISTER_STREAMING_FILE_FROM_CACHE(char* resourceName, char* fileName, char* cacheString);
 ```
 
-**Experimental**: This native may be altered or removed in future versions of CitizenFX without warning.
+**Experimental**: This native may be altered or removed in future versions of AxiomFX without warning.
 
 Registers a dynamic streaming asset from the server with the GTA streaming module system.
 

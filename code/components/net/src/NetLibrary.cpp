@@ -43,7 +43,7 @@
 #endif
 
 #ifdef GTA_FIVE
-#define PRODUCT_NAME "FiveM"
+#define PRODUCT_NAME "NSM"
 #elif defined(IS_RDR3)
 #define PRODUCT_NAME "RedM"
 #endif
@@ -1158,7 +1158,7 @@ concurrency::task<void> NetLibrary::ConnectToServer(const std::string& rootUrl)
 #if defined(IS_RDR3)
 				if (node["gamename"].is_null() || node["gamename"].get<std::string>() != "rdr3")
 				{
-					OnConnectionError("This server is not compatible with RedM, as it's for FiveM. Please join an actual RedM server instead.");
+					OnConnectionError("This server is not compatible with RedM, as it's for NSM. Please join an actual RedM server instead.");
 					m_connectionState = CS_IDLE;
 					return true;
 				}

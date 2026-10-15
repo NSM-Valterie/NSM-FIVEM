@@ -1752,7 +1752,7 @@ struct CPhysicalScriptMigrationDataNode { };
 struct CVehicleProximityMigrationDataNode
 {
 // The vehicles population type can change on migrate. This is not something
-// supported by FXServer at the moment, see GH-2097.
+// supported by NSM Server at the moment, see GH-2097.
 #if 0
 	ePopType m_popType;
 
