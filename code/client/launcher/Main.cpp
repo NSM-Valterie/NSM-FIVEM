@@ -631,6 +631,23 @@ int RealMain()
 
 	LoadLibrary(MakeRelativeCitPath(L"steam_api64.dll").c_str());
 
+#ifndef LAUNCHER_PERSONALITY_CHROME
+	// NSM: explicitly initialize the Steam client API after loading the SDK,
+	// so the process registers with Steam as playing steam_appid.txt's app
+	// (Source SDK Base 2007), the same behavior FiveM's client has.
+	{
+		HMODULE steamApi = GetModuleHandleW(MakeRelativeCitPath(L"steam_api64.dll").c_str());
+		if (steamApi)
+		{
+			auto steamApiInit = (bool(__stdcall*)())GetProcAddress(steamApi, "SteamAPI_Init");
+			if (steamApiInit)
+			{
+				steamApiInit();
+			}
+		}
+	}
+#endif
+
 	if (addDllDirectory)
 	{
 		addDllDirectory(MakeRelativeGamePath(L"").c_str());

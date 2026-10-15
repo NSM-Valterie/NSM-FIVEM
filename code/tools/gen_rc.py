@@ -31,21 +31,21 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Cfx.re"
+            VALUE "CompanyName", "NSM Community"
 #if defined(GTA_FIVE)
-			VALUE "FileDescription", "{1} for FiveM"
+			VALUE "FileDescription", "{1} for NSM"
 #elif defined(IS_RDR3)
 			VALUE "FileDescription", "{1} for RedM"
 #elif defined(IS_FXSERVER)
-			VALUE "FileDescription", "{1} for FXServer"
+			VALUE "FileDescription", "{1} for NSM Server"
 #else
-			VALUE "FileDescription", "{1} for CitizenFX"
+			VALUE "FileDescription", "{1} for AxiomFX"
 #endif
             VALUE "FileVersion", "1.0.0.{0}"
             VALUE "InternalName", "{1}"
-            VALUE "LegalCopyright", "(C) 2015- CitizenFX Collective"
+            VALUE "LegalCopyright", "(C) 2026 NSM Community"
             VALUE "OriginalFilename", "{1}.dll"
-            VALUE "ProductName", "CitizenFX"
+            VALUE "ProductName", "AxiomFX"
             VALUE "ProductVersion", "1.0.0.{0}"
         END
     END

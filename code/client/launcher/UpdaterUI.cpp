@@ -146,7 +146,7 @@ auto theme_TitleFg = 0xABABAB;
 auto theme_SubtitleFg = 0xABABAB;
 auto theme_ProgressBg = 0x090A09;
 #if defined(GTA_FIVE)
-auto theme_ProgressFg = 0x66AD43;
+auto theme_ProgressFg = 0x2F7BFF; // NSM blue
 auto theme_Icon = LR"(
 <Viewbox Height="150" Margin="0,0,0,60" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 	<Path
