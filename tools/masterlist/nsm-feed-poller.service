@@ -1,0 +1,15 @@
+[Unit]
+Description=NSM Discord feed poller (mirrors #updates channel into the game feed)
+After=network-online.target nsm-masterlist.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nsm-masterlist
+EnvironmentFile=/opt/nsm-masterlist/poller.env
+ExecStart=/usr/bin/python3 /opt/nsm-masterlist/discord_feed_poller.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

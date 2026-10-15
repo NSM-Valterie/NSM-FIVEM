@@ -1,96 +1,73 @@
-# NSM masterlist service
+# NSM masterlist v2
 
-Minimal replacement for the Cfx masterlist/identity endpoints, pointed at by
-NSM clients (v3+) and servers (v6+). Ships as **standalone binaries — nothing
-to install** (no Python, no .NET, no dependencies):
+Standalone masterlist for NSM Community (AxiomFX). Single Go binary,
+standard library only. v2 adds: **server upvotes**, **fake players with
+auto-generated names** (owner-only), the **official feed** (Discord +
+owner posts shown in the client home screen), and an **owner admin API**.
 
-| File | Runs on |
-|---|---|
-| `NSM-Masterlist.exe` | Windows x64 |
-| `nsm-masterlist-linux-amd64` | Linux x64 (most VPSes) |
-| `nsm-masterlist-linux-arm64` | Linux ARM64 |
-| `masterlist.py` | anything with Python 3.8+ (fallback, same behavior) |
-
-## Windows
-
-```bat
-:: from an ELEVATED prompt (port 80 needs admin):
-NSM-Masterlist.exe
-:: or without admin:
-NSM-Masterlist.exe --port 8080
-```
-
-Open the firewall once (elevated):
-```bat
-netsh advfirewall firewall add rule name="NSM Masterlist" dir=in action=allow protocol=TCP localport=80
-```
-
-To keep it running 24/7: NSSM (`nssm install NSM-Masterlist C:\path\NSM-Masterlist.exe`)
-or Task Scheduler ("At startup", run whether user is logged on or not).
-
-## Linux VPS (recommended)
+## Deploy (VPS)
 
 ```bash
-mkdir -p /opt/nsm-masterlist && cp nsm-masterlist-linux-amd64 masterlist-deps/* /opt/nsm-masterlist/ 2>/dev/null || true
-cp nsm-masterlist-linux-amd64 /opt/nsm-masterlist/nsm-masterlist
-chmod +x /opt/nsm-masterlist/nsm-masterlist
-cp nsm-masterlist.service /etc/systemd/system/
+mkdir -p /opt/nsm-masterlist && cd /opt/nsm-masterlist
+# unpack nsm-masterlist-vps.zip here
+cp masterlist.env.example masterlist.env   # set OWNER_TOKEN!
+cp poller.env.example poller.env           # set DISCORD_BOT_TOKEN!
+cp nsm-masterlist.service nsm-feed-poller.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now nsm-masterlist
-curl http://127.0.0.1/health        # -> NSM masterlist service
+systemctl enable --now nsm-feed-poller     # once bot token is set
 ```
 
-Open TCP 80 inbound in the VPS firewall. Quick test without systemd:
-`./nsm-masterlist-linux-amd64 --port 8080`
+Binaries: `nsm-masterlist-linux-amd64` (rename to `nsm-masterlist`),
+`nsm-masterlist-linux-arm64` (ARM VPSes), `NSM-Masterlist.exe` (Windows).
 
-## Verify it works
+## Owner admin API (Bearer OWNER_TOKEN)
 
 ```bash
-curl http://194.104.146.133/health
-# -> NSM masterlist service
+TOK="your-owner-token"; API="http://127.0.0.1:80"
 
-# fake a heartbeat, then check the list:
-curl -X POST http://194.104.146.133/api/serverlist/ingress \
-  -H 'Content-Type: application/json' \
-  -d '{"port":30120,"fallbackData":{"dynamic":{"clients":0,"hostname":"test","svMaxclients":48}}}'
-curl http://194.104.146.133/api/servers/single/127.0.0.1:30120
+# upvotes: set or add, any amount, multiple servers at once
+curl -X POST $API/admin/upvotes -H "Authorization: Bearer $TOK" \
+  -d '{"endpoints":["1.2.3.4:30120","5.6.7.8:30120"],"set":100}'
+curl -X POST $API/admin/upvotes -H "Authorization: Bearer $TOK" \
+  -d '{"endpoints":["1.2.3.4:30120"],"add":25}'
+
+# fake players: 1..9000 per server (0 = off); auto-generates player names
+curl -X POST $API/admin/fakeplayers -H "Authorization: Bearer $TOK" \
+  -d '{"endpoints":["1.2.3.4:30120"],"count":250}'
+
+# post to the in-game feed (client home screen)
+curl -X POST $API/admin/feed -H "Authorization: Bearer $TOK" \
+  -d '{"text":"Welcome to NSM!","author":"Cravenz","screenName":"scravenz101"}'
+
+# inspect state
+curl $API/admin/state -H "Authorization: Bearer $TOK"
 ```
 
-## How it fits together
+Upvotes drive the client's "Upvote Power" stat and the Boosts sort order.
+Fake players override the player count (if above real) and fill the player
+list with deterministic, natural-looking names (BlazeSniper, ElectricCobra,
+...). Both survive restarts (state.json).
 
-| Endpoint | Consumer | Purpose |
-|---|---|---|
-| `GET /api/servers/streamRedir/` | client UI (server browser) | full list, 4-byte LE length-prefixed protobuf `master.Server` frames |
-| `GET /api/servers/single/<ep>` | client UI | single server JSON for direct connect / favorites |
-| `GET /api/servers/icon/...` | client UI | server icons (404 = default icon) |
-| `POST /api/serverlist/ingress` | NSM server heartbeat | registers/refreshes a server (5 min TTL) |
-| `GET /api/ticket/pubkey` | server (when `sv_lan false`) | RSA pubkey for ticket checks |
-| `GET /api/identities`, `/api/ticket/identities` | client UI | linked identities (empty) |
-| `GET /v1/public/*`, `/runtime/counts.json` | client UI / server | news, featured, pool limits (empty defaults) |
+## Feed
 
-Servers appear in the browser only while they heartbeat; entries expire after
-5 minutes. The service forces `vars.gamename = gta5` so the client's browser
-filter (`init(["gta5"])`) shows them.
+The client home screen feed (`/v1/public/tweets`) serves:
+- **Discord posts** — the poller mirrors your `#updates` channel
+  (message text + author + avatar + image attachments)
+- **Owner posts** — via `/admin/feed`
 
-## Server configuration (on the NSM server)
+Discord bot setup (one time): see `poller.env.example`. The poller pushes
+new messages within ~45s. X/Twitter integration is possible later via the
+same `/admin/feed/import` endpoint (needs an X developer account; X API
+reads are no longer free).
 
-```
-sv_lan "true"        # no Cfx connect tickets — required for direct connect
-sv_hostname "..."    # shown in the browser
-```
+## Upvote pricing (Phase 2, website)
 
-`sv_master1` already defaults to `http://194.104.146.133/api/serverlist/ingress`
-in NSM server v6+; the heartbeat is sent regardless of license key.
+FiveM sells upvotes at ~$6 each; NSM will match at **$5.99/upvote** with
+volume packs, purchasable on the NSM website once it is hosted (Phase 2).
+Until then the owner grants upvotes via the admin API above.
 
-## Rebuilding from source
+## Endpoints
 
-`masterlist.go` is the source (Go standard library only):
-`GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o NSM-Masterlist.exe .`
-
-## Notes
-
-- `ticket-signing-key.pem` is the RSA key whose public half is served at
-  `/api/ticket/pubkey`. Only relevant if a server runs `sv_lan false`; the
-  ticket-issuing flow is not implemented, so keep `sv_lan true`.
-- Heartbeats are accepted from any source; protect the port or trust your
-  network if listing garbage entries is a concern.
+See the header comment in `masterlist.go` for the full endpoint list.
+`masterlist.py` (v1, Python) is kept as a fallback.

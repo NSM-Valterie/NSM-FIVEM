@@ -35,6 +35,7 @@ $replacements = @(
     @('#66ad43', '#2f7bff'),
     @('#bbe093', '#a8c7ff'),
     @('Cfx.re', 'AxiomFX'),
+    @('https://x.com/FiveM/status/', 'https://x.com/scravenz101/status/'),
     @('FiveM', 'NSM'),
     @('CitizenFX', 'AxiomFX'),
 )

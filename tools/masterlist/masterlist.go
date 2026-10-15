@@ -1,11 +1,13 @@
-// NSM masterlist service
-// ======================
+// NSM masterlist service v2
+// =========================
 // Standalone replacement for the Cfx masterlist endpoints used by NSM
 // clients (v3+) and servers (v6+). Single file, standard library only.
 //
 // Build:
 //   go build -o nsm-masterlist .
 //   GOOS=windows GOARCH=amd64 go build -o NSM-Masterlist.exe .
+//   GOOS=linux GOARCH=amd64 go build -o nsm-masterlist-linux-amd64 .
+//   GOOS=linux GOARCH=arm64 go build -o nsm-masterlist-linux-arm64 .
 //
 // Endpoints (all on one port, default 80):
 //   GET  /api/servers/streamRedir/     full list: [4-byte LE length][protobuf master.Server] frames
@@ -17,12 +19,23 @@
 //   GET  /api/ticket/identities        ticket identities (empty)
 //   GET  /v1/public/featured-servers   featured servers (empty)
 //   GET  /v1/public/notices/fivem      notices (empty)
-//   GET  /v1/public/tweets             tweets (empty)
+//   GET  /v1/public/tweets             official feed (Twitter-format JSON array;
+//                                      sources: owner posts + Discord poller)
 //   GET  /v1/public/pool-size-limits/* pool limits (empty = unlimited)
 //   GET  /runtime/counts.json          player counts [n, 0, n]
 //
-// Entries expire 5 minutes after their last heartbeat.
-// vars.gamename is forced to "gta5" so the client browser filter shows them.
+// Owner admin API (Authorization: Bearer $OWNER_TOKEN, owner-only):
+//   POST /admin/upvotes      {"endpoints":[...], "set":N} or {"add":N}
+//   POST /admin/fakeplayers  {"endpoints":[...], "count":N}  (0..9000, 0=off)
+//   POST /admin/feed         {"text":"...", "author":"...", "screenName":"...",
+//                             "avatar":"...", "url":"..."}   (owner post)
+//   POST /admin/feed/import  {"items":[{id,text,author,screenName,avatar,url,
+//                             createdAt,media:[{url,w,h}]}]}  (poller, id-deduped)
+//   POST /admin/feed/delete  {"id":"..."}
+//   GET  /admin/state        current mods + feed
+//
+// Entries expire 5 minutes after their last heartbeat. Owner mods (upvotes,
+// fake players) persist in state.json and survive restarts.
 package main
 
 import (
@@ -44,6 +57,7 @@ import (
 const (
 	heartbeatTTL = 300 * time.Second
 	gamename     = "gta5"
+	fakeMax      = 9000
 )
 
 // ---------------------------------------------------------------------------
@@ -53,9 +67,12 @@ const (
 //   int32 svMaxclients = 1; int32 clients = 2; int32 protocol = 3;
 //   string hostname = 4; string gametype = 5; string mapname = 6;
 //   repeated string resources = 8; string server = 9;
+//   repeated master.Player players = 10; int32 iconVersion = 11;
 //   map<string,string> vars = 12; bool enhancedHostSupport = 16;
 //   int32 upvotePower = 17; repeated string connectEndPoints = 18;
-//   int32 burstPower = 19; })
+//   int32 burstPower = 19; }
+// master.Player { string name = 1; repeated string identifiers = 2;
+//   string endpoint = 3; int32 ping = 4; int32 id = 5; })
 // ---------------------------------------------------------------------------
 
 func pbVarint(n uint64) []byte {
@@ -96,6 +113,28 @@ func pbMessage(field int, payload []byte) []byte {
 	return append(out, payload...)
 }
 
+// Player is the per-player entry served in ServerData.players (field 10).
+// Identifiers are always omitted: we never fabricate player identifiers.
+type Player struct {
+	Name string `json:"name"`
+	Ping int64  `json:"ping,omitempty"`
+	ID   int64  `json:"id,omitempty"`
+}
+
+func encodePlayer(p *Player) []byte {
+	var out []byte
+	if p.Name != "" {
+		out = append(out, pbString(1, p.Name)...)
+	}
+	if p.Ping != 0 {
+		out = append(out, pbInt(4, p.Ping)...)
+	}
+	if p.ID != 0 {
+		out = append(out, pbInt(5, p.ID)...)
+	}
+	return out
+}
+
 // ServerData is the per-server payload; JSON tags mirror the protobufjs
 // camelCase naming used by the /api/servers/single/ JSON endpoint.
 type ServerData struct {
@@ -108,6 +147,7 @@ type ServerData struct {
 	Resources           []string          `json:"resources"`
 	Server              string            `json:"server"`
 	IconVersion         int64             `json:"iconVersion,omitempty"`
+	Players             []Player          `json:"players,omitempty"`
 	Vars                map[string]string `json:"vars"`
 	EnhancedHostSupport bool              `json:"enhancedHostSupport"`
 	UpvotePower         int64             `json:"upvotePower"`
@@ -134,6 +174,9 @@ func encodeServerData(d *ServerData) []byte {
 	}
 	if d.Server != "" {
 		out = append(out, pbString(9, d.Server)...)
+	}
+	for i := range d.Players {
+		out = append(out, pbMessage(10, encodePlayer(&d.Players[i]))...)
 	}
 	if d.IconVersion != 0 {
 		out = append(out, pbInt(11, d.IconVersion)...)
@@ -238,14 +281,143 @@ func (r *registry) live() map[string]*entry {
 var reg = newRegistry()
 
 // ---------------------------------------------------------------------------
+// owner mods (upvotes / fake players) + feed, persisted to state.json
+// ---------------------------------------------------------------------------
+
+type serverMods struct {
+	Upvotes        *int64 `json:"upvotes,omitempty"`        // absolute override
+	FakePlayerCnt  int64  `json:"fakePlayers,omitempty"`    // 1..9000, 0 = off
+}
+
+type feedMedia struct {
+	URL string `json:"url"`
+	W   int    `json:"w"`
+	H   int    `json:"h"`
+}
+
+type feedItem struct {
+	ID         string      `json:"id"`
+	Text       string      `json:"text"`
+	Author     string      `json:"author"`
+	ScreenName string      `json:"screenName"`
+	Avatar     string      `json:"avatar,omitempty"`
+	URL        string      `json:"url,omitempty"`
+	CreatedAt  time.Time   `json:"createdAt"`
+	Source     string      `json:"source"`
+	Media      []feedMedia `json:"media,omitempty"`
+}
+
+type ownerState struct {
+	Servers map[string]serverMods `json:"servers"`
+	Feed    []feedItem            `json:"feed"`
+	FeedIDs map[string]bool       `json:"-"` // dedupe set (rebuilt on load)
+}
+
+var (
+	stateMu sync.RWMutex
+	state   = ownerState{Servers: map[string]serverMods{}, FeedIDs: map[string]bool{}}
+	ownerTok string
+)
+
+func statePath() string { return *stateFile }
+
+func loadState() {
+	b, err := os.ReadFile(statePath())
+	if err != nil {
+		return
+	}
+	var s ownerState
+	if json.Unmarshal(b, &s) != nil {
+		log.Printf("state.json unreadable, starting fresh")
+		return
+	}
+	if s.Servers == nil {
+		s.Servers = map[string]serverMods{}
+	}
+	s.FeedIDs = map[string]bool{}
+	for _, it := range s.Feed {
+		s.FeedIDs[it.ID] = true
+	}
+	stateMu.Lock()
+	state = s
+	stateMu.Unlock()
+	log.Printf("state loaded: %d server mods, %d feed items", len(s.Servers), len(s.Feed))
+}
+
+func saveStateLocked() {
+	b, err := json.MarshalIndent(&state, "", " ")
+	if err != nil {
+		return
+	}
+	tmp := statePath() + ".tmp"
+	if os.WriteFile(tmp, b, 0o600) == nil {
+		os.Rename(tmp, statePath())
+	}
+}
+
+// applyMods overlays owner settings onto live server data (caller holds copy).
+func applyMods(ep string, d *ServerData) {
+	stateMu.RLock()
+	m, ok := state.Servers[ep]
+	stateMu.RUnlock()
+	if !ok {
+		return
+	}
+	if m.Upvotes != nil {
+		d.UpvotePower = *m.Upvotes
+	}
+	if m.FakePlayerCnt > 0 {
+		fake := m.FakePlayerCnt
+		if fake > fakeMax {
+			fake = fakeMax
+		}
+		if fake > d.Clients {
+			d.Clients = fake
+			d.Players = fakePlayers(ep, int(fake))
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// fake player names: deterministic per server (stable across refreshes)
+// ---------------------------------------------------------------------------
+
+var fakeAdj = []string{"Silent", "Rapid", "Wild", "Lunar", "Steel", "Neon", "Shadow", "Crimson", "Frost", "Turbo",
+	"Savage", "Golden", "Electric", "Midnight", "Rogue", "Blaze", "Venom", "Iron", "Cosmic", "Ghost"}
+var fakeNoun = []string{"Wolf", "Tiger", "Raptor", "Viper", "Falcon", "Reaper", "Titan", "Phantom", "Drifter", "Bandit",
+	"Ranger", "Hunter", "Sniper", "Panda", "Cobra", "Panther", "Dragon", "Hawk", "Fox", "Bear"}
+
+func fakePlayers(ep string, n int) []Player {
+	// stable seed from endpoint
+	var seed uint64 = 1469598103934665603
+	for i := 0; i < len(ep); i++ {
+		seed ^= uint64(ep[i])
+		seed *= 1099511628211
+	}
+	start := int(seed % 400) // rotate base combos per server
+	out := make([]Player, 0, n)
+	for i := 0; i < n; i++ {
+		// step 37 (coprime with 400) so consecutive names vary both parts
+		idx := (start + i*37) % 400
+		name := fakeAdj[idx%20] + fakeNoun[(idx/20)%20]
+		if s := i / 400; s > 0 {
+			name += fmt.Sprintf("%02d", s%100)
+		}
+		ping := int64(20 + (seed>>uint(i%32))%140) // 20..160ms, deterministic
+		out = append(out, Player{Name: name, Ping: ping, ID: int64(i + 1)})
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------------
 // heartbeat -> ServerData mapping
 // ---------------------------------------------------------------------------
 
 type heartbeat struct {
-	Port        int64  `json:"port"`
+	Port         int64  `json:"port"`
 	ListingToken string `json:"listingToken"`
-	IPOverride  string `json:"ipOverride"`
-	Private     bool   `json:"private"`
+	IPOverride   string `json:"ipOverride"`
+	Private      bool   `json:"private"`
 	FallbackData struct {
 		Players json.RawMessage        `json:"players"`
 		Info    map[string]interface{} `json:"info"`
@@ -392,6 +564,58 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
+func isOwner(r *http.Request) bool {
+	if ownerTok == "" {
+		return false
+	}
+	auth := r.Header.Get("Authorization")
+	ok := auth == "Bearer "+ownerTok
+	if !ok {
+		time.Sleep(500 * time.Millisecond) // blunt brute force
+	}
+	return ok
+}
+
+// twitterTime renders times the way the UI's tweet parser expects.
+func twitterTime(t time.Time) string { return t.Format("Mon Jan 02 15:04:05 -0700 2006") }
+
+// tweetShape converts a feed item into the raw Twitter-format object the
+// client's rawTweetToActivityDataItem() consumes.
+func tweetShape(it feedItem) map[string]interface{} {
+	user := map[string]interface{}{
+		"name":         it.Author,
+		"screen_name":  it.ScreenName,
+	}
+	if it.Avatar != "" {
+		user["profile_image_url_https"] = it.Avatar
+	}
+	tw := map[string]interface{}{
+		"id_str":     it.ID,
+		"text":       it.Text,
+		"created_at": twitterTime(it.CreatedAt),
+		"user":       user,
+		"entities":   map[string]interface{}{"urls": []interface{}{}},
+	}
+	if len(it.Media) > 0 {
+		media := make([]interface{}, 0, len(it.Media))
+		for _, m := range it.Media {
+			w, h := m.W, m.H
+			if w <= 0 || h <= 0 {
+				w, h = 1280, 720
+			}
+			media = append(media, map[string]interface{}{
+				"id_str":           it.ID + "_m",
+				"type":             "photo",
+				"media_url":        m.URL,
+				"media_url_https":  m.URL,
+				"sizes":            map[string]interface{}{"large": map[string]int{"w": w, "h": h}},
+			})
+		}
+		tw["extended_entities"] = map[string]interface{}{"media": media}
+	}
+	return tw
+}
+
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	setCors(w)
 	if r.Method == http.MethodOptions {
@@ -401,9 +625,19 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 
+	// ---- owner admin API ----
+	if strings.HasPrefix(path, "/admin/") {
+		if !isOwner(r) {
+			sendJSON(w, http.StatusUnauthorized, map[string]string{"error": "owner token required"})
+			return
+		}
+		h.serveAdmin(w, r, path)
+		return
+	}
+
 	switch {
 	case path == "/" || path == "/health":
-		body := "NSM masterlist service\n"
+		body := "NSM masterlist service v2\n"
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeader(http.StatusOK)
@@ -411,7 +645,13 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case path == "/api/servers/streamRedir/":
 		live := reg.live()
-		body := streamBytes(live)
+		out := make(map[string]*entry, len(live))
+		for ep, e := range live {
+			d := e.data
+			applyMods(ep, &d)
+			out[ep] = &entry{data: d, last: e.last}
+		}
+		body := streamBytes(out)
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeader(http.StatusOK)
@@ -420,6 +660,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/api/servers/single/"):
 		ep := strings.TrimPrefix(path, "/api/servers/single/")
 		if d := reg.get(ep); d != nil {
+			applyMods(ep, d)
 			sendJSON(w, http.StatusOK, map[string]interface{}{"EndPoint": ep, "Data": d})
 		} else {
 			sendJSON(w, http.StatusNotFound, map[string]interface{}{})
@@ -442,15 +683,27 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string][]string{"notices": {}})
 
 	case path == "/v1/public/tweets":
-		sendJSON(w, http.StatusOK, map[string][]string{"tweets": {}})
+		stateMu.RLock()
+		items := make([]feedItem, len(state.Feed))
+		copy(items, state.Feed)
+		stateMu.RUnlock()
+		// newest first, highest id first
+		sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
+		out := make([]interface{}, 0, len(items))
+		for _, it := range items {
+			out = append(out, tweetShape(it))
+		}
+		sendJSON(w, http.StatusOK, out)
 
 	case strings.HasPrefix(path, "/v1/public/pool-size-limits/"):
 		sendJSON(w, http.StatusOK, map[string]int{})
 
 	case path == "/runtime/counts.json":
 		players := int64(0)
-		for _, e := range reg.live() {
-			players += e.data.Clients
+		for ep, e := range reg.live() {
+			d := e.data
+			applyMods(ep, &d)
+			players += d.Clients
 		}
 		sendJSON(w, http.StatusOK, []int64{players, 0, players})
 
@@ -473,7 +726,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		endPoint = strings.ReplaceAll(endPoint, "[", "")
 		endPoint = strings.ReplaceAll(endPoint, "]", "")
 		reg.upsert(endPoint, serverDataFromHeartbeat(&hb))
-		log.Printf("[heartbeat] %s clients=%d", endPoint, reg.get(endPoint).Clients)
+		d := reg.get(endPoint)
+		clients := int64(0)
+		if d != nil {
+			clients = d.Clients
+		}
+		log.Printf("[heartbeat] %s clients=%d", endPoint, clients)
 		sendJSON(w, http.StatusOK, map[string]interface{}{}) // empty lastError = success
 
 	default:
@@ -481,10 +739,217 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *handler) serveAdmin(w http.ResponseWriter, r *http.Request, path string) {
+	if r.Method != http.MethodPost && path != "/admin/state" {
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST required"})
+		return
+	}
+	switch path {
+
+	case "/admin/state":
+		stateMu.RLock()
+		snap := ownerState{Servers: state.Servers, Feed: state.Feed}
+		stateMu.RUnlock()
+		sendJSON(w, http.StatusOK, snap)
+
+	case "/admin/upvotes":
+		var req struct {
+			Endpoints []string `json:"endpoints"`
+			Set       *int64   `json:"set"`
+			Add       *int64   `json:"add"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil || len(req.Endpoints) == 0 ||
+			(req.Set == nil && req.Add == nil) {
+			sendJSON(w, http.StatusBadRequest, map[string]string{"error": "need endpoints and set or add"})
+			return
+		}
+		stateMu.Lock()
+		updated := map[string]int64{}
+		for _, ep := range req.Endpoints {
+			m := state.Servers[ep]
+			switch {
+			case req.Set != nil:
+				v := *req.Set
+				m.Upvotes = &v
+			case req.Add != nil && m.Upvotes != nil:
+				v := *m.Upvotes + *req.Add
+				if v < 0 {
+					v = 0
+				}
+				m.Upvotes = &v
+			case req.Add != nil:
+				v := *req.Add
+				if v < 0 {
+					v = 0
+				}
+				m.Upvotes = &v
+			}
+			state.Servers[ep] = m
+			updated[ep] = *m.Upvotes
+		}
+		saveStateLocked()
+		stateMu.Unlock()
+		log.Printf("[admin] upvotes: %v", updated)
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "upvotes": updated})
+
+	case "/admin/fakeplayers":
+		var req struct {
+			Endpoints []string `json:"endpoints"`
+			Count     *int64   `json:"count"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil || len(req.Endpoints) == 0 || req.Count == nil {
+			sendJSON(w, http.StatusBadRequest, map[string]string{"error": "need endpoints and count (0..9000)"})
+			return
+		}
+		n := *req.Count
+		if n < 0 {
+			n = 0
+		}
+		if n > fakeMax {
+			n = fakeMax
+		}
+		stateMu.Lock()
+		updated := map[string]int64{}
+		for _, ep := range req.Endpoints {
+			m := state.Servers[ep]
+			m.FakePlayerCnt = n
+			state.Servers[ep] = m
+			updated[ep] = n
+		}
+		saveStateLocked()
+		stateMu.Unlock()
+		log.Printf("[admin] fakeplayers: %v", updated)
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "fakePlayers": updated})
+
+	case "/admin/feed":
+		var req struct {
+			Text       string `json:"text"`
+			Author     string `json:"author"`
+			ScreenName string `json:"screenName"`
+			Avatar     string `json:"avatar"`
+			URL        string `json:"url"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil || strings.TrimSpace(req.Text) == "" {
+			sendJSON(w, http.StatusBadRequest, map[string]string{"error": "need text"})
+			return
+		}
+		if req.Author == "" {
+			req.Author = "NSM"
+		}
+		if req.ScreenName == "" {
+			req.ScreenName = "NSMCommunity"
+		}
+		stateMu.Lock()
+		id := strconv.FormatInt(time.Now().UnixNano()/1e6, 10)
+		state.Feed = append(state.Feed, feedItem{
+			ID: id, Text: req.Text, Author: req.Author, ScreenName: req.ScreenName,
+			Avatar: req.Avatar, URL: req.URL, CreatedAt: time.Now(), Source: "owner",
+		})
+		state.FeedIDs[id] = true
+		saveStateLocked()
+		stateMu.Unlock()
+		log.Printf("[admin] feed post %s", id)
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "id": id})
+
+	case "/admin/feed/import":
+		var req struct {
+			Items []struct {
+				ID         string      `json:"id"`
+				Text       string      `json:"text"`
+				Author     string      `json:"author"`
+				ScreenName string      `json:"screenName"`
+				Avatar     string      `json:"avatar"`
+				URL        string      `json:"url"`
+				CreatedAt  string      `json:"createdAt"` // RFC3339
+				Source     string      `json:"source"`
+				Media      []feedMedia `json:"media"`
+			} `json:"items"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil {
+			sendJSON(w, http.StatusBadRequest, map[string]string{"error": "bad json"})
+			return
+		}
+		added, skipped := 0, 0
+		stateMu.Lock()
+		for _, it := range req.Items {
+			if it.ID == "" || it.Text == "" || state.FeedIDs[it.ID] {
+				skipped++
+				continue
+			}
+			ca := time.Now()
+			if it.CreatedAt != "" {
+				if t, err := time.Parse(time.RFC3339, it.CreatedAt); err == nil {
+					ca = t
+				}
+			}
+			src := it.Source
+			if src == "" {
+				src = "discord"
+			}
+			state.Feed = append(state.Feed, feedItem{
+				ID: it.ID, Text: it.Text, Author: it.Author, ScreenName: it.ScreenName,
+				Avatar: it.Avatar, URL: it.URL, CreatedAt: ca, Source: src, Media: it.Media,
+			})
+			state.FeedIDs[it.ID] = true
+			added++
+		}
+		// keep newest 200
+		if len(state.Feed) > 200 {
+			sort.Slice(state.Feed, func(i, j int) bool { return state.Feed[i].ID > state.Feed[j].ID })
+			state.Feed = state.Feed[:200]
+		}
+		saveStateLocked()
+		stateMu.Unlock()
+		log.Printf("[admin] feed import: %d added, %d skipped", added, skipped)
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "added": added, "skipped": skipped})
+
+	case "/admin/feed/delete":
+		var req struct {
+			ID string `json:"id"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil || req.ID == "" {
+			sendJSON(w, http.StatusBadRequest, map[string]string{"error": "need id"})
+			return
+		}
+		stateMu.Lock()
+		out := state.Feed[:0]
+		deleted := false
+		for _, it := range state.Feed {
+			if it.ID == req.ID {
+				deleted = true
+				delete(state.FeedIDs, it.ID)
+				continue
+			}
+			out = append(out, it)
+		}
+		state.Feed = out
+		saveStateLocked()
+		stateMu.Unlock()
+		if !deleted {
+			sendJSON(w, http.StatusNotFound, map[string]string{"error": "no such id"})
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true})
+
+	default:
+		sendJSON(w, http.StatusNotFound, map[string]string{"error": "unknown admin path"})
+	}
+}
+
+var stateFile = flag.String("state", "state.json", "path to persistent state file")
+
 func main() {
 	bind := flag.String("bind", "0.0.0.0", "address to bind")
 	port := flag.Int("port", 80, "port to listen on")
+	owner := flag.String("owner-token", os.Getenv("OWNER_TOKEN"), "owner admin API bearer token")
 	flag.Parse()
+
+	ownerTok = *owner
+	if ownerTok == "" {
+		log.Printf("WARNING: OWNER_TOKEN not set - /admin/* endpoints are disabled")
+	}
+
+	loadState()
 
 	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
 	srv := &http.Server{
@@ -492,7 +957,7 @@ func main() {
 		Handler:           &handler{},
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	log.Printf("NSM masterlist listening on %s", addr)
+	log.Printf("NSM masterlist v2 listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("listen error: %v", err)
 		os.Exit(1)
