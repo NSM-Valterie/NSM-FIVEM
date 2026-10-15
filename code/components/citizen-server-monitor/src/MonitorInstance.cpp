@@ -169,9 +169,7 @@ namespace fx
 			consoleCtx->ExecuteBuffer();
 		});
 
-		trace("^2  _   _  ___  ____  ^7 ^5NSM Server^7 - ^5AxiomFX^7 ^2(monitor mode)^7
-
-");
+		trace("^2  _   _  ___  ____  ^7 ^5NSM Server^7 - ^5AxiomFX^7 ^2(monitor mode)^7\n\n");
 
 		// disable QuickEdit in *monitor mode only*
 		// #TODO: detect if we're running under Windows Terminal, in which case
