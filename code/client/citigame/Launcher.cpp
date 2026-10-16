@@ -98,10 +98,27 @@ bool LauncherInterface::PreResumeGame()
 {
 	const DWORD resumeStart = GetTickCount();
 	trace("NSM startup: PreResumeGame enter pid=%lu\n", GetCurrentProcessId());
-	RunLifeCycleCallback([] (LifeCycleComponent* component)
+
+	// diagnostics only: same callbacks as RunLifeCycleCallback, with a name trace before/after each component
+	ComponentLoader::GetInstance()->ForAllComponents([&](fwRefContainer<ComponentData> componentData)
 	{
-		component->PreResumeGame();
+		auto& instances = componentData->GetInstances();
+
+		if (instances.size())
+		{
+			auto lifeCycle = dynamic_component_cast<LifeCycleComponent*>(instances[0].GetRef());
+
+			if (lifeCycle)
+			{
+				const char* compName = componentData->GetName();
+				const DWORD compStart = GetTickCount();
+				trace("NSM startup: PreResumeGame component begin name=%s\n", compName);
+				lifeCycle->PreResumeGame();
+				trace("NSM startup: PreResumeGame component end name=%s elapsedMs=%lu\n", compName, GetTickCount() - compStart);
+			}
+		}
 	});
+
 	trace("NSM startup: PreResumeGame component callbacks complete elapsedMs=%lu\n", GetTickCount() - resumeStart);
 
 	static HostSharedData<UpdaterUIState> uuiState("CfxUUIState");
