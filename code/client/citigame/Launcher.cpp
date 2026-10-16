@@ -67,7 +67,7 @@ bool LauncherInterface::PreLoadGame(void* cefSandbox)
 bool LauncherInterface::PostLoadGame(HMODULE hModule, void(**entryPoint)())
 {
 	const DWORD postLoadStart = GetTickCount();
-	trace("NSM startup: PostLoadGame enter pid=%lu module=%p\n", GetCurrentProcessId(), hModule);
+	trace("NSM startup: PostLoadGame enter pid=%lu module=%p\n", GetCurrentProcessId(), (void*)hModule);
 
 	static HostSharedData<UpdaterUIState> uuiState("CfxUUIState");
 
