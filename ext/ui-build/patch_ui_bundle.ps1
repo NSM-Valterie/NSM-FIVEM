@@ -38,7 +38,9 @@ $replacements = @(
     @('Cfx.re', 'AxiomFX'),
     @('https://x.com/FiveM/status/', 'https://x.com/scravenz101/status/'),
     @('FiveM', 'NSM'),
-    @('CitizenFX', 'AxiomFX')
+    @('CitizenFX', 'AxiomFX'),
+    # Restore the official terms URL after the broad fivem.net branding rewrite above.
+    @('https://discord.gg/UXj5QfCX88/terms', 'https://fivem.net/terms')
 )
 
 $zip = [System.IO.Compression.ZipFile]::Open($ZipPath, 'Update')
@@ -53,6 +55,9 @@ try {
         $original = $content
         foreach ($pair in $replacements) {
             $content = $content.Replace($pair[0], $pair[1])
+        }
+        if ($content.Contains('https://discord.gg/UXj5QfCX88/terms')) {
+            throw "patch_ui_bundle: terms URL still points to the Discord invite in $($entry.FullName)"
         }
         if ($content -ne $original) {
             $fullName = $entry.FullName
