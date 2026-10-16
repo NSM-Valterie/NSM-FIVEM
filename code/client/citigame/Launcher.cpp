@@ -110,11 +110,11 @@ bool LauncherInterface::PreResumeGame()
 
 			if (lifeCycle)
 			{
-				const char* compName = componentData->GetName();
+				const auto compName = componentData->GetName();
 				const DWORD compStart = GetTickCount();
-				trace("NSM startup: PreResumeGame component begin name=%s\n", compName);
+				trace("NSM startup: PreResumeGame component begin name=%s\n", compName.c_str());
 				lifeCycle->PreResumeGame();
-				trace("NSM startup: PreResumeGame component end name=%s elapsedMs=%lu\n", compName, GetTickCount() - compStart);
+				trace("NSM startup: PreResumeGame component end name=%s elapsedMs=%lu\n", compName.c_str(), GetTickCount() - compStart);
 			}
 		}
 	});
