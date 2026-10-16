@@ -66,33 +66,48 @@ bool LauncherInterface::PreLoadGame(void* cefSandbox)
 
 bool LauncherInterface::PostLoadGame(HMODULE hModule, void(**entryPoint)())
 {
+	const DWORD postLoadStart = GetTickCount();
+	trace("NSM startup: PostLoadGame enter pid=%lu module=%p\n", GetCurrentProcessId(), hModule);
+
 	static HostSharedData<UpdaterUIState> uuiState("CfxUUIState");
 
 	uuiState->SetText(1, "Analyzing game data");
 	uuiState->SetProgress(100.0);
 	uuiState->OpenWhenExpired();
+	trace("NSM startup: UUI open requested title='%s' progress=%.1f finalized=%d waitForExpiration=%d\n",
+		uuiState->subtitle, uuiState->progress, uuiState->finalized ? 1 : 0, uuiState->waitForExpiration ? 1 : 0);
 
 	bool continueRunning = true;
 
 	{
 		DisableToolHelpScope scope;
+		trace("NSM startup: DoGameLoad begin\n");
 		ComponentLoader::GetInstance()->DoGameLoad(hModule);
+		trace("NSM startup: DoGameLoad complete elapsedMs=%lu\n", GetTickCount() - postLoadStart);
 	}
 
+	trace("NSM startup: InitFunctionBase::RunAll begin\n");
 	InitFunctionBase::RunAll();
+	trace("NSM startup: InitFunctionBase::RunAll complete elapsedMs=%lu\n", GetTickCount() - postLoadStart);
+	trace("NSM startup: PostLoadGame return elapsedMs=%lu\n", GetTickCount() - postLoadStart);
 
 	return continueRunning;
 }
 
 bool LauncherInterface::PreResumeGame()
 {
+	const DWORD resumeStart = GetTickCount();
+	trace("NSM startup: PreResumeGame enter pid=%lu\n", GetCurrentProcessId());
 	RunLifeCycleCallback([] (LifeCycleComponent* component)
 	{
 		component->PreResumeGame();
 	});
+	trace("NSM startup: PreResumeGame component callbacks complete elapsedMs=%lu\n", GetTickCount() - resumeStart);
 
 	static HostSharedData<UpdaterUIState> uuiState("CfxUUIState");
 	uuiState->Close();
+	trace("NSM startup: UUI close requested finalized=%d waitForExpiration=%d\n",
+		uuiState->finalized ? 1 : 0, uuiState->waitForExpiration ? 1 : 0);
 
 	return true;
 }

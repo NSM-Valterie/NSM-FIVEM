@@ -295,12 +295,17 @@ void ComponentLoader::DoGameLoad(void* hModule)
 	{
 		auto& instances = component->GetInstances();
 
+		const DWORD componentStart = GetTickCount();
 		trace("pre-gameload component %s\n", component->GetName());
+		trace("NSM startup: DoGameLoad component begin name=%s\n", component->GetName());
 
 		if (!instances.empty())
 		{
 			instances[0]->DoGameLoad(hModule);
 		}
+
+		trace("NSM startup: DoGameLoad component end name=%s elapsedMs=%lu\n",
+			component->GetName(), GetTickCount() - componentStart);
 	}
 }
 

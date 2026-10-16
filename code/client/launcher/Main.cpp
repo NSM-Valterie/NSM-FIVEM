@@ -860,6 +860,10 @@ int RealMain()
 				std::string lastSubtitle = firstSubtitle;
 
 				auto st = GetTickCount64();
+				const DWORD uiLoopStart = GetTickCount();
+				DWORD lastUuiWaitLog = uiLoopStart;
+				trace("NSM startup: UUI loop enter firstLoop=%d finalized=%d progress=%.1f title='%s' subtitle='%s'\n",
+					firstLoop ? 1 : 0, uuiState->finalized ? 1 : 0, uuiState->progress, uuiState->title, uuiState->subtitle);
 				UI_UpdateText(0, ToWide(lastTitle).c_str());
 				UI_UpdateText(1, ToWide(lastSubtitle).c_str());
 
@@ -903,6 +907,14 @@ int RealMain()
 					if (res == WAIT_OBJECT_0 || res == WAIT_FAILED)
 					{
 						break;
+					}
+
+					const DWORD now = GetTickCount();
+					if (!uuiState->finalized && now - lastUuiWaitLog >= 60000)
+					{
+						trace("NSM startup: UUI still active elapsedMs=%lu progress=%.1f title='%s' subtitle='%s'\n",
+							now - uiLoopStart, uuiState->progress, uuiState->title, uuiState->subtitle);
+						lastUuiWaitLog = now;
 					}
 
 					MSG msg;
@@ -951,6 +963,8 @@ int RealMain()
 					}
 				}
 
+				trace("NSM startup: UUI loop exit firstLoop=%d finalized=%d progress=%.1f elapsedMs=%lu\n",
+					firstLoop ? 1 : 0, uuiState->finalized ? 1 : 0, uuiState->progress, GetTickCount() - uiLoopStart);
 				UI_DoDestruction();
 			};
 
