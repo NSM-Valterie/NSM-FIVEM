@@ -16,12 +16,17 @@
 // Two different things are reported through FatalError by that component:
 //
 //  1. "the entitlement service could not be consulted" - the transport failed,
-//     or the Cfx validate service has no record for this Rockstar account.
+//     or the entitlement service has no record for this Rockstar account.
 //     NSM accounts never have a Cfx entitlement record, so this is the
-//     expected answer for NSM and it must not kill the process.
+//     expected answer for NSM and it must not kill the process. NSM's own
+//     local entitlement service (code/client/launcher/EntitlementService.cpp)
+//     answers with exactly that "no record" payload.
 //
 //  2. "this account does not own the game" - the real Rockstar ownership
-//     verdict. That one stays fatal: the ownership check is mandatory.
+//     verdict, reported by the Rockstar Games Launcher side of the component
+//     ("Could not validate game ownership!", "The Social Club account
+//     specified does not own a valid license ..."). That one stays fatal:
+//     the ownership check is mandatory.
 //
 // Only the first class is treated as recoverable. The check itself still runs,
 // the error is still reported (log + error pickup file), it is only the

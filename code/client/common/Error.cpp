@@ -282,7 +282,7 @@ static void ReportRecoverableEntitlementError(const char* buffer)
 {
 	trace("NSM: recoverable entitlement error (continuing): %s\n", buffer);
 
-#if !defined(IS_FXSERVER)
+#if !defined(COMPILING_CONSOLE) && !defined(IS_FXSERVER)
 	auto errorPickup = FormatErrorPickup(buffer, g_thisError);
 	FILE* f = _wfopen(MakeRelativeCitPath(L"data\\cache\\error-pickup").c_str(), L"wb");
 
