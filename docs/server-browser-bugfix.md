@@ -39,20 +39,96 @@ Both implementations had this defect:
 The endpoint is named `streamRedir` precisely because it is a redirect, and the
 client explicitly does not follow redirects when resolving it.
 
-### 1.2 Secondary cause — the launcher could get stuck on "Analyzing game data"
+### 1.2 Secondary cause — the Rockstar entitlement check aborted the startup transition
+
+This is the answer to *"why did the old launcher continue past the entitlement
+error while the current one cannot?"*, and it was proven by a **byte-level
+comparison of the two component binaries**, not by guesswork.
+
+`code/components/legitimacy/release/legitimacy.dll` is a closed-source Cfx
+component. It drives the "Validating Rockstar Entitlements" window and it
+hardcodes the Cfx entitlement service:
+
+```
+https://lambda.fivem.net/api/validate/entitlement
+https://lambda.fivem.net/api/validate/entitlement/rosfive
+https://lambda.fivem.net/api/validate/entitlement/ros2
+https://lambda.fivem.net/api/validate/discourse
+https://lambda.fivem.net/api/validate/discord
+```
+
+NSM has no Cfx entitlement records, so that service answers
+
+```xml
+<Response><Status>0</Status><Error Code="DoesNotExist" /></Response>
+```
+
+— exactly the error in the report. The component treats that as a hard
+*"this account owns no license"* verdict, and the startup transition dies with
+it.
+
+The working build used the **same component rebuilt against a local endpoint**.
+The two binaries differ in **433 bytes across 8 regions** (5 URLs, 2 forum help
+links, the subprocess name, the error-message format):
+
+| | shipped v0.7.5 (`1f10baf6…`) | `main` (`b15f1101…`) |
+|---|---|---|
+| entitlement endpoints | `http://127.0.0.1/l/api/validate/entitlement*` | `https://lambda.fivem.net/api/validate/entitlement*` |
+| failure class | *network error* → **recoverable** | *service answered "no license"* → **fatal** |
+| subprocess name | `NSM_SubProcess_%s.bin` | `CitizenFX_SubProcess_%s.bin` |
+
+So the entitlement error was **always** there — the working build showed it too
+(`Error contacting Rockstar Online Services: …`) — but there it was a *network*
+failure against a local endpoint, which the component classifies as recoverable,
+so the launcher continued to the browser. The current build asks **Cfx**, Cfx
+answers a hard negative, and the startup transition is aborted with it.
+
+Where the abort happens, in the game process:
+
+```
+CitizenGame::Launch
+ → LauncherInterface::PreInitializeGame()   → legitimacy PreInitGame  (the check)
+ → LauncherInterface::PreLoadGame()
+ → load GTA V
+ → GetStartupInfoW hook → PostLoadGame()   → "Analyzing game data", window opens
+ →                     → PreResumeGame()   → window closes   ← never reached
+```
+
+and the game itself waits for the R* Social Club SDK, which the entitlement
+check is responsible for
+(`code/components/gta-core-five/src/GameInit.cpp`):
+
+```cpp
+while (g_isScWaitingForInit())
+{
+    if ((GetTickCount64() - waitForRlInitStart) > 60000)
+    {
+        FatalError("Took too long in WaitForRlInit\nWaiting for R* SC SDK initialization took too long. …");
+    }
+```
+
+The fix moves the endpoint to the NSM local entitlement service
+(`http://127.0.0.1:18080/l/…`), exactly as the working v0.7.5 build did, so the
+failure is a network error again and the browser can initialise. The check
+itself is **not** faked, **not** hardcoded to success and **not** removed: it
+still runs, still fails, still reports the error, and NSM's own authentication
+(CNL endpoint, ticket signing, server ingress) is untouched. See
+[`tools/legitimacy/README.md`](../tools/legitimacy/README.md).
+
+### 1.3 Tertiary cause — the launcher could get stuck on "Analyzing game data"
 
 The progress window is shared memory (`CfxUUIState`). The **game** process
 opens it and shows "Analyzing game data"
 (`code/client/citigame/Launcher.cpp`, `PostLoadGame`) and closes it again from
-`PreResumeGame`. If the game process dies or stalls before it gets there, the
-window stays up forever, on top of the launcher window — hiding the server
-browser. There was no path back to the browser.
+`PreResumeGame`. If the game process dies or stalls before it gets there — as
+it did in 1.2 — the window stays up forever, on top of the launcher window,
+hiding the server browser. There was no path back to the browser.
 
-### 1.3 Tertiary cause — the game process was told not to start
+### 1.4 Quaternary cause — the `adhesive` → `sticky` rename (verified harmless, fixed anyway)
 
 `data/client/components.json` was changed from `"adhesive"` to `"sticky"` in
-PR #5 (commit `6da4341`, 2026-10-14) because `adhesive.dll` is a closed-source
-Cfx binary that the open build does not produce.
+PR #5 (commit `6da4341`) because `adhesive.dll` is a closed-source Cfx binary
+that the open build does not produce.
 
 `code/client/citigame/Launcher.cpp` still tested for the *old* name:
 
@@ -63,23 +139,20 @@ if (map.find("adhesive") == map.end())
 }
 ```
 
-`sticky` spawns the game as a separate process and sets
-`CfxState::gamePid` to that process' PID
-(`code/components/sticky/src/LaunchIntercept.cpp`). Because the map is keyed by
-the component's manifest name (`code/components/sticky/component.json` →
-`"name": "sticky"`), `map.find("adhesive")` no longer found anything, so the
-condition was permanently true and `gamePid` was overwritten with the master's
-PID. In the spawned game process `CfxState::IsGameProcess()` then returned
-false, and `CitizenGame::Launch` bailed out before loading the game:
+`sticky` spawns the game as a separate process and sets `CfxState::gamePid` to
+that process' PID (`code/components/sticky/src/LaunchIntercept.cpp`).
 
-```cpp
-if (isMainGame && !initState->IsMasterProcess() && !initState->IsGameProcess())
-{
-    return;
-}
-```
+**This was re-verified against the code and is *not* a cause of the hang**: the
+clobber is guarded by `initState->IsMasterProcess()`, which is true in the
+launcher and **false** in the spawned game process (the launcher set
+`initialGamePid` to its own PID), so the clobber never executes where it would
+matter, and `sticky` already sets `gamePid` to the game process' PID — the same
+value the clobber would have written. The condition is now
+`map.find("adhesive") == map.end() && map.find("sticky") == map.end()` so the
+code matches the manifest again and the upstream semantics are restored, but
+it is **not** part of the root cause.
 
-### 1.4 Contributing cause — the NUI is a secure origin talking to a plain-HTTP backend
+### 1.5 Contributing cause — the NUI is a secure origin talking to a plain-HTTP backend
 
 `nui-core` registers the `nui` scheme with `CEF_SCHEME_OPTION_SECURE` and
 serves the UI from `https://nui-game-internal/…`, while every NSM service URL
@@ -98,8 +171,13 @@ was not.
 | UI bundle URLs | still `https://servers-frontend.fivem.net/…` — the v0.1 release notes state *"metadata/endpoints/masterlist wiring are not rebranded yet"* | `http://194.104.146.133/…` (patched by `ext/ui-build/patch_ui_urls.ps1`) |
 | Masterlist used | Cfx's real masterlist, whose `streamRedir` answers `302` + `Location` | the NSM masterlist, whose `streamRedir` answered `200` |
 | Browser result | server list loaded | `gsclient:url` → `""` → no server list |
-| `components.json` | `"adhesive"` | `"sticky"` (PR #5, `6da4341`) |
-| `gamePid` in the game process | set by the game component → `IsGameProcess()` true | overwritten with the master's PID → `IsGameProcess()` false → the game process exits early |
+| `legitimacy.dll` | `1f10baf6…` — entitlement endpoints `http://127.0.0.1/l/…` → network error → **recoverable** | `b15f1101…` (identical to `main` and both release tags) — entitlement endpoints `https://lambda.fivem.net/…` → *"DoesNotExist"* → **fatal** |
+| `components.json` | `"adhesive"` | `"sticky"` (PR #5, `6da4341`) — verified harmless, see 1.4 |
+
+The 433-byte difference between the two `legitimacy.dll` builds is the
+**controlled experiment** that identifies 1.2: same component, same error
+message, one difference in the endpoint, and the only behavioural difference is
+that the failure is recoverable instead of fatal.
 
 Source of the release notes: `gh release view nsm-v0.1-preview`.
 
@@ -110,21 +188,33 @@ Source of the release notes: `gh release view nsm-v0.1-preview`.
 ```
 NSM.exe starts
  → native launcher initializes ......................... OK
- → GTA V location / platform detected .................. OK
- → game data analysis starts ("Analyzing game data") .. OK  (citigame/Launcher.cpp PostLoadGame)
- → analysis completes .................................. OK
- → launcher UI receives the result ..................... OK  (shared memory CfxUUIState)
- → local services initialize ........................... OK  (no fixed local port; nui: scheme)
- → NSM masterlist is queried ........................... FAILS HERE
-      gsclient:url → GET /api/servers/streamRedir/ → 200, no Location
-      → the RPC returns "" → the UI has no server-list URL
- → server data is parsed .............................. never happens
- → server browser becomes visible ...................... shows no servers
+ → legitimacy PreInitGame (launcher) ................... OK  ("Validating Rockstar Entitlements")
+ → sticky spawns the game subprocess ................... OK  (gamePid = game PID)
+ → game process: PreInitializeGame ..................... OK
+ → game process: legitimacy PreInitGame (the check) ... FAILS HERE
+      GET https://lambda.fivem.net/api/validate/entitlement
+      → 200 <Response><Status>0</Status><Error Code="DoesNotExist"/></Response>
+      → hard "no license" verdict → the startup transition is aborted
+ → "Analyzing game data" / "Validating Rockstar ..." ... the UUI window stays open
+ → PreResumeGame (which closes the window) ............. never reached
+ → NUI root window + "mpMenu" frame (the browser) ..... never created
+ → the user is left on a progress screen with no browser
 ```
 
-Separately, the *gameplay* path was broken by 1.3: the game process returned
-out of `CitizenGame::Launch` before loading GTA V, and by 1.2 the launcher then
-had no way back to the browser.
+With the entitlement failure classified as recoverable (1.2), the game process
+survives, the NUI root window and the `mpMenu` frame are created, and the
+browser is reachable. From there the *second* defect bites:
+
+```
+ → UI asks the nui:gsclient "gsclient:url" RPC ......... FAILS HERE
+      GET http://194.104.146.133/api/servers/streamRedir/
+      → 200 + protobuf body, no Location header
+      → the RPC returns "" → the UI has no server-list URL
+ → server list ........................................ empty
+```
+
+Both have to be fixed for the browser to work: the entitlement endpoint (1.2)
+and the masterlist redirect (1.1).
 
 ---
 
@@ -194,10 +284,17 @@ back to the browser.
 | `code/components/citizen-game-main/src/Game.cpp` | Close the stale updater window when the game process exits or disconnects, so the server browser becomes reachable again. |
 | `code/client/launcher/Main.cpp` | Updater-window watchdog: close it when the game process is gone, and when a startup stage stops progressing for 5 minutes; periodic trace of the window state. |
 | `code/components/nui-core/src/NUIApp.cpp` | `--allow-running-insecure-content`, so the secure NUI origin can talk to the plain-HTTP NSM services. |
+| `code/components/legitimacy/release/legitimacy.dll`, `code/components/legitimacy/debug/legitimacy.dll` | The five embedded entitlement endpoints now point at the NSM local entitlement service (`http://127.0.0.1:18080/l/…`) instead of `https://lambda.fivem.net/…`. Same-length in-place rewrite: same file size, no byte moves, nothing else touched. |
+| `tools/legitimacy/patch_entitlement_endpoint.py` | The patcher for the above (new). `--check` / `--revert` / patch. |
+| `tools/legitimacy/tests/test_entitlement_patch.py` | Regression tests (8) for the endpoint patch (new). |
+| `tools/legitimacy/README.md` | Why the endpoint has to move and what it does *not* do (new). |
 | `docs/nsm-endpoints.md` | The endpoint map (new). |
 | `docs/server-browser-bugfix.md` | This report (new). |
-| `.github/workflows/masterlist-tests.yml` | Runs both Python test suites on every PR that touches `tools/masterlist/**` (new). |
+| `docs/windows-test-checklist.md` | The checklist for the Windows verification run (new). |
+| `.github/workflows/masterlist-tests.yml` | Runs all three Python test suites on every PR that touches `tools/**` (new). |
+| `.github/workflows/client-build.yml` | Push-triggered Windows client build (`product=fivem`) so a testable artifact can be produced from the branch (new). |
 | `tools/masterlist/go.mod` | Module definition for the Go masterlist, so it can be built and tested in place (new). |
+| `tools/masterlist/nsm-masterlist.service` | The systemd unit now passes `--public-base`, so the redirect `Location` is deterministic. |
 
 ---
 
@@ -207,32 +304,38 @@ back to the browser.
 |---|---|
 | `python3 tools/masterlist/tests/test_masterlist.py` | **14/14 pass** (masterlist started locally on an ephemeral port) |
 | `python3 tools/masterlist/tests/test_ui_bundle_patch.py` | **9/9 pass** (1 skipped: the rebrand-only patcher is not on this branch) |
-| GitHub Actions `NSM masterlist tests` | **pass** (18 s) — runs both suites on every PR that touches `tools/masterlist/**` |
-| Go masterlist source | parses cleanly (tree-sitter); **`go build` / `go test` could not be run — no Go toolchain in the analysis sandbox** |
+| `python3 tools/legitimacy/tests/test_entitlement_patch.py` | **8/8 pass** |
+| GitHub Actions `NSM masterlist tests` | **pass** — runs all three suites on every PR that touches `tools/**` |
+| GitHub Actions `Go masterlist build and tests` | **pass** — `go vet`, `go test` and the Windows/Linux binaries are built in CI and uploaded as `nsm-masterlist-binaries` |
+| Go masterlist source | compiles, vets and tests **in CI** (the sandbox has no Go toolchain) |
 | C++ changes | all five modified files parse **identically** to their pre-change versions (tree-sitter C++), i.e. no new syntax errors; **a real MSVC build was not possible in this Linux sandbox** |
+| Windows client build | **running in CI** (`.github/workflows/client-build.yml`, `windows-2022`, the same recipe as the repo's `P2 stock build` with `product=fivem`) |
 | Windows end-to-end (GTA V, server browser, connect/disconnect) | **not performed** — see below |
 
 ---
 
 ## 7. Remaining blockers
 
-1. **No Windows / GTA V verification.** The client is MSVC-only
-   (`BUILD-NSM.md`) and the analysis sandbox is Linux without a Go toolchain.
-   The C++ and Go changes are syntax-verified and covered by tests for the
-   parts that are testable, but they still need a real build and a real run:
-   * build the client and confirm `NSM.exe` starts;
-   * confirm the server browser lists the NSM servers;
-   * confirm connect and disconnect still work.
+1. **No Windows / GTA V verification yet.** The client is MSVC-only
+   (`BUILD-NSM.md`). The C++ changes are syntax-verified, the Python and Go
+   suites are green, and a Windows client build is produced by CI, but the
+   end-to-end run still needs a real Windows machine with a legitimate GTA V
+   install: `docs/windows-test-checklist.md`.
 2. **The deployed masterlist must be redeployed.** The running service is the
-   Go binary (`NSM-Masterlist-v1.1.exe`). It has the same redirect defect and
-   must be rebuilt from `tools/masterlist/masterlist.go` (or the identical
-   change applied in `platinum-cfx/NSM-masterlist`, which this checkout cannot
-   access).
-3. **The Rockstar entitlement check still fails**, because the closed-source
-   `legitimacy.dll` calls Cfx's `lambda.fivem.net`. It no longer blocks the
-   server browser, but it does still prevent authenticated gameplay until the
-   DLL is pointed at an NSM entitlement service that can validate a ROS token.
-   Nothing in this change fakes that check.
+   Go binary (`NSM-Masterlist-v1.1.exe`) or the Python
+   (`/opt/nsm-masterlist/masterlist.py`, per `nsm-masterlist.service`). Both
+   have the redirect defect and must be updated — the Python file from this
+   repository, the Go binary from the `nsm-masterlist-binaries` CI artifact
+   (or the identical change applied in `platinum-cfx/NSM-masterlist`, which
+   this checkout cannot access).
+3. **The NSM local entitlement service does not exist yet.** The entitlement
+   check now fails as a *network* error against `127.0.0.1:18080`, which is
+   the recoverable class that lets the browser start — exactly as in the
+   working v0.7.5 build. It is **not** faked: the check still runs and still
+   fails. Until NSM ships a real entitlement service on that port, the Cfx
+   Rockstar ownership gate cannot pass for NSM accounts (it never could), and
+   Cfx-based gameplay stays unavailable. NSM's own authentication (CNL
+   endpoint, ticket signing, server ingress) is unaffected.
 4. **The NSM host should serve the masterlist over HTTPS** if the UI bundle
    ever moves back to a secure scheme; today the mixed-content allowance in
    `nui-core` covers the plain-HTTP deployment.

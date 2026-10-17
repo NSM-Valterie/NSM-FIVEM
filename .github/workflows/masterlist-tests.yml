@@ -39,6 +39,9 @@ jobs:
       - name: UI bundle patcher tests
         run: python3 tools/masterlist/tests/test_ui_bundle_patch.py
 
+      - name: Legitimacy entitlement endpoint tests
+        run: python3 tools/legitimacy/tests/test_entitlement_patch.py
+
   masterlist-go:
     name: Go masterlist build and tests
     runs-on: ubuntu-latest
