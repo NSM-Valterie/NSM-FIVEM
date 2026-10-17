@@ -42,6 +42,9 @@ jobs:
       - name: Legitimacy entitlement endpoint tests
         run: python3 tools/legitimacy/tests/test_entitlement_patch.py
 
+      - name: Legitimacy entitlement error classification tests
+        run: python3 tools/legitimacy/tests/test_entitlement_error_class.py
+
   masterlist-go:
     name: Go masterlist build and tests
     runs-on: ubuntu-latest
