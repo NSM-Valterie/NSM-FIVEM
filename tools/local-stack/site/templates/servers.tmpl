@@ -1,0 +1,24 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <h1>Server List</h1>
+    {{if .Servers}}
+    <div class="fx">
+      {{range .Servers}}
+      <div class="c-lg-4 c-md-6 c-xs-12">
+        <article class="a1">
+          <h2><a href="/servers/{{.EndPoint}}" style="color:inherit;text-decoration:none">{{.Hostname}}</a></h2>
+          <span class="txt">{{.Clients}}/{{.MaxClients}} players{{if .GameType}} &middot; {{.GameType}}{{end}} &middot; {{.Upvotes}} upvotes</span>
+          <div class="btnpadder">
+            <a class="btn btn-accent block" href="fivem://connect/{{.EndPoint}}">Join</a>
+          </div>
+        </article>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="lead">No servers are live right now. Start your NSM Server and it will appear here automatically.</p>
+    {{end}}
+  </div></div>
+</section>
+{{template "foot" .}}

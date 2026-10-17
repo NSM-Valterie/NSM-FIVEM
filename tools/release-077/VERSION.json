@@ -1,0 +1,12 @@
+{
+  "version": "0.7.7-localtest",
+  "base_release_asset_id": 647754661,
+  "native_client_rebuilt": false,
+  "backend_rebuilt": true,
+  "backend_version": "0.7.7-local",
+  "api_base": "http://127.0.0.1:80",
+  "launch_fix": "Three entitlement endpoints restored to v0.7.0 original HTTPS authority; user confirmed launch works with this exact DLL.",
+  "authentication_checks_preserved": true,
+  "real_server_gameplay_e2e_verified": false,
+  "legitimacy_sha256": "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
+}

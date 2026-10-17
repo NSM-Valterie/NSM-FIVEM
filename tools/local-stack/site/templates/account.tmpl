@@ -1,0 +1,33 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    {{if .User}}
+    <h1>My account</h1>
+    <div class="fx">
+      <div class="c-lg-6 c-xs-12">
+        <table class="stat-table">
+          <tr><td><span class="stat">Username</span></td><td>{{.User.Username}}</td></tr>
+          <tr><td><span class="stat">Role</span></td><td>{{.User.Role}}</td></tr>
+          <tr><td><span class="stat">Email</span></td><td>{{.User.Email}}</td></tr>
+        </table>
+        {{if eq .User.Role "owner"}}<p class="muted mt">You are the NSM owner. <a href="/admin/users">Manage staff</a></p>{{end}}
+      </div>
+      <div class="c-lg-6 c-xs-12">
+        <div class="form-card">
+          <h1 style="margin-bottom:20px">Change password</h1>
+          {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+          {{if .Msg}}<p class="lead">{{.Msg}}</p>{{end}}
+          <form method="POST" action="/account/password">
+            <div class="form-row"><label>Current password</label><input type="password" name="old" required></div>
+            <div class="form-row"><label>New password</label><input type="password" name="new" minlength="6" required></div>
+            <button class="btn btn-accent" style="width:100%">UPDATE</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {{else}}
+    <p class="lead">You are not logged in. <a href="/login">Log in</a> or <a href="/register">register</a>.</p>
+    {{end}}
+  </div></div>
+</section>
+{{template "foot" .}}

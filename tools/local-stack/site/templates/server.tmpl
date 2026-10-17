@@ -1,0 +1,35 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <h1>{{.Srv.Hostname}}</h1>
+    <div class="fx">
+      <div class="c-lg-6 c-xs-12">
+        <table class="stat-table">
+          <tr><td><span class="stat">Players</span></td><td>{{.Srv.Clients}} / {{.Srv.SVMaxclients}}</td></tr>
+          <tr><td><span class="stat">Address</span></td><td>{{.EndPoint}}</td></tr>
+          <tr><td><span class="stat">Game type</span></td><td>{{.Srv.Gametype}}</td></tr>
+          <tr><td><span class="stat">Map</span></td><td>{{.Srv.Mapname}}</td></tr>
+          <tr><td><span class="stat">Upvotes</span></td><td>{{.Upvotes}}</td></tr>
+        </table>
+        <div class="btnpadder">
+          <a class="btn btn-accent block" href="fivem://connect/{{.EndPoint}}">Join server</a>
+        </div>
+      </div>
+      <div class="c-lg-6 c-xs-12">
+        {{if .User}}
+          {{if .Voted}}
+          <p class="lead">You already upvoted this server. Thank you!</p>
+          {{else}}
+          <form method="POST" action="/servers/{{.EndPoint}}/upvote" class="form-card">
+            <h1 style="margin-bottom:20px">Support this server</h1>
+            <button class="btn btn-accent" style="width:100%">UPVOTE</button>
+          </form>
+          {{end}}
+        {{else}}
+        <p class="lead"><a href="/login">Log in</a> to upvote this server.</p>
+        {{end}}
+      </div>
+    </div>
+  </div></div>
+</section>
+{{template "foot" .}}

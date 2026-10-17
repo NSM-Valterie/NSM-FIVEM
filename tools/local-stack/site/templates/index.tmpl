@@ -1,0 +1,98 @@
+{{template "head" .}}
+<div class="bg-holder with-bg">
+  <div class="container"><div class="spacer">
+  <section class="hero">
+    <div class="hero-seller" id="hero-seller" style="display:flex;flex-wrap:wrap;gap:var(--q2);align-items:center;justify-content:space-between;width:100%">
+      <div class="hero-lead">
+        <p class="lead"><strong>NSM Community</strong> is a multiplayer modification for Grand Theft Auto&nbsp;V, built on our own code. <strong>Play</strong> on community-run servers, or <strong>create</strong> your own world.</p>
+      </div>
+      <div class="hero-cta">
+        <div class="players">
+          <span class="live-dot"></span>Join the <span class="current-players">{{.Stats.Players}}</span> people playing right now!
+        </div>
+        <a id="dl" href="/docs">
+          <span class="txt">GET NSM</span>
+          <span class="desc">see Documentation to install</span>
+        </a>
+        <p class="plaText">By downloading, you agree to the terms of the <a href="/docs">NSM License Agreement</a></p>
+        <div class="server">
+          <a class="btn block" href="/docs">Create your own server</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  </div></div>
+</div>
+
+<section class="features">
+  <div class="container"><div class="spacer">
+    <h1>What we have for you</h1>
+    <div class="fx">
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a1">
+          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">cloud_download</span></div>Download &amp; play</h2>
+          <span class="txt">NSM servers ship custom cars, maps, weapons, and more — delivered <em>dynamically</em> as you play.</span>
+        </article>
+      </div>
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a2">
+          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">supervisor_account</span></div>Your community</h2>
+          <span class="txt">NSM accounts work everywhere — the launcher, the website, and every community service, one login.</span>
+        </article>
+      </div>
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a3">
+          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">sync_alt</span></div>Sync quality</h2>
+          <span class="txt">NSM's own network stack keeps every player smoothly in sync, so you get the <em>best</em> experience around.</span>
+        </article>
+      </div>
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a1">
+          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">shield</span></div>Community first</h2>
+          <span class="txt">Run by our own staff team. Servers, support and moderation — <em>all in one place</em>.</span>
+        </article>
+      </div>
+    </div>
+
+    <div class="fx" style="margin-top:var(--q3)">
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a2"><h2>{{.Stats.Players}}</h2><span class="txt">players online now</span></article>
+      </div>
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a3"><h2>{{.Stats.Servers}}</h2><span class="txt">live servers</span></article>
+      </div>
+      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
+        <article class="a1"><h2>{{.Stats.Accounts}}</h2><span class="txt">NSM accounts</span></article>
+      </div>
+    </div>
+
+    {{if .Servers}}
+    <h1 style="margin-top:var(--q3)">Popular servers</h1>
+    <div class="fx">
+      {{range .Servers}}
+      <div class="c-lg-4 c-md-4 c-sm-6">
+        <article class="a1">
+          <h2>{{.Hostname}}</h2>
+          <span class="txt">{{.Clients}}/{{.MaxClients}} players{{if .GameType}} &middot; {{.GameType}}{{end}} &middot; <a href="/servers/{{.EndPoint}}">details</a></span>
+        </article>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    {{if .Feed}}
+    <h1 style="margin-top:var(--q3)">News</h1>
+    <div class="fx">
+      {{range .Feed}}
+      <div class="c-xs-12">
+        <article class="a3">
+          <h2>{{.ScreenName}}</h2>
+          <span class="txt">{{.Text}}</span>
+        </article>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div></div>
+</section>
+{{template "foot" .}}

@@ -1,0 +1,11 @@
+--- a/code/components/citizen-server-impl/src/GameServer.cpp
++++ b/code/components/citizen-server-impl/src/GameServer.cpp
+@@ -51,7 +51,7 @@
+ #include "FormData.h"
+ #include "Frame.h"
+ 
+-constexpr const char kDefaultServerList[] = "http://194.104.146.133/api/serverlist/ingress";
++constexpr const char kDefaultServerList[] = "http://127.0.0.1:80/api/serverlist/ingress";
+ 
+ static fx::GameServer* g_gameServer;
+ 
