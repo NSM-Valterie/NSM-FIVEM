@@ -135,18 +135,25 @@ when the game process exits. If you still see it stuck, capture the log (below).
 
 `Error contacting Rockstar Online Services: <Response><Status>0</Status><Error Code="DoesNotExist" /></Response>`
 
-* **Where it comes from:** the closed-source `legitimacy.dll`, which still calls
-  Cfx's `https://lambda.fivem.net/api/validate/entitlement*`. NSM has no records
-  there, so Cfx answers `DoesNotExist`.
-* **Why the old launcher continued anyway:** the browser is hosted by the **game
-  process**, not by the entitlement check. The entitlement check ran in parallel
-  and only blocked *authenticated gameplay*; the browser was already up. The
-  regression was that the *game process* stopped (the `sticky`/`adhesive`
-  `gamePid` bug), so the browser's host never came up and the progress window
-  stayed on screen.
+* **Where it comes from:** the closed-source `legitimacy.dll`. It used to call
+  Cfx's `https://lambda.fivem.net/api/validate/entitlement*`; NSM has no records
+  there, so Cfx answered `DoesNotExist` — a *hard* "no license" verdict that
+  aborted the start-up transition.
+* **Why the old launcher continued anyway:** the shipped v0.7.5 client used the
+  same component against a **local** endpoint (`http://127.0.0.1/l/…`). There the
+  request failed as a *network* error, which the component classifies as
+  recoverable, so the launcher carried on to the browser. Same error message,
+  different failure class — that is the whole difference.
+* **What this build does:** the five embedded endpoints are rewritten in place to
+  `http://127.0.0.1:18080/l/api/validate/entitlement*` (see
+  `tools/legitimacy/README.md`). The check still runs, still fails and still
+  reports the error — it is only the failure *class* that changed, so the game
+  process survives and the browser appears.
 * **Not hidden, not faked:** the masterlist deliberately does **not** implement
-  `/api/validate/entitlement*` (a test asserts it stays `404`). The check is
-  still enforced for authenticated gameplay.
+  `/api/validate/entitlement*` (a test asserts it stays `404`), and the NSM local
+  entitlement service on `127.0.0.1:18080` is not implemented either. Nothing
+  reports a successful entitlement. NSM's own authentication (CNL endpoint,
+  ticket signing, server ingress) is untouched.
 
 ---
 

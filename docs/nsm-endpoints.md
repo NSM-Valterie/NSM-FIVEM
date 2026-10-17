@@ -67,24 +67,28 @@ do not appear anywhere in the sources (verified by grep over `code/`).
 | Launcher ↔ game IPC | `citizen:game:ipc` (nng push/pull, `launcherTalk`) | no TCP port |
 | Updater/progress window | shared memory `CfxUUIState` | no socket; `finalized` / `waitForExpiration` drive the window |
 | Shared init state | shared memory `CfxInitState` | `initialLauncherPid`, `initialGamePid`, `gamePid` |
+| NSM entitlement service | `http://127.0.0.1:18080/l/api/validate/entitlement*` | the closed-source `legitimacy` component's entitlement endpoints, rewritten in place by `tools/legitimacy/patch_entitlement_endpoint.py`. **Not implemented yet** - the request therefore fails as a *network* error, which is the recoverable class that lets the browser start (exactly what the shipped v0.7.5 client did with `http://127.0.0.1/l/...`). |
 
 ## 5. Cfx endpoints that are still referenced (not rebranded)
 
 | URL | Where | Impact |
 |---|---|---|
-| `https://lambda.fivem.net/api/validate/entitlement` | `code/components/legitimacy/release/legitimacy.dll` (closed source) | The Rockstar entitlement validation. For NSM this is a foreign service with no NSM records, which is what produces `Error contacting Rockstar Online Services: <Response><Status>0</Status><Error Code="DoesNotExist" /></Response>`. It must not block the server browser; the browser lives in the launcher process and the check runs in the game process. |
-| `https://lambda.fivem.net/api/validate/entitlement/rosfive` | same | same |
-| `https://lambda.fivem.net/api/validate/entitlement/ros2` | same | same |
-| `https://lambda.fivem.net/api/validate/discord` / `/discourse` | same | Cfx community-account linking; not used by NSM |
+| `https://lambda.fivem.net/api/validate/entitlement` | `code/components/legitimacy/release/legitimacy.dll` (closed source) | **Rewritten** to `http://127.0.0.1:18080/l/api/validate/entitlement` (see above). Pointing it at Cfx is what produced `Error contacting Rockstar Online Services: <Response><Status>0</Status><Error Code="DoesNotExist" /></Response>` and aborted the start-up transition. |
+| `https://lambda.fivem.net/api/validate/entitlement/rosfive` | same | same, rewritten |
+| `https://lambda.fivem.net/api/validate/entitlement/ros2` | same | same, rewritten |
+| `https://lambda.fivem.net/api/validate/discord` / `/discourse` | same | same, rewritten |
 | `https://forum.cfx.re/…` | same | only used in crash-report links |
 | `https://content.cfx.re/mirrors/…` | `code/client/launcher/GameCache.cpp` | game cache / component downloads |
 | `https://native-collector-live.fivem.net/upload` | `code/components/citizen-scripting-core/src/NativeResourceLogging.cpp` | native resource logging |
 
-> The `legitimacy` component is a closed-source Cfx binary. Its service URLs
-> cannot be changed from this repository without patching the binary, and the
-> NSM service deliberately does **not** implement `/api/validate/entitlement`:
-> returning a synthetic "entitled" response would be faking an entitlement
-> check, which is not acceptable.
+> The `legitimacy` component is a closed-source Cfx binary, so its service URLs
+> can only be changed by patching the binary. The patch
+> (`tools/legitimacy/patch_entitlement_endpoint.py`) rewrites **only** the URL
+> prefixes, in place and with the same length, so the file size does not change
+> and no byte moves. The check itself is not faked: it still runs, still fails
+> and still reports the error. The NSM service deliberately does **not**
+> implement `/api/validate/entitlement`: returning a synthetic "entitled"
+> response would be faking an entitlement check, which is not acceptable.
 
 ## 6. UI bundle URL rewriting
 
