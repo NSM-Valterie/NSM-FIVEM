@@ -1,0 +1,40 @@
+name: NSM masterlist tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/masterlist/**'
+      - '.github/workflows/masterlist-tests.yml'
+  pull_request:
+    paths:
+      - 'tools/masterlist/**'
+      - '.github/workflows/masterlist-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: masterlist-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  masterlist-tests:
+    name: Masterlist service and UI patcher tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Masterlist service tests
+        run: python3 tools/masterlist/tests/test_masterlist.py
+
+      - name: UI bundle patcher tests
+        run: python3 tools/masterlist/tests/test_ui_bundle_patch.py
