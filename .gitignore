@@ -195,3 +195,6 @@ privates_config.lua
 *.pyc
 
 /vendor/libuv/bin/libuv.*
+# key material — never commit private keys (added 2026-10-17, signing-key rotation)
+*.pem
+*.key

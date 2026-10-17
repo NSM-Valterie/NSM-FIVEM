@@ -9,7 +9,9 @@ v0.7.7 was altered, rebuilt, replaced, or overwritten.
 | `V077-LOCKED-PATHS.txt` | The 35 locked paths (v0.7.7 commit diff vs. its parent) |
 | `check-v077-locked.sh` | Automated diff gate — FAILS if any locked path changes |
 | `REFERENCE-SCAN-V077.md` | Workstream A: fresh reference scan at v0.7.7 + classification |
-| `KEYMASTER-SERVERKEY-AUDIT.md` | Workstream B: registration/heartbeat/key flow map + NSM-owned key design (not implemented) |
+| `KEYMASTER-SERVERKEY-AUDIT.md` | Workstream B: registration/heartbeat/key flow map + NSM-owned key design |
+| `REVIEW-TABLE.md` | Workstream A bucket-6 line-level REVIEW table (4 cosmetic candidates, rest KEEP) |
+| `WINDOWS-ACCEPTANCE-RUNBOOK.md` | Dedicated-server + two-player test — ready to run on Windows, not yet executed |
 
 ## Gate result for this pass
 
@@ -27,17 +29,23 @@ adds files only under `docs/nsm-audit-v077/`).
   (`194.104.146.133`) is not established as user-owned — untouched.
 - **Licensing/provenance report:** headers/notices preserved; the per-file
   categorization is started in `REFERENCE-SCAN-V077.md` buckets 3–4, not finished.
-- **NSM-owned key service:** design only (`KEYMASTER-SERVERKEY-AUDIT.md` §3).
-  Needs explicit approval before implementation.
-- **Signing-key in repo:** `tools/masterlist/ticket-signing-key.pem`
-  flagged for owner rotation/removal decision (see V077-SOURCE-IDENTITY.md).
+- **NSM-owned key service:** implemented as a standalone candidate in
+  `tools/nsm-keyservice/` (17 tests passing; native heartbeat patch
+  unapplied, needs Windows build). Approved 2026-10-17, not deployed.
+- **Signing-key in repo:** ROTATED 2026-10-17 — `ticket-signing-key.pem`
+  removed, compromised public key no longer served (503 until owner
+  configures `NSM_TICKET_PUBKEY_B64`), `*.pem`/`*.key` gitignored.
+  Remaining owner step: purge the old key from git history (`git filter-repo`,
+  separate approval, requires force-push) and generate the new pair offline.
 - **UI/launcher, sign-in/Admin, CI caching, NSM escrow:** untouched per
   instructions; status to be rechecked separately when scheduled.
 
-## Next steps needing owner approval
+## Next steps
 
-1. Approve the Workstream A bucket-6 line-level REVIEW table (no edits yet).
-2. Approve (or reject) implementing the NSM-owned server-key design §3 as
-   a separate candidate, with the §3 test matrix as acceptance criteria.
-3. Decide on the committed signing-key rotation/removal.
-4. Schedule the dedicated-server + two-player Windows acceptance run.
+1. Owner: run `WINDOWS-ACCEPTANCE-RUNBOOK.md` on Windows (closes the
+   two-player backlog item); optionally include its step 7 (key candidate).
+2. Owner: generate the replacement ticket keypair offline + decide on the
+   git-history purge of the old key.
+3. Separate small candidate: the 4 cosmetic strings in `REVIEW-TABLE.md`,
+   with a Windows smoke test. Public NSM deployment (domain/TLS) for the
+   key service remains undeployed by design.

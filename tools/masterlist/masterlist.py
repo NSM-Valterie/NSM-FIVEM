@@ -35,6 +35,7 @@ Run:  sudo python3 masterlist.py            (port 80)
 import argparse
 import base64
 import json
+import os
 import socket
 import struct
 import threading
@@ -231,16 +232,20 @@ def server_data_from_heartbeat(hb):
 # ---------------------------------------------------------------------------
 
 # Public key served at /api/ticket/pubkey (PKCS#1 RSAPublicKey, base64 DER).
-# Matches the NSM ticket-signing key (tools/masterlist/ticket-signing-key.pem).
-# Only used when a server runs with sv_lan false; NSM servers should set
-# `sv_lan true` so connect tickets are not required at all.
-TICKET_PUBKEY_B64 = (
-    "MIIBCgKCAQEAwleR7LYjK6zv5GPU4+go+4u42JI8fA/hX4wykkwhxG8fLpdGTA1kjQm+NWrWi7Xg"
-    "OMOAVzeiMCpr5cLlcTabf1fJpexyN1XKmQLvnIxVgofc/N/ZvzVbnqTV5RGJ7ZfnXDd//r+bBuxg"
-    "DWJIEAiXnYAwTSZq5crxgXorya7gVTcD2P/RQQUCCzuniFaXO2mROxj28UDSihVCKriTd1p6StxX"
-    "SnsnekH6av5uuCENf1KHL85n7bl4gKZQoG0qoYQxohigjfUXvvO93AbN7M10r12rvgLcLTCHhMci"
-    "y0xEmbj2pI5b9wOjPbx/oHqn5rtAhqYae4803I80aZRweafWzQIDAQAB"
-)
+#
+# ROTATED 2026-10-17: the previous keypair is REVOKED. Its private half was
+# committed to this repository (tools/masterlist/ticket-signing-key.pem,
+# removed in the same change) and must be treated as compromised; the old
+# hardcoded public key is therefore no longer served.
+#
+# Configure the replacement public key — generated offline by the owner,
+# with the private half kept OUTSIDE this repository — via the environment:
+#     NSM_TICKET_PUBKEY_B64=<base64 DER RSAPublicKey>
+# Until it is configured, /api/ticket/pubkey fails closed with 503 instead
+# of serving a key whose private half is public. Only used when a server
+# runs with sv_lan false; NSM servers should set `sv_lan true` so connect
+# tickets are not required at all.
+TICKET_PUBKEY_B64 = os.environ.get("NSM_TICKET_PUBKEY_B64", "").strip()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -312,7 +317,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"", "image/png")
 
         elif path == "/api/ticket/pubkey":
-            self._json({"key": TICKET_PUBKEY_B64})
+            if TICKET_PUBKEY_B64:
+                self._json({"key": TICKET_PUBKEY_B64})
+            else:
+                # Fail closed: the previous keypair is revoked (its private
+                # half was committed to git). Never serve it again.
+                self._json({"error": "ticket public key not configured; "
+                                     "previous keypair revoked"}, 503)
 
         elif path == "/api/identities" or path == "/api/ticket/identities":
             self._json([])

@@ -63,9 +63,16 @@ in NSM server builds; the heartbeat is sent regardless of license key.
 
 ## Notes
 
-- `ticket-signing-key.pem` is the RSA key whose public half is served at
-  `/api/ticket/pubkey`. Only relevant if a server runs `sv_lan false`; the
-  ticket-issuing flow is not implemented, so keep `sv_lan true`.
+- **Ticket signing key — ROTATED 2026-10-17.** The old RSA private key was
+  committed to this repo (`ticket-signing-key.pem`, now removed) and must be
+  treated as **compromised/revoked**. Its public half is no longer served:
+  `/api/ticket/pubkey` returns 503 until the owner configures a replacement
+  public key via `NSM_TICKET_PUBKEY_B64`. Generate the new keypair offline,
+  keep the private half outside this repository (`*.pem`/`*.key` are now
+  gitignored), and purge the old key from git history with
+  `git filter-repo` as a separate, owner-approved operation (history still
+  contains it until then). Only relevant if a server runs `sv_lan false`;
+  the ticket-issuing flow is not implemented, so keep `sv_lan true`.
 - Heartbeats are accepted from any source; protect the port or trust your
   network if listing garbage entries is a concern.
 

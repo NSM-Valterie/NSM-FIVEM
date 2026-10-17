@@ -1,0 +1,31 @@
+UNAPPLIED DESIGN PATCH — requires Windows build review + acceptance run.
+Do not apply to a shipping build without owner approval. It adds an
+Authorization header to the existing NSM heartbeat so a *public* NSM
+masterlist (tools/nsm-keyservice, NSM_KEY_MODE=public) can verify the
+server's NSM key. It changes nothing else: no entitlement, Steam, Cfx
+portal, or escrow behavior is touched.
+
+--- a/code/components/citizen-server-impl/src/GameServer.cpp
++++ b/code/components/citizen-server-impl/src/GameServer.cpp
+@@
+ 			HttpRequestOptions ro;
+ 			ro.ipv4 = true;
+ 			ro.headers = std::map<std::string, std::string>{
+ 				{ "Content-Type", "application/json; charset=utf-8" }
+ 			};
++			// NSM: present this server's NSM-owned key to the NSM
++			// masterlist (never to any Cfx/Rockstar endpoint — this
++			// request only goes to sv_master*/NSM ingress hosts).
++			// Empty (default) => header omitted, current behavior.
++			static auto nsmServerKey = m_instance->AddVariable<std::string>("sv_nsmServerKey", ConVar_None, "");
++			if (!nsmServerKey->GetValue().empty())
++			{
++				ro.headers["Authorization"] = "Bearer " + nsmServerKey->GetValue();
++			}
+ 			ro.addErrorBody = true;
+
+Operator notes:
+  set sv_nsmServerKey "nsm_srv_<id>.<secret>" in server.cfg (keep the file
+  private; never commit a real key). Verify against the candidate service:
+  valid -> listed; revoked/expired/missing -> rejected and not listed
+  (see test matrix in docs/nsm-audit-v077/KEYMASTER-SERVERKEY-AUDIT.md).
