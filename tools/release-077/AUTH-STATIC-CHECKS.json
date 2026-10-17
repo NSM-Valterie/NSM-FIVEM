@@ -1,0 +1,23 @@
+{
+  "status": "candidate rollback; NOT Windows-runtime verified",
+  "original_sha256": "1f10baf67e36d4e624705a08af72f843db09668b7b6fcee5c2a4a446412a0282",
+  "candidate_sha256": "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14",
+  "baseline_07_sha256": "b15f1101d89aeb84e308fbe4dd7d8888d8c2c6c36474954dc184ad4c766fa0e5",
+  "changed_strings": [
+    {
+      "offset": "0xa4917f",
+      "restored": "https://lambda.fivem.net/api/validate/entitlement"
+    },
+    {
+      "offset": "0xa4bdf0",
+      "restored": "https://lambda.fivem.net/api/validate/entitlement/rosfive"
+    },
+    {
+      "offset": "0xa52e28",
+      "restored": "https://lambda.fivem.net/api/validate/entitlement/ros2"
+    }
+  ],
+  "file_size_unchanged": true,
+  "code_bytes_changed": false,
+  "authentication_bypassed": false
+}

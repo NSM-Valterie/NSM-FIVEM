@@ -1,0 +1,27 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <h1>Staff &amp; users</h1>
+    <p class="lead">Set what each account can do: <strong>user</strong> (play + upvote), <strong>staff</strong> (moderation), <strong>admin</strong>, <strong>owner</strong> (you).</p>
+    <div class="fx">
+      {{range .Users}}
+      <div class="c-lg-4 c-md-6 c-xs-12">
+        <article class="a1">
+          <h2>{{.Username}} <span class="muted">(#{{.ID}})</span></h2>
+          <span class="txt">current role: <strong>{{.Role}}</strong></span>
+          <form method="POST" action="/admin/users/{{.ID}}/role" class="btnpadder">
+            <select name="role" style="width:auto;display:inline-block">
+              <option value="user">user</option>
+              <option value="staff">staff</option>
+              <option value="admin">admin</option>
+              <option value="owner">owner</option>
+            </select>
+            <button class="btn btn-accent" style="width:auto;display:inline-block">SET</button>
+          </form>
+        </article>
+      </div>
+      {{end}}
+    </div>
+  </div></div>
+</section>
+{{template "foot" .}}

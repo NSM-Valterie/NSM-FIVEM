@@ -1,0 +1,16 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <div class="form-card">
+      <h1 style="margin-bottom:20px">Create your NSM account</h1>
+      <form method="POST" action="/register">
+        <div class="form-row"><label>Username</label><input type="text" name="username" minlength="3" required></div>
+        <div class="form-row"><label>Email (optional)</label><input type="email" name="email"></div>
+        <div class="form-row"><label>Password (6+ characters)</label><input type="password" name="password" minlength="6" required></div>
+        <button class="btn btn-accent" style="width:100%">REGISTER</button>
+      </form>
+      <p class="muted mt center">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+  </div></div>
+</section>
+{{template "foot" .}}

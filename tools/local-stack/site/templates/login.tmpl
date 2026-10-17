@@ -1,0 +1,15 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <div class="form-card">
+      <h1 style="margin-bottom:20px">Log in</h1>
+      <form method="POST" action="/login">
+        <div class="form-row"><label>Username</label><input type="text" name="username" required></div>
+        <div class="form-row"><label>Password</label><input type="password" name="password" required></div>
+        <button class="btn btn-accent" style="width:100%">LOG IN</button>
+      </form>
+      <p class="muted mt center">No account? <a href="/register">Register</a></p>
+    </div>
+  </div></div>
+</section>
+{{template "foot" .}}
