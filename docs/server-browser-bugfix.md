@@ -196,6 +196,8 @@ back to the browser.
 | `code/components/nui-core/src/NUIApp.cpp` | `--allow-running-insecure-content`, so the secure NUI origin can talk to the plain-HTTP NSM services. |
 | `docs/nsm-endpoints.md` | The endpoint map (new). |
 | `docs/server-browser-bugfix.md` | This report (new). |
+| `.github/workflows/masterlist-tests.yml` | Runs both Python test suites on every PR that touches `tools/masterlist/**` (new). |
+| `tools/masterlist/go.mod` | Module definition for the Go masterlist, so it can be built and tested in place (new). |
 
 ---
 
@@ -205,6 +207,7 @@ back to the browser.
 |---|---|
 | `python3 tools/masterlist/tests/test_masterlist.py` | **14/14 pass** (masterlist started locally on an ephemeral port) |
 | `python3 tools/masterlist/tests/test_ui_bundle_patch.py` | **9/9 pass** (1 skipped: the rebrand-only patcher is not on this branch) |
+| GitHub Actions `NSM masterlist tests` | **pass** (18 s) — runs both suites on every PR that touches `tools/masterlist/**` |
 | Go masterlist source | parses cleanly (tree-sitter); **`go build` / `go test` could not be run — no Go toolchain in the analysis sandbox** |
 | C++ changes | all five modified files parse **identically** to their pre-change versions (tree-sitter C++), i.e. no new syntax errors; **a real MSVC build was not possible in this Linux sandbox** |
 | Windows end-to-end (GTA V, server browser, connect/disconnect) | **not performed** — see below |
