@@ -40,9 +40,9 @@ bool LauncherInterface::PreLoadGame(void* cefSandbox)
 		// open build; it is replaced by the open-source "sticky" component
 		// (see data/client/components.json). Both spawn the game as a separate
 		// process and set CfxState::gamePid to that process' PID, so the
-		// gamePid must not be overwritten for either of them - otherwise the
-		// spawned game process sees IsGameProcess() == false and exits before
-		// it ever loads the game.
+		// gamePid must not be overwritten for either of them - the game
+		// process identifies itself through that PID
+		// (CfxState::IsGameProcess()).
 		if (map.find("adhesive") == map.end() && map.find("sticky") == map.end())
 		{
 			initState->gamePid = initState->initialGamePid;
