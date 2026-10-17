@@ -7,6 +7,7 @@
 
 #include "StdInc.h"
 #include "CitizenGame.h"
+#include "EntitlementService.h"
 
 // *NASTY* include path
 #include <../citicore/LaunchMode.h>
@@ -593,6 +594,16 @@ int RealMain()
 	}
 
 	DoPreLaunchTasks();
+
+	// NSM: the Rockstar entitlement check asks NSM's own local entitlement
+	// service (the Cfx endpoint is not patched into the component any more).
+	// The master process hosts it, the ROS helper and the game process are
+	// the clients. It has to be up before the helper processes start, they
+	// run the check as their first step.
+	if (initState->IsMasterProcess())
+	{
+		nsm::StartEntitlementService();
+	}
 
 	// make sure the game path exists
 	if (auto gamePathExit = EnsureGamePath(); gamePathExit)
