@@ -309,7 +309,7 @@ back to the browser.
 | GitHub Actions `Go masterlist build and tests` | **pass** — `go vet`, `go test` and the Windows/Linux binaries are built in CI and uploaded as `nsm-masterlist-binaries` |
 | Go masterlist source | compiles, vets and tests **in CI** (the sandbox has no Go toolchain) |
 | C++ changes | all five modified files parse **identically** to their pre-change versions (tree-sitter C++), i.e. no new syntax errors; **a real MSVC build was not possible in this Linux sandbox** |
-| Windows client build | **running in CI** (`.github/workflows/client-build.yml`, `windows-2022`, the same recipe as the repo's `P2 stock build` with `product=fivem`) |
+| Windows client build | **success** - run `39011506212` (`windows-2022`, the same recipe as the repo's `P2 stock build` with `product=fivem`), artifact `nsm-client-2de7ad02aab84274a0a01350f08e888de6c76324` (765 MB): the client is in the artifact's `caches/fivereborn/` folder. The artifact and the job logs could not be downloaded from the analysis sandbox (the Actions blob host is blocked here), so the build was not unpacked and inspected locally. |
 | Windows end-to-end (GTA V, server browser, connect/disconnect) | **not performed** — see below |
 
 ---

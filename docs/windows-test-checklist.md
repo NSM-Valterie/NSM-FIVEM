@@ -15,7 +15,7 @@ artifact CDN is not reachable from there, but the browser can):
 
 | Artifact | Run | What it is |
 |---|---|---|
-| `nsm-client-<sha>` | **NSM client build** workflow (push event) | the Windows client: `caches/fivereborn/` = the complete client tree (bootstrapper `CitizenFX.exe` = `NSM.exe`, `citizen/`, `bin/cef/…`, `citizen/ui.zip`) |
+| `nsm-client-2de7ad02aab84274a0a01350f08e888de6c76324` | **NSM client build** run [39011506212](https://github.com/platinum-cfx/NSM-FIVEM/actions/runs/39011506212) — **success** | the Windows client: `caches/fivereborn/` = the complete client tree (bootstrapper `CitizenFX.exe` = `NSM.exe`, `citizen/`, `bin/cef/…`, `citizen/ui.zip`). 765 MB, 14-day retention. |
 | `nsm-masterlist-binaries` | **NSM masterlist tests** workflow | `NSM-Masterlist.exe` (Windows) and `NSM-Masterlist` (Linux) — the rebuilt masterlist |
 
 Download both from the run pages:
