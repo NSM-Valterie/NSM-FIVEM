@@ -68,3 +68,15 @@ in NSM server builds; the heartbeat is sent regardless of license key.
   ticket-issuing flow is not implemented, so keep `sv_lan true`.
 - Heartbeats are accepted from any source; protect the port or trust your
   network if listing garbage entries is a concern.
+
+## Regression tests
+
+Run from the repository root (Python standard library only):
+
+```bash
+python -m unittest discover -s tools/masterlist -v
+```
+
+Heartbeat bodies are limited to 1 MiB. Malformed data, invalid ports, negative
+client counts, and unsupported HTTP transfer framing return an error without
+registering an entry. Protobuf negative integers are encoded as 64-bit varints.
