@@ -43,6 +43,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HEARTBEAT_TTL = 300.0
 GAMENAME = "gta5"
+MAX_HEARTBEAT_BYTES = 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # protobuf encoding (schema extracted from the cfx-ui worker bundle:
@@ -57,6 +58,11 @@ GAMENAME = "gta5"
 # ---------------------------------------------------------------------------
 
 def _varint(n):
+    # Protobuf signed integers use a sign-extended, unsigned 64-bit varint.
+    # Right-shifting a negative Python integer otherwise never reaches zero.
+    if not -(1 << 63) <= n < (1 << 64):
+        raise ValueError("integer outside protobuf 64-bit range")
+    n &= (1 << 64) - 1
     out = bytearray()
     while True:
         b = n & 0x7F
@@ -161,16 +167,42 @@ REGISTRY = Registry()
 def _num(x, default=0):
     try:
         return int(x)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
+def _client_count(value, default):
+    value = _num(value, default)
+    if not 0 <= value <= 2147483647:
+        raise ValueError("client count must be a non-negative int32")
+    return value
+
+
 def server_data_from_heartbeat(hb):
+    if not isinstance(hb, dict):
+        raise ValueError("heartbeat must be an object")
     fb = hb.get("fallbackData") or {}
+    if not isinstance(fb, dict):
+        raise ValueError("fallbackData must be an object")
     info = fb.get("info") or {}
     dynamic = fb.get("dynamic") or {}
+    if not isinstance(info, dict) or not isinstance(dynamic, dict):
+        raise ValueError("info and dynamic must be objects")
     info = info.get("info", info) if isinstance(info.get("info", None), dict) else info
     dynamic = dynamic.get("dynamic", dynamic) if isinstance(dynamic.get("dynamic", None), dict) else dynamic
+
+    # Validate untrusted shapes before storing data used by the protobuf encoder.
+    for obj in (info, dynamic):
+        if not isinstance(obj.get("vars") or {}, dict):
+            raise ValueError("vars must be an object")
+    resources = info.get("resources") or []
+    if not isinstance(resources, list) or any(not isinstance(r, str) for r in resources):
+        raise ValueError("resources must be an array of strings")
+    for obj, fields in ((dynamic, ("hostname", "gametype", "mapname")),
+                        (info, ("hostname",))):
+        for field in fields:
+            if obj.get(field) is not None and not isinstance(obj[field], str):
+                raise ValueError(field + " must be a string")
 
     # vars live in both info.vars and dynamic.vars; merge them
     vars_ = {}
@@ -179,8 +211,8 @@ def server_data_from_heartbeat(hb):
     vars_["gamename"] = GAMENAME  # client browser filter requires this
 
     return {
-        "svMaxclients": _num(dynamic.get("svMaxclients", hb.get("maxClients")), 48),
-        "clients": _num(dynamic.get("clients", len(fb.get("players") or [])), 0),
+        "svMaxclients": _client_count(dynamic.get("svMaxclients", hb.get("maxClients")), 48),
+        "clients": _client_count(dynamic.get("clients", len(fb.get("players") or [])), 0),
         "hostname": dynamic.get("hostname") or info.get("hostname") or "NSM Server",
         "gametype": dynamic.get("gametype") or "",
         "mapname": dynamic.get("mapname") or "",
@@ -309,23 +341,40 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
 
         if path == "/api/serverlist/ingress":
+            # This handler only supports fixed-length bodies. Reject ambiguous
+            # framing and close the connection so unread bytes cannot be reused.
+            if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) > 1:
+                self.close_connection = True
+                self._json({"lastError": "unsupported request framing"}, 400)
+                return
             try:
                 length = int(self.headers.get("Content-Length") or 0)
+                if length < 0 or length > MAX_HEARTBEAT_BYTES:
+                    self.close_connection = True
+                    self._json({"lastError": "heartbeat body too large or invalid length"}, 413)
+                    return
                 hb = json.loads(self.rfile.read(length) or b"{}")
-            except Exception as e:
-                self._json({"lastError": "bad json: %s" % e}, 400)
+                data = server_data_from_heartbeat(hb)
+                ip_override = hb.get("ipOverride") or ""
+                if not isinstance(ip_override, str):
+                    raise ValueError("ipOverride must be a string")
+                port = int(hb.get("port", 30120))
+                if not 1 <= port <= 65535:
+                    raise ValueError("port must be between 1 and 65535")
+                # Validate serialization before accepting an entry into the registry.
+                encode_server_data(data)
+            except (ValueError, TypeError, OverflowError, AttributeError) as e:
+                self.close_connection = True
+                self._json({"lastError": "invalid heartbeat: %s" % e}, 400)
                 return
 
-            ip_override = hb.get("ipOverride")
             ip = (ip_override or "").strip() or self._client_ip()
-            port = _num(hb.get("port"), 30120)
             end_point = "%s:%d" % (ip, port)
-            REGISTRY.upsert(end_point, server_data_from_heartbeat(hb))
-            print("[heartbeat] %s clients=%s" % (
-                end_point, (hb.get("fallbackData") or {}).get("dynamic", {}).get("clients", "?")),
-                flush=True)
+            REGISTRY.upsert(end_point, data)
+            print("[heartbeat] %s clients=%s" % (end_point, data["clients"]), flush=True)
             self._json({})  # empty lastError = success
         else:
+            self.close_connection = True
             self._json({"error": "not found", "path": path}, 404)
 
 
