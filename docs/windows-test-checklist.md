@@ -131,6 +131,24 @@ when the game process exits. If you still see it stuck, capture the log (below).
 
 ---
 
+## 2b. Verify the build before starting it
+
+```powershell
+python tools\legitimacy\verify_client.py caches\fivereborn
+```
+
+It prints the entitlement endpoints found in the **shipped** `legitimacy.dll`:
+
+```
+NSM entitlement endpoints  : 5
+Cfx entitlement endpoints  : 0
+subprocess name            : CitizenFX_SubProcess_%s.bin (ok)
+RESULT: OK - this build asks the NSM entitlement service
+```
+
+If it says `NOT OK`, the build is the pre-fix one and will still abort on the
+Rockstar entitlement check.
+
 ## 3. The Rockstar entitlement error (expected, and no longer fatal)
 
 `Error contacting Rockstar Online Services: <Response><Status>0</Status><Error Code="DoesNotExist" /></Response>`
