@@ -118,7 +118,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://194.104.146.133/api/validate/ent
 |---|---|
 | 1 | The launcher window appears (the "Compositing Launcher", 1280×720). |
 | 2 | The progress window shows *"Analyzing game data"* and then *"Validating Rockstar Entitlements"*. |
-| 3 | The **Rockstar entitlement error still appears** — see §3. It is reported but no longer fatal. |
+| 3 | The **Rockstar entitlement error still appears** — see §3. It is reported, and it is not fatal any more. The log should show `NSM entitlement service: listening on 127.0.0.1:18080` and `NSM entitlement service: /l/api/validate/entitlement -> no entitlement record`. |
 | 4 | The progress window **closes on its own** and the **server browser (mpMenu) is visible**. |
 | 5 | The server list shows the NSM servers (hostname, players, map). |
 | 6 | Clicking a server connects; disconnecting returns to the browser. |
@@ -151,6 +151,17 @@ Rockstar entitlement check.
 
 ## 3. The Rockstar entitlement error (expected, and no longer fatal)
 
+The log should contain:
+
+```
+[   ROSLauncher]  MainThrd/ NSM entitlement service: listening on 127.0.0.1:18080
+[   ROSLauncher]  MainThrd/ NSM entitlement service: /l/api/validate/entitlement -> no entitlement record
+```
+
+(The service runs in the launcher process, so the second line is logged by the
+process that asked.) The entitlement check itself still fails - an NSM account
+has no Cfx entitlement record - and that is reported, not hidden.
+
 `Error contacting Rockstar Online Services: <Response><Status>0</Status><Error Code="DoesNotExist" /></Response>`
 
 * **Where it comes from:** the closed-source `legitimacy.dll`. It used to call
@@ -167,11 +178,15 @@ Rockstar entitlement check.
   game process then never gets its Rockstar session, blocks in
   `WaitForRlInit()` and dies 60 s later — and the progress window, which only
   the game process closes, stays on screen forever.
-* **What this build does:** the *"the entitlement service could not be
-  consulted"* class of error is now reported (log + `data\cache\error-pickup`)
-  but no longer terminates the process, so the ROS helper survives and the
-  game gets its session. The ownership verdict (*"… does not own a valid
-  license …"*) still terminates the process.
+* **What this build does:** the entitlement endpoint now points at NSM's own
+  local service (`127.0.0.1:18080`), which answers with the "no entitlement
+  record" payload Cfx's service returns for an unknown account - the same
+  answer the launcher has always got, and a soft one for the component. As a
+  safety net, the *"the entitlement service could not be consulted"* class of
+  error is reported (log + `data\cache\error-pickup`) but no longer
+  terminates the process, so the ROS helper survives and the game gets its
+  session. The ownership verdict (*"… does not own a valid license …"*) still
+  terminates the process.
 * **What this build does:** the five embedded endpoints are rewritten in place to
   `http://127.0.0.1:18080/l/api/validate/entitlement*` (see
   `tools/legitimacy/README.md`). The check still runs, still fails and still
