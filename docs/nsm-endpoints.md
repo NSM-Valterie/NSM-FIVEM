@@ -67,7 +67,7 @@ do not appear anywhere in the sources (verified by grep over `code/`).
 | Launcher ↔ game IPC | `citizen:game:ipc` (nng push/pull, `launcherTalk`) | no TCP port |
 | Updater/progress window | shared memory `CfxUUIState` | no socket; `finalized` / `waitForExpiration` drive the window |
 | Shared init state | shared memory `CfxInitState` | `initialLauncherPid`, `initialGamePid`, `gamePid` |
-| NSM entitlement service | `http://127.0.0.1:18080/l/api/validate/entitlement*` | the closed-source `legitimacy` component's entitlement endpoints, rewritten in place by `tools/legitimacy/patch_entitlement_endpoint.py`. **Not implemented yet** - the request therefore fails as a *network* error, which is the recoverable class that lets the browser start (exactly what the shipped v0.7.5 client did with `http://127.0.0.1/l/...`). |
+| NSM entitlement service | `http://127.0.0.1:18080/l/api/validate/entitlement*` | the closed-source `legitimacy` component's entitlement endpoints, rewritten in place by `tools/legitimacy/patch_entitlement_endpoint.py`. **Not implemented yet** - the request therefore fails as a *network* error, which is the recoverable class that lets the browser start (exactly what the shipped v0.7.5 client did with `http://127.0.0.1/l/...`). The check runs in the ROS helper (`FiveM_ROSLauncher`) and in the game process; a failure there is reported by the component through `FatalError`, which terminates the process - see `code/client/shared/EntitlementError.h` for the recoverable/recoverable-vs-verdict split. |
 
 ## 5. Cfx endpoints that are still referenced (not rebranded)
 

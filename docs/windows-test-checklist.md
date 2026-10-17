@@ -118,7 +118,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://194.104.146.133/api/validate/ent
 |---|---|
 | 1 | The launcher window appears (the "Compositing Launcher", 1280×720). |
 | 2 | The progress window shows *"Analyzing game data"* and then *"Validating Rockstar Entitlements"*. |
-| 3 | The **Rockstar entitlement error may still appear** — see §3. It is **not** what blocks the browser any more. |
+| 3 | The **Rockstar entitlement error still appears** — see §3. It is reported but no longer fatal. |
 | 4 | The progress window **closes on its own** and the **server browser (mpMenu) is visible**. |
 | 5 | The server list shows the NSM servers (hostname, players, map). |
 | 6 | Clicking a server connects; disconnecting returns to the browser. |
@@ -158,10 +158,20 @@ Rockstar entitlement check.
   there, so Cfx answered `DoesNotExist` — a *hard* "no license" verdict that
   aborted the start-up transition.
 * **Why the old launcher continued anyway:** the shipped v0.7.5 client used the
-  same component against a **local** endpoint (`http://127.0.0.1/l/…`). There the
-  request failed as a *network* error, which the component classifies as
-  recoverable, so the launcher carried on to the browser. Same error message,
-  different failure class — that is the whole difference.
+  same component against a **local** endpoint (`http://127.0.0.1/l/…`). The
+  two binaries differ in 433 bytes / 8 regions, and the entitlement URLs are
+  the functional part: the failure is the same, only its *class* differs.
+* **What actually killed the client:** the check runs in the ROS helper
+  (`FiveM_ROSLauncher`) and it reports the failure with `FatalError`, which
+  terminates the process (the crash is the deliberate write to `0xDEED`). The
+  game process then never gets its Rockstar session, blocks in
+  `WaitForRlInit()` and dies 60 s later — and the progress window, which only
+  the game process closes, stays on screen forever.
+* **What this build does:** the *"the entitlement service could not be
+  consulted"* class of error is now reported (log + `data\cache\error-pickup`)
+  but no longer terminates the process, so the ROS helper survives and the
+  game gets its session. The ownership verdict (*"… does not own a valid
+  license …"*) still terminates the process.
 * **What this build does:** the five embedded endpoints are rewritten in place to
   `http://127.0.0.1:18080/l/api/validate/entitlement*` (see
   `tools/legitimacy/README.md`). The check still runs, still fails and still
