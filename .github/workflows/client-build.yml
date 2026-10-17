@@ -12,7 +12,6 @@ on:
       - 'code/**'
       - 'data/**'
       - 'ext/**'
-      - 'tools/**'
       - '.github/workflows/client-build.yml'
   workflow_dispatch:
     inputs:
