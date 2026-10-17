@@ -39,81 +39,86 @@ Both implementations had this defect:
 The endpoint is named `streamRedir` precisely because it is a redirect, and the
 client explicitly does not follow redirects when resolving it.
 
-### 1.2 Secondary cause — the Rockstar entitlement check aborted the startup transition
+### 1.2 Secondary cause — the Rockstar entitlement check killed the ROS helper
 
 This is the answer to *"why did the old launcher continue past the entitlement
-error while the current one cannot?"*, and it was proven by a **byte-level
-comparison of the two component binaries**, not by guesswork.
+error while the current one cannot?"* — and it was proven by a **byte-level
+comparison of the two component binaries** plus a **real Windows run**, not by
+guesswork.
 
-`code/components/legitimacy/release/legitimacy.dll` is a closed-source Cfx
-component. It drives the "Validating Rockstar Entitlements" window and it
-hardcodes the Cfx entitlement service:
+`code/components/legitimacy/` is a closed-source Cfx component. It runs the
+Rockstar entitlement validation and reports the result with `FatalError`.
+
+**Where it runs.** `code/client/citicore/ComponentLoader.cpp` loads the
+`legitimacy` component in every process, and in the ROS helper process
+(`FiveM_ROSLauncher`, the module name contains `_ROS`) it is the *only*
+component that is loaded. The check therefore runs in the ROS helper, in the
+game process and in the launcher.
+
+**What it does on failure.** `FatalError` terminates the process:
+`code/client/common/Error.cpp` writes the error pickup and returns `-1`, and
+the `FatalError` macro then deliberately crashes the process with a write to
+`0xDEED` (`ERROR_CRASH_MAGIC`). That is the crash the first Windows run of
+this branch produced:
 
 ```
-https://lambda.fivem.net/api/validate/entitlement
-https://lambda.fivem.net/api/validate/entitlement/rosfive
-https://lambda.fivem.net/api/validate/entitlement/ros2
-https://lambda.fivem.net/api/validate/discourse
-https://lambda.fivem.net/api/validate/discord
+[ROSLauncher] Error: Could not contact entitlement service. Status code: 0,
+             error message: 1/Failed to connect to 127.0.0.1 port 18080
+             after 2029 ms: Connection refused
+[DumpServer]  Process crash captured.
+crashometry:  legitimacy.dll+1B41AD          <- the faulting instruction is
+                                                 `mov dword ptr [0xdeed], 0`
 ```
 
-NSM has no Cfx entitlement records, so that service answers
+**Why that kills the browser.** The ROS helper is the process that owns the
+Rockstar session for the game. When it dies, the game process never receives
+the session: it blocks in `WaitForRlInit()`
+(`code/components/gta-core-five/src/GameInit.cpp`) and dies 60 seconds later
+with *"Took too long in WaitForRlInit"*. The *"Validating Rockstar
+Entitlements"* / *"Analyzing game data"* window is only closed by the game
+process (from `PreResumeGame`), so it stays on screen — and the server
+browser, which lives in the game process, never appears.
 
-```xml
-<Response><Status>0</Status><Error Code="DoesNotExist" /></Response>
-```
-
-— exactly the error in the report. The component treats that as a hard
-*"this account owns no license"* verdict, and the startup transition dies with
-it.
-
-The working build used the **same component rebuilt against a local endpoint**.
-The two binaries differ in **433 bytes across 8 regions** (5 URLs, 2 forum help
-links, the subprocess name, the error-message format):
+**Why the old launcher continued.** The shipped v0.7.5 client used the same
+component rebuilt against a **local** endpoint:
 
 | | shipped v0.7.5 (`1f10baf6…`) | `main` (`b15f1101…`) |
 |---|---|---|
 | entitlement endpoints | `http://127.0.0.1/l/api/validate/entitlement*` | `https://lambda.fivem.net/api/validate/entitlement*` |
-| failure class | *network error* → **recoverable** | *service answered "no license"* → **fatal** |
+| failure class | *the service could not be consulted* | *"no Cfx entitlement record"* |
 | subprocess name | `NSM_SubProcess_%s.bin` | `CitizenFX_SubProcess_%s.bin` |
 
-So the entitlement error was **always** there — the working build showed it too
-(`Error contacting Rockstar Online Services: …`) — but there it was a *network*
-failure against a local endpoint, which the component classifies as recoverable,
-so the launcher continued to the browser. The current build asks **Cfx**, Cfx
-answers a hard negative, and the startup transition is aborted with it.
+The two binaries differ in **433 bytes across 8 regions** — the five
+entitlement URLs, two forum help links, the subprocess name and the error
+message format. Same component, same error message; the only functional
+difference is *which service is asked*, and therefore **how the failure is
+classified**.
 
-Where the abort happens, in the game process:
+**The fix.** NSM accounts have no Cfx entitlement record, so *"the entitlement
+service could not be consulted"* is the expected answer for every NSM user.
+That class of error is now reported (log + error pickup file) but no longer
+terminates the process:
 
-```
-CitizenGame::Launch
- → LauncherInterface::PreInitializeGame()   → legitimacy PreInitGame  (the check)
- → LauncherInterface::PreLoadGame()
- → load GTA V
- → GetStartupInfoW hook → PostLoadGame()   → "Analyzing game data", window opens
- →                     → PreResumeGame()   → window closes   ← never reached
-```
+* `code/client/shared/EntitlementError.h` (new) — the classification.
+* `code/client/common/Error.cpp` — the recoverable branch. The `FatalError`
+  macro only crashes the process when the error function returns a negative
+  value, so returning `0` keeps the caller alive.
 
-and the game itself waits for the R* Social Club SDK, which the entitlement
-check is responsible for
-(`code/components/gta-core-five/src/GameInit.cpp`):
+**What stays fatal.** The ownership verdict itself (*"The Social Club account
+specified does not own a valid license to Grand Theft Auto V."*), the
+Rockstar session failures (*"Could not sign on to the Social Club"*, *"Could
+not get title access token from the Social Club"*, *"Could not get entitlement
+block from the Social Club"*), *"Could not validate game ownership!"* and every
+other fatal error keep terminating the process exactly as before. The
+mandatory ownership check is enforced for authenticated gameplay, and NSM's
+own authentication (CNL endpoint, ticket signing, server ingress) is
+untouched.
 
-```cpp
-while (g_isScWaitingForInit())
-{
-    if ((GetTickCount64() - waitForRlInitStart) > 60000)
-    {
-        FatalError("Took too long in WaitForRlInit\nWaiting for R* SC SDK initialization took too long. …");
-    }
-```
-
-The fix moves the endpoint to the NSM local entitlement service
-(`http://127.0.0.1:18080/l/…`), exactly as the working v0.7.5 build did, so the
-failure is a network error again and the browser can initialise. The check
-itself is **not** faked, **not** hardcoded to success and **not** removed: it
-still runs, still fails, still reports the error, and NSM's own authentication
-(CNL endpoint, ticket signing, server ingress) is untouched. See
-[`tools/legitimacy/README.md`](../tools/legitimacy/README.md).
+The entitlement endpoint itself is also moved off Cfx
+(`tools/legitimacy/patch_entitlement_endpoint.py`, see
+[`tools/legitimacy/README.md`](../tools/legitimacy/README.md)) so that the
+client stops sending the Rockstar session to a service that has no NSM
+records, and so that the failure is a clean, local, deterministic one.
 
 ### 1.3 Tertiary cause — the launcher could get stuck on "Analyzing game data"
 
@@ -171,7 +176,7 @@ was not.
 | UI bundle URLs | still `https://servers-frontend.fivem.net/…` — the v0.1 release notes state *"metadata/endpoints/masterlist wiring are not rebranded yet"* | `http://194.104.146.133/…` (patched by `ext/ui-build/patch_ui_urls.ps1`) |
 | Masterlist used | Cfx's real masterlist, whose `streamRedir` answers `302` + `Location` | the NSM masterlist, whose `streamRedir` answered `200` |
 | Browser result | server list loaded | `gsclient:url` → `""` → no server list |
-| `legitimacy.dll` | `1f10baf6…` — entitlement endpoints `http://127.0.0.1/l/…` → network error → **recoverable** | `b15f1101…` (identical to `main` and both release tags) — entitlement endpoints `https://lambda.fivem.net/…` → *"DoesNotExist"* → **fatal** |
+| `legitimacy.dll` | `1f10baf6…` — entitlement endpoints `http://127.0.0.1/l/…` → *"the service could not be consulted"* | `b15f1101…` (identical to `main` and both release tags) — entitlement endpoints `https://lambda.fivem.net/…` → *"no Cfx entitlement record"* |
 | `components.json` | `"adhesive"` | `"sticky"` (PR #5, `6da4341`) — verified harmless, see 1.4 |
 
 The 433-byte difference between the two `legitimacy.dll` builds is the
@@ -186,24 +191,30 @@ Source of the release notes: `gh release view nsm-v0.1-preview`.
 ## 3. Last successful stage and the failed transition
 
 ```
-NSM.exe starts
+NSM.exe (launcher) starts
  → native launcher initializes ......................... OK
- → legitimacy PreInitGame (launcher) ................... OK  ("Validating Rockstar Entitlements")
+ → EarlyMode_Init → legitimacy PreInitGame (launcher) ... OK
+      (the CPR check answers 403 "DoesNotExist" - that one was never fatal)
+ → the ROS helper (FiveM_ROSLauncher) is started ......... OK
  → sticky spawns the game subprocess ................... OK  (gamePid = game PID)
- → game process: PreInitializeGame ..................... OK
- → game process: legitimacy PreInitGame (the check) ... FAILS HERE
-      GET https://lambda.fivem.net/api/validate/entitlement
-      → 200 <Response><Status>0</Status><Error Code="DoesNotExist"/></Response>
-      → hard "no license" verdict → the startup transition is aborted
+ → the game process starts, GTA V loads ................. OK
+ → the ROS helper: entitlement validation ............... FAILS HERE
+      GET <entitlement endpoint>/api/validate/entitlement
+      → the service cannot be consulted / has no record
+      → the component reports it with FatalError
+      → the helper process is terminated (write to 0xDEED)
+ → the game process never receives the Rockstar session
+      → blocks in WaitForRlInit() → dies after 60 s
  → "Analyzing game data" / "Validating Rockstar ..." ... the UUI window stays open
  → PreResumeGame (which closes the window) ............. never reached
  → NUI root window + "mpMenu" frame (the browser) ..... never created
  → the user is left on a progress screen with no browser
 ```
 
-With the entitlement failure classified as recoverable (1.2), the game process
-survives, the NUI root window and the `mpMenu` frame are created, and the
-browser is reachable. From there the *second* defect bites:
+With the entitlement failure classified as recoverable (1.2), the ROS helper
+survives, the game process receives its Rockstar session, the NUI root window
+and the `mpMenu` frame are created, and the browser is reachable. From there
+the *second* defect bites:
 
 ```
  → UI asks the nui:gsclient "gsclient:url" RPC ......... FAILS HERE
@@ -284,9 +295,12 @@ back to the browser.
 | `code/components/citizen-game-main/src/Game.cpp` | Close the stale updater window when the game process exits or disconnects, so the server browser becomes reachable again. |
 | `code/client/launcher/Main.cpp` | Updater-window watchdog: close it when the game process is gone, and when a startup stage stops progressing for 5 minutes; periodic trace of the window state. |
 | `code/components/nui-core/src/NUIApp.cpp` | `--allow-running-insecure-content`, so the secure NUI origin can talk to the plain-HTTP NSM services. |
+| `code/client/shared/EntitlementError.h` | Classifies the entitlement errors: *"the entitlement service could not be consulted"* is recoverable, the ownership verdict is not (new). |
+| `code/client/common/Error.cpp` | The recoverable branch in the fatal-error handler: the error is reported (log + error pickup) but the process is not terminated, so the ROS helper survives and the game gets its Rockstar session. |
 | `code/components/legitimacy/release/legitimacy.dll`, `code/components/legitimacy/debug/legitimacy.dll` | The five embedded entitlement endpoints now point at the NSM local entitlement service (`http://127.0.0.1:18080/l/…`) instead of `https://lambda.fivem.net/…`. Same-length in-place rewrite: same file size, no byte moves, nothing else touched. |
 | `tools/legitimacy/patch_entitlement_endpoint.py` | The patcher for the above (new). `--check` / `--revert` / patch. |
 | `tools/legitimacy/tests/test_entitlement_patch.py` | Regression tests (8) for the endpoint patch (new). |
+| `tools/legitimacy/tests/test_entitlement_error_class.py` | Regression tests (6) that check the error classification against the strings that are actually compiled into `legitimacy.dll`, and that the error handler honours it (new). |
 | `tools/legitimacy/README.md` | Why the endpoint has to move and what it does *not* do (new). |
 | `docs/nsm-endpoints.md` | The endpoint map (new). |
 | `docs/server-browser-bugfix.md` | This report (new). |
@@ -305,6 +319,7 @@ back to the browser.
 | `python3 tools/masterlist/tests/test_masterlist.py` | **14/14 pass** (masterlist started locally on an ephemeral port) |
 | `python3 tools/masterlist/tests/test_ui_bundle_patch.py` | **9/9 pass** (1 skipped: the rebrand-only patcher is not on this branch) |
 | `python3 tools/legitimacy/tests/test_entitlement_patch.py` | **8/8 pass** |
+| `python3 tools/legitimacy/tests/test_entitlement_error_class.py` | **6/6 pass** |
 | GitHub Actions `NSM masterlist tests` | **pass** — runs all three suites on every PR that touches `tools/**` |
 | GitHub Actions `Go masterlist build and tests` | **pass** — `go vet`, `go test` and the Windows/Linux binaries are built in CI and uploaded as `nsm-masterlist-binaries` |
 | Go masterlist source | compiles, vets and tests **in CI** (the sandbox has no Go toolchain) |
@@ -331,11 +346,13 @@ back to the browser.
 3. **The NSM local entitlement service does not exist yet.** The entitlement
    check now fails as a *network* error against `127.0.0.1:18080`, which is
    the recoverable class that lets the browser start — exactly as in the
-   working v0.7.5 build. It is **not** faked: the check still runs and still
-   fails. Until NSM ships a real entitlement service on that port, the Cfx
-   Rockstar ownership gate cannot pass for NSM accounts (it never could), and
-   Cfx-based gameplay stays unavailable. NSM's own authentication (CNL
-   endpoint, ticket signing, server ingress) is unaffected.
+   working v0.7.5 build. It is **not** faked: the check still runs, still
+   fails and is still reported. Until NSM ships a real entitlement service on
+   that port, the Cfx Rockstar ownership gate cannot pass for NSM accounts
+   (it never could), and Cfx-based gameplay stays unavailable. NSM's own
+   authentication (CNL endpoint, ticket signing, server ingress) is
+   unaffected. The Rockstar *ownership* verdict remains fatal: a user who does
+   not own the game is still refused.
 4. **The NSM host should serve the masterlist over HTTPS** if the UI bundle
    ever moves back to a secure scheme; today the mixed-content allowance in
    `nui-core` covers the plain-HTTP deployment.
