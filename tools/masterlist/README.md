@@ -14,6 +14,37 @@ Two implementations with identical behaviour:
 > The Go implementation is kept in this repository as well so the deployed
 > binary can be rebuilt and redeployed from here; the two must stay in sync.
 
+## Upgrading an existing deployment (this is the fix for the server browser)
+
+A deployment that answers `GET /api/servers/streamRedir/` with **`200` and a
+body instead of `302` + `Location`** is the pre-fix build, and the client
+browser will show **no servers** - the `gsclient:url` RPC returns the
+`Location` header only, so it hands the UI an empty URL.
+
+Check which build is running:
+
+```bash
+curl -i http://127.0.0.1/api/servers/streamRedir/ | head -3
+# fixed:  HTTP/1.1 302 Found
+#         Location: http://194.104.146.133/api/servers/stream/
+# broken: HTTP/1.1 200 OK   (no Location header)
+```
+
+Upgrade:
+
+```bash
+# as root
+cp masterlist.py /opt/nsm-masterlist/masterlist.py
+cp nsm-masterlist.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl restart nsm-masterlist
+curl -i http://127.0.0.1/api/servers/streamRedir/ | head -3
+```
+
+The unit file passes `--public-base http://194.104.146.133`, so the
+`Location` header is deterministic instead of being derived from the request's
+`Host` header.
+
 Deploy on the VPS (194.104.146.133):
 
 ```bash
