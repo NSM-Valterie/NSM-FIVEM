@@ -489,6 +489,9 @@ func (u *User) AvatarPath() string {
 	if u == nil {
 		return "/avatars/u/guest/120.png"
 	}
+	if !strings.HasPrefix(u.AvatarData, "data:image/") && u.AvatarURL != "" && !strings.ContainsAny(u.AvatarURL, `"'<>()\`) {
+		return u.AvatarURL
+	}
 	v := u.UpdatedAt
 	if v == 0 {
 		v = u.CreatedAt
@@ -2010,7 +2013,7 @@ func serveUserAvatar(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if strings.HasPrefix(avatarURL, "http://") || strings.HasPrefix(avatarURL, "https://") {
+	if (strings.HasPrefix(avatarURL, "http://") || strings.HasPrefix(avatarURL, "https://") || strings.HasPrefix(avatarURL, "/")) && !strings.ContainsAny(avatarURL, `"'<>()\`) {
 		http.Redirect(w, r, avatarURL, http.StatusFound)
 		return
 	}
