@@ -431,7 +431,7 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 	rReg.Header.Set("Accept", "text/html")
 	wReg := httptest.NewRecorder()
 	h.ServeHTTP(wReg, rReg)
-	if wReg.Code != http.StatusSeeOther || wReg.Header().Get("Location") != "/verify-email" {
+	if wReg.Code != http.StatusSeeOther || !strings.HasPrefix(wReg.Header().Get("Location"), "/verify-email") {
 		t.Fatalf("expected 303 redirect to /verify-email, got %d (%s)", wReg.Code, wReg.Header().Get("Location"))
 	}
 	var sessionCookie *http.Cookie

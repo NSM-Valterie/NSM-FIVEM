@@ -1096,6 +1096,11 @@ func accountClaimOwner(w http.ResponseWriter, r *http.Request) {
 	accMu.Lock()
 	if !ownerNeedsPasswordSetupLocked() {
 		accMu.Unlock()
+		if wantsJSONResponse(r) {
+			w.WriteHeader(http.StatusForbidden)
+			sendAccountJSON(w, false, "Owner password for nta~ has already been set.", nil)
+			return
+		}
 		renderPage(w, r, "login.tmpl", map[string]interface{}{
 			"Title":          "Log in",
 			"Error":          "Owner password for nta~ has already been set. Please sign in with your password below.",
