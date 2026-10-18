@@ -1,145 +1,219 @@
-{{template "head" .}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFX Forum - The home of NSM</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
+</head>
+<body class="afx-discourse-body">
+  <!-- Discourse d-header -->
+  <header class="afx-d-header">
+    <div class="afx-d-header-inner">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="/forum" class="afx-d-logo">
+          <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:32px;width:auto">
+          <span class="brand-sub"><img src="/img/afx-icon.png" alt="AFX" class="brand-sub-icon">Forum</span>
+        </a>
+        <div class="mp-ext-links">
+          <a href="/" target="_blank" rel="noopener" class="mp-ext-link">NSM Home</a>
+          <a href="/servers" target="_blank" rel="noopener" class="mp-ext-link">Server List</a>
+          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
+          <a href="/marketplace" target="_blank" rel="noopener" class="mp-ext-link">Marketplace</a>
+          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
+          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
+        </div>
+      </div>
 
-<section class="wrap section">
-  <div class="sec-head">
-    <div>
-      <h1>NSM Community Forum</h1>
-      <p class="muted">
-        {{if .ActiveCat}}
-          <span class="cat-pill" style="--cat-color:{{.ActiveCat.Color}}">{{.ActiveCat.Name}}</span> — {{.ActiveCat.Description}}
+      <div style="display:flex;align-items:center;gap:10px">
+        <form method="get" action="/forum" class="afx-d-search">
+          {{if .CatSlug}}<input type="hidden" name="cat" value="{{.CatSlug}}">{{end}}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" name="q" value="{{.Query}}" placeholder="Search AFX Forum topics, tags, or users...">
+        </form>
+
+        {{if .User}}
+        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
+        <a href="/account" class="user-chip">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+          <span>{{.User.EffectiveDisplayName}}</span>
+        </a>
         {{else}}
-          Announcements, server development, resource releases, server bazaar, and technical support
+        <a href="/login?next=/forum" class="btn btn-ghost btn-sm">Log In</a>
+        <a href="/register?next=/forum" class="btn btn-primary btn-sm">Sign Up</a>
         {{end}}
-      </p>
+      </div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <form method="get" action="/forum" style="display:flex;gap:6px">
-        {{if .CatSlug}}<input type="hidden" name="cat" value="{{.CatSlug}}">{{end}}
-        <input type="search" name="q" value="{{.Query}}" placeholder="Search forum topics &amp; posts..." class="inp" style="min-width:220px">
-        <button type="submit" class="btn btn-ghost btn-sm">Search</button>
-      </form>
+  </header>
+
+  <!-- Discourse 2-Column Shell: Left Sidebar + Main Topic List -->
+  <div class="afx-d-shell">
+    <!-- Left Discourse Sidebar -->
+    <aside class="afx-d-sidebar">
+      <div class="afx-d-nav-sec">
+        <a href="/forum" class="afx-d-nav-link {{if and (eq .CatSlug "") (eq .Tab "latest")}}active{{end}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <span>Topics (Latest)</span>
+        </a>
+        <a href="/forum?tab=top" class="afx-d-nav-link {{if eq .Tab "top"}}active{{end}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span>Top Discussions</span>
+        </a>
+        {{if .User}}
+        <a href="/u/{{.User.Username}}" class="afx-d-nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>My Posts &amp; Profile</span>
+        </a>
+        {{end}}
+      </div>
+
+      <div class="afx-d-nav-sec">
+        <div class="afx-d-nav-title">CATEGORIES</div>
+        <a href="/forum" class="afx-d-nav-link {{if eq .CatSlug ""}}active{{end}}">
+          <span class="afx-d-cat-sq" style="background:#2f7bff"></span>
+          <span>All Categories</span>
+        </a>
+        {{range .Categories}}
+        <a href="/forum/c/{{.Slug}}" class="afx-d-nav-link {{if eq $.CatSlug .Slug}}active{{end}}">
+          <span class="afx-d-cat-sq" style="background:{{.Color}}"></span>
+          <span style="flex:1">{{.Name}}</span>
+          <span class="muted" style="font-size:0.75rem">{{.TopicCount}}</span>
+        </a>
+        {{end}}
+      </div>
+
+      <div class="afx-d-nav-sec">
+        <div class="afx-d-nav-title">POPULAR TAGS</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px">
+          <a href="/forum?q=official" class="nsm-loaf">#official</a>
+          <a href="/forum?q=keymaster" class="nsm-loaf">#keymaster</a>
+          <a href="/forum?q=release" class="nsm-loaf">#release</a>
+          <a href="/forum?q=script" class="nsm-loaf">#script</a>
+          <a href="/forum?q=tutorial" class="nsm-loaf">#tutorial</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Discourse Content -->
+    <main class="afx-d-main">
+      <!-- Category Banner / Boxes -->
+      <div class="forum-cats-grid" style="margin-bottom:20px">
+        {{range .Categories}}
+        <a href="/forum/c/{{.Slug}}" class="forum-cat-card {{if eq $.CatSlug .Slug}}on{{end}}" style="--cat-color:{{.Color}}">
+          <div class="forum-cat-top">
+            <span class="forum-cat-dot" style="background:{{.Color}}"></span>
+            <strong>{{.Name}}</strong>
+            <span class="forum-cat-count">{{.TopicCount}}</span>
+          </div>
+          <div class="muted" style="font-size:12px">{{.Description}}</div>
+        </a>
+        {{end}}
+      </div>
+
+      <!-- New Topic Composer -->
       {{if .User}}
-      <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
-      {{else}}
-      <a href="/login?next=/forum" class="btn btn-primary btn-sm">Sign in to Post</a>
+      <div id="new-topic-box" class="composer-card">
+        <h3 style="margin-bottom:12px">Create a New Topic on AFX Forum</h3>
+        <form method="post" action="/forum/new" class="form">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
+            <label>Topic Title
+              <input type="text" name="title" class="inp" placeholder="What is this discussion about?" required minlength="3" maxlength="140">
+            </label>
+            <label>Category
+              <select name="category" class="inp">
+                {{range .Categories}}
+                <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+              </select>
+            </label>
+            <label>Tags (comma-separated)
+              <input type="text" name="tags" class="inp" placeholder="e.g. script, release, help">
+            </label>
+          </div>
+          <label>Message Body
+            <textarea name="content" class="inp" rows="6" placeholder="Write your post here..." required minlength="2"></textarea>
+          </label>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('new-topic-box').classList.remove('open')">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Publish Topic</button>
+          </div>
+        </form>
+      </div>
       {{end}}
-    </div>
-  </div>
 
-  <!-- Category Grid -->
-  <div class="forum-cats-grid">
-    <a href="/forum" class="forum-cat-card {{if eq .CatSlug ""}}on{{end}}" style="--cat-color:#2f7bff">
-      <div class="forum-cat-top">
-        <span class="forum-cat-dot" style="background:#2f7bff"></span>
-        <strong>All Categories</strong>
-      </div>
-      <div class="muted" style="font-size:12px">Browse all community discussions</div>
-    </a>
-    {{range .Categories}}
-    <a href="/forum/c/{{.Slug}}" class="forum-cat-card {{if eq $.CatSlug .Slug}}on{{end}}" style="--cat-color:{{.Color}}">
-      <div class="forum-cat-top">
-        <span class="forum-cat-dot" style="background:{{.Color}}"></span>
-        <strong>{{.Name}}</strong>
-        <span class="forum-cat-count">{{.TopicCount}}</span>
-      </div>
-      <div class="muted" style="font-size:12px">{{.Description}}</div>
-    </a>
-    {{end}}
-  </div>
-
-  <!-- New Topic Composer -->
-  {{if .User}}
-  <div id="new-topic-box" class="composer-card">
-    <h3 style="margin-bottom:12px">Create a New Forum Topic</h3>
-    <form method="post" action="/forum/new" class="form">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
-        <label>Topic Title
-          <input type="text" name="title" class="inp" placeholder="What is this discussion about?" required minlength="3" maxlength="140">
-        </label>
-        <label>Category
-          <select name="category" class="inp">
-            {{range .Categories}}
-            <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
-            {{end}}
-          </select>
-        </label>
-        <label>Tags (comma-separated)
-          <input type="text" name="tags" class="inp" placeholder="e.g. script, release, help">
-        </label>
-      </div>
-      <label>Message Body
-        <textarea name="content" class="inp" rows="6" placeholder="Write your post here..." required minlength="2"></textarea>
-      </label>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('new-topic-box').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm">Publish Topic</button>
-      </div>
-    </form>
-  </div>
-  {{end}}
-
-  <!-- Filter Tabs -->
-  <div class="forum-tabs">
-    <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=latest" class="forum-tab {{if eq .Tab "latest"}}on{{end}}">Latest</a>
-    <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=top" class="forum-tab {{if eq .Tab "top"}}on{{end}}">Top</a>
-    {{if .Query}}
-    <a href="/forum{{if .CatSlug}}/c/{{.CatSlug}}{{end}}" class="forum-tab">Clear Search ("{{.Query}}") &times;</a>
-    {{end}}
-  </div>
-
-  <!-- Discourse Topic Table -->
-  {{if .Topics}}
-  <div class="forum-table-wrap">
-    <table class="forum-table">
-      <thead>
-        <tr>
-          <th>Topic</th>
-          <th>Posters</th>
-          <th class="num">Replies</th>
-          <th class="num">Likes</th>
-          <th class="num">Views</th>
-          <th class="num">Activity</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{range .Topics}}
-        <tr class="forum-topic-tr {{if .Pinned}}pinned{{end}}">
-          <td class="topic-main-cell">
-            <div class="topic-title-line">
-              {{if .Pinned}}<span class="pin-badge" title="Pinned Topic">&#128204;</span>{{end}}
-              {{if .Locked}}<span class="pin-badge" title="Locked Topic">&#128274;</span>{{end}}
-              <a href="/forum/t/{{.ID}}" class="topic-link">{{.Title}}</a>
-            </div>
-            <div class="topic-sub-line">
-              <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
-              {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
-              <span class="muted">by <a href="/u/{{.AuthorUsername}}">{{.AuthorDisplay}}</a></span>
-            </div>
-          </td>
-          <td class="posters-cell">
-            <div class="posters-stack">
-              {{range .Posters}}
-              <a href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
-                <img src="{{.Avatar}}" alt="{{.Username}}" class="poster-av">
-              </a>
-              {{end}}
-            </div>
-          </td>
-          <td class="num"><b>{{.Replies}}</b></td>
-          <td class="num"><span style="color:#e7064f">&#9829;</span> {{.Likes}}</td>
-          <td class="num muted">{{.Views}}</td>
-          <td class="num muted">{{.UpdatedAtStr}}</td>
-        </tr>
+      <!-- Discourse Navigation Bar -->
+      <div class="forum-tabs" style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center">
+          <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=latest" class="forum-tab {{if eq .Tab "latest"}}on{{end}}">Latest</a>
+          <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=top" class="forum-tab {{if eq .Tab "top"}}on{{end}}">Top</a>
+          {{if .ActiveCat}}
+          <span class="cat-pill" style="--cat-color:{{.ActiveCat.Color}};margin-left:8px">{{.ActiveCat.Name}}</span>
+          {{end}}
+          {{if .Query}}
+          <a href="/forum{{if .CatSlug}}/c/{{.CatSlug}}{{end}}" class="forum-tab">Clear Search ("{{.Query}}") &times;</a>
+          {{end}}
+        </div>
+        {{if .User}}
+        <button type="button" class="nsm-ctrl-btn" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
         {{end}}
-      </tbody>
-    </table>
-  </div>
-  {{else}}
-  <div class="empty">
-    <h3>No topics match your filter</h3>
-    <p class="muted">Start the first conversation using the <strong>+ New Topic</strong> button above.</p>
-  </div>
-  {{end}}
-</section>
+      </div>
 
-{{template "foot" .}}
+      <!-- Discourse Topic List Table -->
+      {{if .Topics}}
+      <div class="forum-table-wrap">
+        <table class="forum-table">
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Posters</th>
+              <th class="num">Replies</th>
+              <th class="num">Likes</th>
+              <th class="num">Views</th>
+              <th class="num">Activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Topics}}
+            <tr class="forum-topic-tr {{if .Pinned}}pinned{{end}}">
+              <td class="topic-main-cell">
+                <div class="topic-title-line">
+                  {{if .Pinned}}<span class="pin-badge" title="Pinned Topic">&#128204;</span>{{end}}
+                  {{if .Locked}}<span class="pin-badge" title="Locked Topic">&#128274;</span>{{end}}
+                  <a href="/forum/t/{{.ID}}" class="topic-link">{{.Title}}</a>
+                </div>
+                <div class="topic-sub-line">
+                  <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
+                  {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
+                  <span class="muted">by <a href="/u/{{.AuthorUsername}}">{{.AuthorDisplay}}</a></span>
+                </div>
+              </td>
+              <td class="posters-cell">
+                <div class="posters-stack">
+                  {{range .Posters}}
+                  <a href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
+                    <img src="{{.Avatar}}" alt="{{.Username}}" class="poster-av">
+                  </a>
+                  {{end}}
+                </div>
+              </td>
+              <td class="num"><b>{{.Replies}}</b></td>
+              <td class="num"><span style="color:#e7064f">&#9829;</span> {{.Likes}}</td>
+              <td class="num muted">{{.Views}}</td>
+              <td class="num muted">{{.UpdatedAtStr}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="empty">
+        <h3>No topics match your filter</h3>
+        <p class="muted">Start the first conversation using the <strong>+ New Topic</strong> button above.</p>
+      </div>
+      {{end}}
+    </main>
+  </div>
+  <script src="/js/main.js?v=078c"></script>
+</body>
+</html>

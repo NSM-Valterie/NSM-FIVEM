@@ -501,7 +501,7 @@ func forumPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renderPage(w, r, "forum.tmpl", map[string]interface{}{
-		"Title":      "NSM Community Forum",
+		"Title":      "AFX Forum - The home of NSM",
 		"Page":       "/forum",
 		"Categories": forumCategoriesWithCounts(),
 		"Topics":     views,

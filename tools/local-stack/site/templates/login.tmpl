@@ -1,37 +1,74 @@
-{{template "head" .}}
-
-<section class="wrap section auth-wrap" style="max-width:520px">
-  <div class="auth-card">
-    <h1>Sign in to NSM</h1>
-    <p class="muted">Use your NSM account for the website, community forum, Keymaster, and NSM desktop client.</p>
-    {{if .Error}}<div class="alert alert-err" style="margin-bottom:12px">{{.Error}}</div>{{end}}
-    <form method="post" action="/login" class="form">
-      <input type="hidden" name="next" value="{{.Next}}">
-      <label>Username or Email
-        <input type="text" name="username" class="inp" value="{{.PrefillUser}}" placeholder="e.g. Cravenz or cravenz@owner.local" required autofocus>
-      </label>
-      <label>Password
-        <input type="password" name="password" class="inp" placeholder="Enter your password" required>
-      </label>
-      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-    </form>
-    <p class="auth-foot">No account yet? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create one</a> &bull; <a href="/user-api-key/new">Sign in for NSM App</a></p>
-
-    <div class="owner-claim-box" style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-        <strong style="font-size:14px;color:var(--fg)">Owner Account (<code style="color:var(--accent-light)">Cravenz</code>)</strong>
-        <span class="role role-owner">owner</span>
-      </div>
-      <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.5">
-        Running on local machine (<code>127.0.0.1</code>): you can sign in above as <strong>Cravenz</strong> (or <strong>cravenz@owner.local</strong>) with your chosen password, or set/reset the owner password below and sign in immediately:
-      </p>
-      <form method="post" action="/account/claim-owner" class="form" style="gap:10px">
-        <input type="hidden" name="next" value="{{.Next}}">
-        <input type="password" name="password" class="inp" minlength="6" placeholder="Set new Cravenz password (6+ chars, or leave blank)">
-        <button type="submit" class="btn btn-ghost btn-block btn-sm">Claim / Sign In as Cravenz (Owner)</button>
-      </form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - AFX Portal</title>
+  <link rel="icon" type="image/png" href="/img/afx-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
+</head>
+<body class="afx-portal-auth-body">
+  <div class="afx-portal-topbar">
+    <a href="/" class="afx-portal-brand">
+      <img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px">
+      <span>AFX <strong>Portal</strong></span>
+    </a>
+    <div class="afx-portal-top-links">
+      <a href="/servers" target="_blank" rel="noopener">Server List</a>
+      <a href="/forum" target="_blank" rel="noopener">AFX Forum</a>
+      <a href="/marketplace" target="_blank" rel="noopener">Marketplace</a>
+      <a href="/docs" target="_blank" rel="noopener">Documentation</a>
+      <a href="/support" target="_blank" rel="noopener">AFX Support</a>
     </div>
   </div>
-</section>
 
-{{template "foot" .}}
+  <main class="afx-portal-auth-main">
+    <div class="afx-portal-auth-card">
+      <div class="afx-portal-auth-logo">
+        <img src="/img/afx-icon.png" alt="AFX" style="width:44px;height:44px;border-radius:10px">
+        <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:36px;width:auto">
+      </div>
+
+      <h1>Sign in to AFX Portal</h1>
+      <p class="muted" style="margin:0 0 20px;font-size:0.9rem;line-height:1.5">
+        Manage your NSM server registration keys, granted assets, community forum profile, and <code>NSM.exe</code> desktop client authentication.
+      </p>
+
+      {{if .Error}}<div class="alert alert-err" style="margin-bottom:16px">{{.Error}}</div>{{end}}
+
+      <form method="post" action="/login" class="form">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <label>AFX Username or Email
+          <input type="text" name="username" class="inp" value="{{.PrefillUser}}" placeholder="e.g. Cravenz or cravenz@owner.local" required autofocus>
+        </label>
+        <label>Password
+          <input type="password" name="password" class="inp" placeholder="Enter your password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block" style="padding:12px 18px;font-size:0.95rem">Continue to AFX Portal</button>
+      </form>
+
+      <div class="afx-portal-auth-links">
+        <span>Don't have an AFX account? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create Account</a></span>
+        <span>&bull;</span>
+        <a href="/user-api-key/new">Link NSM.exe App</a>
+      </div>
+
+      <div class="owner-claim-box" style="margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.1)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <strong style="font-size:0.86rem;color:#fff">Owner Account Quick Access (<code style="color:#00f8b9">Cravenz</code>)</strong>
+          <span class="role role-owner">owner</span>
+        </div>
+        <p class="muted" style="font-size:0.78rem;margin:0 0 10px;line-height:1.45">
+          Local stack owner on <code>127.0.0.1</code>: set or reset your <strong>Cravenz</strong> password below and sign in immediately:
+        </p>
+        <form method="post" action="/account/claim-owner" class="form" style="gap:8px">
+          <input type="hidden" name="next" value="{{if .Next}}{{.Next}}{{else}}/keymaster{{end}}">
+          <input type="password" name="password" class="inp" minlength="6" placeholder="Set Cravenz password (6+ chars, or leave blank)">
+          <button type="submit" class="btn btn-ghost btn-block btn-sm">Sign In as Cravenz (Platform Owner)</button>
+        </form>
+      </div>
+    </div>
+  </main>
+  <script src="/js/main.js?v=078c"></script>
+</body>
+</html>

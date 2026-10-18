@@ -18,6 +18,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -812,11 +814,6 @@ func apiClientAuthPoll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientAuthMu.Lock()
-	if deliveredNonces[nonce] {
-		clientAuthMu.Unlock()
-		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": false, "delivered": true})
-		return
-	}
 	req, exists := pendingAuthByNonce[nonce]
 	if !exists {
 		req = &pendingAuthReq{
@@ -847,6 +844,16 @@ func apiClientAuthPoll(w http.ResponseWriter, r *http.Request) {
 	clientAuthMu.Unlock()
 
 	if authUserID == 0 {
+		// Also check if the user already has a valid web session cookie or existing linked client token
+		if u := currentUser(r); u != nil {
+			authUserID = u.ID
+			clientAuthMu.Lock()
+			req.AuthorizedBy = authUserID
+			clientAuthMu.Unlock()
+		}
+	}
+
+	if authUserID == 0 {
 		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": false, "waiting": true})
 		return
 	}
@@ -869,9 +876,47 @@ func apiClientAuthPoll(w http.ResponseWriter, r *http.Request) {
 	deliveredNonces[nonce] = true
 	clientAuthMu.Unlock()
 
+	var currentUserObj map[string]interface{}
+	var userObj map[string]interface{}
+	accMu.Lock()
+	if u := userByID(authUserID); u != nil {
+		isStaff := roleAtLeast(u.Role, "staff")
+		isAdmin := roleAtLeast(u.Role, "admin")
+		currentUserObj = map[string]interface{}{
+			"id":                 u.ID,
+			"username":           u.Username,
+			"name":               u.EffectiveDisplayName(),
+			"avatar_template":    u.AvatarTemplate(),
+			"title":              u.EffectiveTitle(),
+			"admin":              isAdmin,
+			"moderator":          isStaff,
+			"staff":              isStaff,
+			"trust_level":        4,
+			"primary_group_name": u.Role,
+		}
+		userObj = map[string]interface{}{
+			"id":              u.ID,
+			"username":        u.Username,
+			"name":            u.EffectiveDisplayName(),
+			"title":           u.EffectiveTitle(),
+			"bio_raw":         u.Bio,
+			"bio_cooked":      u.Bio,
+			"location":        u.Location,
+			"website":         u.Website,
+			"avatar_template": u.AvatarTemplate(),
+			"admin":           isAdmin,
+			"moderator":       isStaff,
+			"trust_level":     4,
+			"groups":          discourseGroupsForUser(u),
+		}
+	}
+	accMu.Unlock()
+
 	sendJSON(w, http.StatusOK, map[string]interface{}{
-		"ok":      true,
-		"payload": cachedPayload,
+		"ok":           true,
+		"payload":      cachedPayload,
+		"current_user": currentUserObj,
+		"user":         userObj,
 	})
 }
 
@@ -1046,9 +1091,15 @@ func serveValidateDiscourse(w http.ResponseWriter, r *http.Request) {
 
 const uiClientAuthPollSnippetLegacy = `<script id="nsm-client-auth-poll">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";var t=window.localStorage.getItem("discourseAuthToken")||"";if(!n||t||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1200);})();</script>`
 
-const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>`
+const uiClientAuthPollSnippetV2 = `<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>`
 
-const uiDiscourseHeadInterceptor = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){try{if(typeof input==="string"){input=rw(input);}else if(input&&typeof input.url==="string"){var nu=rw(input.url);if(nu!==input.url)input=new Request(nu,input);}}catch(e){}return origFetch.call(this,input,init);};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v3">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},900);})();</script>`
+
+const uiDiscourseHeadInterceptorV1 = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){try{if(typeof input==="string"){input=rw(input);}else if(input&&typeof input.url==="string"){var nu=rw(input.url);if(nu!==input.url)input=new Request(nu,input);}}catch(e){}return origFetch.call(this,input,init);};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+
+const uiDiscourseHeadInterceptor = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}if(window.Request){var OrigReq=window.Request;window.Request=function(input,init){if(typeof input==="string")input=rw(input);return new OrigReq(input,init);};window.Request.prototype=OrigReq.prototype;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){var h={};try{if(input.headers&&input.headers.forEach)input.headers.forEach(function(v,k){h[k]=v;});}catch(e){}init=init||{method:input.method||"GET",headers:h};input=u;}}}catch(e){}return origFetch.call(this,input,init).then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+
+var htmlAssetCacheBustRe = regexp.MustCompile(`((?:src|href)=["'][^"'?]+\.(?:js|css))(?:\?v=nsm078)?(["'])`)
 
 func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
@@ -1095,22 +1146,24 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			}
 
 			if strings.HasSuffix(lower, ".html") {
-				// Inject head interceptor into index.html (which NUISchemeHandler.cpp never caches)
-				if !bytes.Contains(body, []byte(`id="nsm-discourse-interceptor"`)) {
+				// Upgrade or inject head interceptor into index.html (which NUISchemeHandler.cpp never caches)
+				if bytes.Contains(body, []byte(uiDiscourseHeadInterceptorV1)) {
+					body = bytes.ReplaceAll(body, []byte(uiDiscourseHeadInterceptorV1), []byte(uiDiscourseHeadInterceptor))
+				} else if !bytes.Contains(body, []byte(`id="nsm-discourse-interceptor"`)) {
 					if bytes.Contains(body, []byte("<head>")) {
 						body = bytes.Replace(body, []byte("<head>"), []byte("<head>"+uiDiscourseHeadInterceptor), 1)
 					} else {
 						body = append([]byte(uiDiscourseHeadInterceptor), body...)
 					}
 				}
-				// Append ?v=nsm078 cache-buster to mpMenu.js / main bundle script tags so CEF bypasses 30-day disk cache
-				body = bytes.ReplaceAll(body, []byte(`src="mpMenu.js"`), []byte(`src="mpMenu.js?v=nsm078"`))
-				body = bytes.ReplaceAll(body, []byte(`src="/ui/app/mpMenu.js"`), []byte(`src="/ui/app/mpMenu.js?v=nsm078"`))
-				body = bytes.ReplaceAll(body, []byte(`src="./mpMenu.js"`), []byte(`src="./mpMenu.js?v=nsm078"`))
+				// Append ?v=nsm078b cache-buster to static/js/main.js, mpMenu.js, and any .js/.css tags so CEF bypasses 30-day disk cache
+				body = htmlAssetCacheBustRe.ReplaceAll(body, []byte("${1}?v=nsm078b${2}"))
 
 				if bytes.Contains(body, []byte(uiClientAuthPollSnippetLegacy)) {
 					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetLegacy), []byte(uiClientAuthPollSnippet))
-				} else if !bytes.Contains(body, []byte(`id="nsm-client-auth-poll-v2"`)) {
+				} else if bytes.Contains(body, []byte(uiClientAuthPollSnippetV2)) {
+					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetV2), []byte(uiClientAuthPollSnippet))
+				} else if !bytes.Contains(body, []byte(`id="nsm-client-auth-poll-v3"`)) {
 					if bytes.Contains(body, []byte("</body>")) {
 						body = bytes.Replace(body, []byte("</body>"), []byte(uiClientAuthPollSnippet+"</body>"), 1)
 					} else {
@@ -1143,7 +1196,13 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 }
 
 func patchLocalUIBundlesOnDisk() {
-	candidates := []string{
+	baseDirs := []string{"."}
+	if exe, err := os.Executable(); err == nil {
+		if dir := filepath.Dir(exe); dir != "" && dir != "." {
+			baseDirs = append(baseDirs, dir)
+		}
+	}
+	relCandidates := []string{
 		"citizen/ui.zip",
 		"citizen/ui-big.zip",
 		"NSM.app/citizen/ui.zip",
@@ -1151,39 +1210,55 @@ func patchLocalUIBundlesOnDisk() {
 		"../citizen/ui.zip",
 		"../citizen/ui-big.zip",
 	}
+	seen := map[string]bool{}
 	patchedAny := false
-	for _, p := range candidates {
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		patched, changed, err := patchUIBundleBytes(raw)
-		if err != nil || !changed {
-			continue
-		}
-		tmp := p + ".nsm.tmp"
-		if err := os.WriteFile(tmp, patched, 0644); err == nil {
-			if err := os.Rename(tmp, p); err == nil {
-				patchedAny = true
-				log.Printf("[ui-patch] updated %s -> linked in-app login & portal to http://127.0.0.1", p)
-			} else {
-				_ = os.Remove(tmp)
+	for _, b := range baseDirs {
+		for _, rel := range relCandidates {
+			p := filepath.Clean(filepath.Join(b, rel))
+			if seen[p] {
+				continue
+			}
+			seen[p] = true
+			raw, err := os.ReadFile(p)
+			if err != nil {
+				continue
+			}
+			patched, changed, err := patchUIBundleBytes(raw)
+			if err != nil || !changed {
+				continue
+			}
+			tmp := p + ".nsm.tmp"
+			if err := os.WriteFile(tmp, patched, 0644); err == nil {
+				if err := os.Rename(tmp, p); err == nil {
+					patchedAny = true
+					log.Printf("[ui-patch] updated %s -> linked in-app login & portal to http://127.0.0.1", p)
+				} else {
+					_ = os.Remove(tmp)
+				}
 			}
 		}
 	}
-	if patchedAny {
-		cacheDirs := []string{
-			"data/cache/browser/Cache",
-			"data/cache/browser/Code Cache",
-			"NSM.app/data/cache/browser/Cache",
-			"NSM.app/data/cache/browser/Code Cache",
-			"../data/cache/browser/Cache",
-			"../data/cache/browser/Code Cache",
-		}
-		for _, cd := range cacheDirs {
-			if err := os.RemoveAll(cd); err == nil {
-				log.Printf("[ui-patch] cleared CEF browser cache directory %s", cd)
+	// Always clear pre-v078b CEF browser caches at least once (even if ui.zip came pre-patched in the release archive)
+	for _, b := range baseDirs {
+		for _, relRoot := range []string{"data/cache/browser", "NSM.app/data/cache/browser", "../data/cache/browser"} {
+			root := filepath.Clean(filepath.Join(b, relRoot))
+			st, err := os.Stat(root)
+			if err != nil || !st.IsDir() {
+				continue
 			}
+			sentinel := filepath.Join(root, ".nsm078b")
+			if !patchedAny {
+				if _, err := os.Stat(sentinel); err == nil {
+					continue
+				}
+			}
+			for _, sub := range []string{"Cache", "Code Cache"} {
+				cd := filepath.Join(root, sub)
+				if err := os.RemoveAll(cd); err == nil {
+					log.Printf("[ui-patch] cleared CEF browser cache directory %s", cd)
+				}
+			}
+			_ = os.WriteFile(sentinel, []byte("nsm078b\n"), 0644)
 		}
 	}
 }

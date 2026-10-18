@@ -1,63 +1,194 @@
-{{template "head" .}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFX Support</title>
+  <link rel="icon" type="image/png" href="/img/afx-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
+</head>
+<body class="afx-hc-body">
+  <!-- Zendesk Help Center Header -->
+  <header class="afx-hc-header">
+    <div class="wrap afx-hc-hbar">
+      <a href="/support" class="afx-hc-brand">
+        <img src="/img/afx-icon.png" alt="AFX" style="width:30px;height:30px;border-radius:7px">
+        <img src="/img/nsm-icon.png" alt="NSM" style="width:26px;height:26px">
+        <span>AFX <strong>Support</strong></span>
+      </a>
 
-<section class="wrap section">
-  <div class="sec-head">
-    <div>
-      <h1>Support &amp; Platform Status</h1>
-      <p class="muted">Live system status, troubleshooting guides, and community support channels</p>
+      <div class="afx-hc-nav">
+        <a href="/" target="_blank" rel="noopener">NSM Home</a>
+        <a href="/servers" target="_blank" rel="noopener">Server List</a>
+        <a href="/keymaster" target="_blank" rel="noopener">AFX Portal</a>
+        <a href="/forum" target="_blank" rel="noopener">Community Forum</a>
+        <a href="#submit-ticket" class="btn btn-ghost btn-sm">Submit a request</a>
+        {{if .User}}
+        <a href="/account" class="user-chip">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+          <span>{{.User.EffectiveDisplayName}}</span>
+        </a>
+        {{else}}
+        <a href="/login" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Sign in</a>
+        {{end}}
+      </div>
     </div>
-    <a href="/forum/c/support" class="btn btn-primary btn-sm">Ask in Technical Support Forum &rarr;</a>
-  </div>
+  </header>
 
-  <div class="stats-grid" style="margin-bottom:24px">
-    <div class="stat">
-      <div class="stat-num" style="color:var(--ok);font-size:20px">&#10003; ONLINE</div>
-      <div class="stat-lbl">Masterlist &amp; Ingress</div>
+  <!-- Zendesk Help Center Hero Banner with Instant Search -->
+  <section class="afx-hc-hero">
+    <div class="wrap afx-hc-hero-inner">
+      <span class="afx-eyebrow" style="margin-bottom:10px;display:inline-flex">AFX HELP CENTER &amp; KNOWLEDGE BASE</span>
+      <h1>How can we help you today?</h1>
+      <div class="afx-hc-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="afx-hc-search" placeholder="Search articles, server setup, account linking, or error codes..." autocomplete="off">
+      </div>
+      <div class="afx-hc-popular-tags">
+        <span>Popular:</span>
+        <button type="button" class="nsm-loaf" data-hc-filter="login">In-App Sign In</button>
+        <button type="button" class="nsm-loaf" data-hc-filter="keymaster">Server Keys</button>
+        <button type="button" class="nsm-loaf" data-hc-filter="connect">Connect to Server</button>
+        <button type="button" class="nsm-loaf" data-hc-filter="cravenz">Owner Account</button>
+      </div>
     </div>
-    <div class="stat">
-      <div class="stat-num" style="color:var(--ok);font-size:20px">&#10003; ONLINE</div>
-      <div class="stat-lbl">Keymaster Service</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num" style="color:var(--ok);font-size:20px">&#10003; ONLINE</div>
-      <div class="stat-lbl">In-App Client Auth</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num" style="color:var(--ok);font-size:20px">&#10003; ONLINE</div>
-      <div class="stat-lbl">Forum &amp; Profiles</div>
-    </div>
-  </div>
+  </section>
 
-  <div class="detail-cols">
-    <div class="detail-box">
-      <h3>Common Questions &amp; Fixes</h3>
-      <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
-        <div>
-          <strong>How do I sign in inside the NSM app?</strong>
-          <p class="muted" style="margin-top:4px">Click <strong>Link Account</strong> inside the NSM app (or open <a href="/user-api-key/new">/user-api-key/new</a> in your browser), sign in with your NSM account, and click <strong>Authorize &amp; Sign In to NSM Client</strong>. The NSM client will automatically log you in within 1 second.</p>
+  <!-- Main Help Center Content -->
+  <main class="wrap" style="padding:40px 24px 64px">
+    <!-- 6 Zendesk Category Blocks -->
+    <div class="afx-hc-blocks-grid" id="afx-hc-categories">
+      <a href="#promoted-articles" class="afx-hc-block" data-hc-cat="client login">
+        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="NSM" style="width:28px;height:28px"></div>
+        <h3>NSM Client &amp; Technical Support</h3>
+        <p>Launching <code>NSM.exe</code>, clearing CEF cache, Direct Connect, audio/graphics settings, and game verification.</p>
+      </a>
+
+      <a href="/keymaster" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="keymaster portal server key">
+        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px"></div>
+        <h3>AFX Portal &amp; Registration Keys</h3>
+        <p>Issuing, rotating, and revoking <code>nsm_srv_...</code> server keys in AFX Portal and binding IP endpoints.</p>
+      </a>
+
+      <a href="/docs#server-setup" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="server hosting cfg onesync">
+        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Server" style="width:28px;height:28px"></div>
+        <h3>Dedicated Server Administration</h3>
+        <p>Configuring <code>nsm-server.exe</code>, <code>server-local.cfg</code>, heartbeats on <code>/api/serverlist/ingress</code>, and OneSync.</p>
+      </a>
+
+      <a href="/account" class="afx-hc-block" data-hc-cat="account login cravenz profile avatar">
+        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="Account" style="width:28px;height:28px;border-radius:6px"></div>
+        <h3>AFX Account &amp; In-App Sign-In</h3>
+        <p>Linking your account inside <code>NSM.exe</code>, claiming the <code>Cravenz</code> owner account, and custom profile avatars.</p>
+      </a>
+
+      <a href="/marketplace" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="marketplace resources scripts mlo">
+        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="Marketplace" style="width:28px;height:28px;border-radius:6px"></div>
+        <h3>AFX Marketplace &amp; Resources</h3>
+        <p>Downloading verified NSM resources, installing scripts and custom MLOs, and managing granted assets.</p>
+      </a>
+
+      <a href="/docs#natives" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="scripting lua js csharp natives">
+        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Scripting" style="width:28px;height:28px"></div>
+        <h3>Scripting, NUI &amp; Native Reference</h3>
+        <p>Building Lua, JavaScript, and C# resources, CEF NUI interfaces, state bags, and server events.</p>
+      </a>
+    </div>
+
+    <!-- Promoted Articles + Live Status 2-Column Section -->
+    <div class="afx-hc-two-col" id="promoted-articles" style="margin-top:44px">
+      <div>
+        <h2 style="margin:0 0 16px;font-size:1.35rem;color:#fff">Promoted Knowledge-Base Articles</h2>
+        <div class="nsm-faq-list" id="afx-hc-articles">
+          <div class="nsm-faq-item open" data-hc-article="login sign in nsm.exe unknown auth discourse client">
+            <button type="button" class="nsm-faq-q">
+              <span>How to sign in to your AFX account inside NSM.exe</span>
+              <span>+</span>
+            </button>
+            <div class="nsm-faq-a">
+              <p style="margin:0 0 8px"><strong>1. Ensure <code>NSM-Masterlist.exe</code> is running on port 80:</strong> Start the local stack via <code>START-LOCALHOST.ps1</code> or run <code>NSM-Masterlist.exe -bind 127.0.0.1 -port 80</code>.</p>
+              <p style="margin:0 0 8px"><strong>2. Sign in on AFX Portal or in-app:</strong> Click <strong>Sign In / Link Account</strong> in <code>NSM.exe</code>. If you are signed in on the web (<a href="/login" style="color:#00f8b9">/login</a>), <code>NSM.exe</code> links your account automatically within 1 second!</p>
+              <p style="margin:0"><strong>3. Instant browser authorization:</strong> You can also visit <a href="/user-api-key/new" style="color:#00f8b9">http://127.0.0.1/user-api-key/new</a> at any time and click <strong>Authorize NSM.exe</strong>.</p>
+            </div>
+          </div>
+
+          <div class="nsm-faq-item" data-hc-article="cravenz owner account password claim reset">
+            <button type="button" class="nsm-faq-q">
+              <span>How to claim or reset the Cravenz Platform Owner account</span>
+              <span>+</span>
+            </button>
+            <div class="nsm-faq-a">
+              Open <a href="/login" style="color:#00f8b9">Login - AFX Portal (/login)</a> on <code>127.0.0.1</code>. Either sign in directly with username <code>Cravenz</code> (or <code>cravenz@owner.local</code>) and your chosen password, or use the <strong>Owner Account Quick Access</strong> box at the bottom of the login card to set a new password and sign in immediately with full <code>owner</code> privileges.
+            </div>
+          </div>
+
+          <div class="nsm-faq-item" data-hc-article="keymaster server key nsm_srv_ sv_nsmServerKey">
+            <button type="button" class="nsm-faq-q">
+              <span>How to generate a Server Key in AFX Portal and list your server</span>
+              <span>+</span>
+            </button>
+            <div class="nsm-faq-a">
+              Open <a href="/keymaster" target="_blank" style="color:#00f8b9">AFX Portal (/keymaster)</a>, enter your server's Display Name and optional IP:port, and click <strong>Generate Server Key</strong>. Copy the <code>sets sv_nsmServerKey "nsm_srv_..."</code> line into your <code>server.cfg</code> or <code>server-local.cfg</code> and launch <code>nsm-server.exe</code>.
+            </div>
+          </div>
+
+          <div class="nsm-faq-item" data-hc-article="connect server list f8 console localhost">
+            <button type="button" class="nsm-faq-q">
+              <span>Connecting to a server via Server List or F8 Console</span>
+              <span>+</span>
+            </button>
+            <div class="nsm-faq-a">
+              Open <a href="/servers" target="_blank" style="color:#00f8b9">Server List - NSM (/servers)</a> and click <strong>Connect</strong> on any server row, or press <code>F8</code> inside <code>NSM.exe</code> and type <code>connect 127.0.0.1:30120</code>.
+            </div>
+          </div>
         </div>
-        <div>
-          <strong>How do I list my server on the Server List?</strong>
-          <p class="muted" style="margin-top:4px">Open <a href="/keymaster">Keymaster</a>, generate a server key, paste <code>sets sv_nsmServerKey "nsm_srv_..."</code> into your <code>server-local.cfg</code>, and start <code>nsm-server.exe</code>.</p>
+      </div>
+
+      <!-- Right Column: Platform Status + Submit a Request -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div class="afx-portal-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:1.05rem;color:#fff">AFX &amp; NSM Service Status</h3>
+            <span class="role" style="background:rgba(0,248,185,0.18);color:#00f8b9">All Systems Operational</span>
+          </div>
+          <div class="afx-status-list">
+            <div class="afx-status-row"><span>NSM Masterlist &amp; Protobuf Stream</span><strong style="color:#00f8b9">Operational</strong></div>
+            <div class="afx-status-row"><span>AFX Portal &amp; Keymaster Auth</span><strong style="color:#00f8b9">Operational</strong></div>
+            <div class="afx-status-row"><span>NSM.exe In-App Auth Bridge</span><strong style="color:#00f8b9">Operational</strong></div>
+            <div class="afx-status-row"><span>AFX Forum &amp; Marketplace</span><strong style="color:#00f8b9">Operational</strong></div>
+          </div>
         </div>
-        <div>
-          <strong>How do I change my profile picture &amp; bio?</strong>
-          <p class="muted" style="margin-top:4px">Sign in and open <a href="/account">Profile &amp; Settings</a> to upload a custom avatar image, pick your banner color, and edit your display name and bio.</p>
+
+        <div class="afx-portal-card" id="submit-ticket">
+          <h3 style="margin:0 0 6px;font-size:1.08rem;color:#fff">Submit a Support Request</h3>
+          <p class="muted" style="margin:0 0 14px;font-size:0.84rem">Post a technical support ticket directly to the AFX Support category on the community forum.</p>
+          <form method="post" action="/forum/new" class="form">
+            <input type="hidden" name="category" value="support">
+            <input type="hidden" name="tags" value="support,ticket">
+            <label>Subject
+              <input type="text" name="title" class="inp" placeholder="Brief summary of your question or issue" required>
+            </label>
+            <label>Description
+              <textarea name="content" class="inp" rows="3" placeholder="Include steps to reproduce, server endpoint, or error message..." required></textarea>
+            </label>
+            <button type="submit" class="btn btn-primary btn-block">Submit Support Ticket</button>
+          </form>
         </div>
       </div>
     </div>
+  </main>
 
-    <div class="detail-box">
-      <h3>Support Channels</h3>
-      <p class="muted" style="margin:8px 0 16px">Get help from the NSM community or browse developer documentation:</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <a href="/forum/c/support" class="btn btn-primary">Open Technical Support Forum</a>
-        <a href="/docs" class="btn btn-ghost">Read Platform Documentation</a>
-        <a href="/keymaster" class="btn btn-ghost">Open Keymaster Portal</a>
-        <a href="{{.Invite}}" target="_blank" rel="noopener" class="btn btn-ghost">Join Community Discord &rarr;</a>
+  <footer class="site-footer" style="margin-top:0">
+    <div class="footer-bottom">
+      <span>&copy; {{.Year}} AFX Support &amp; NSM Platform.</span>
+      <div style="display:flex;gap:16px">
+        <a href="/" style="color:rgba(240,244,248,0.65)">NSM Home</a>
+        <a href="/servers" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">Server List</a>
+        <a href="/keymaster" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">AFX Portal</a>
+        <a href="/forum" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">AFX Forum</a>
       </div>
     </div>
-  </div>
-</section>
-
-{{template "foot" .}}
+  </footer>
+  <script src="/js/main.js?v=078c"></script>
+</body>
+</html>

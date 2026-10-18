@@ -1,257 +1,364 @@
 {{template "head" .}}
 
-<!-- 1:1 fivem.net Hero Section (.bg-holder.with-bg + section.hero + #dl) -->
-<div class="bg-holder with-bg">
-  <section class="hero">
-    <div class="text">
-      <div class="subtitle">The GTA V multiplayer modification you have dreamt of</div>
-      <h1 class="title">Welcome to Los Santos.</h1>
-      <p class="lead">
-        NSM is a modification for Grand Theft Auto V enabling you to play multiplayer on customized dedicated servers, powered by the Cfx.re framework. Build roleplay worlds, stream custom vehicles and maps, and manage your servers with NSM Keymaster.
+<!-- 1:1 Hero Section + NSM.exe Continuity Tiles -->
+<section class="nsm-hero">
+  <div class="wrap nsm-hero-grid">
+    <div class="nsm-hero-left">
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:6px 14px;border-radius:999px;background:rgba(22,25,35,0.78);border:1px solid rgba(47,123,255,0.35);margin-bottom:18px">
+        <img src="/img/nsm-icon.png" alt="NSM" style="width:20px;height:20px">
+        <span style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8c7ff">NSM Client &bull; Powered by AFX</span>
+      </div>
+
+      <h1 class="nsm-hero-title">
+        <span>NSM</span> is the GTA V multiplayer modification you have dreamt of
+      </h1>
+      <p class="nsm-hero-lead">
+        NSM is a modification for Grand Theft Auto V enabling you to play multiplayer on customized dedicated servers, powered by the AFX framework.
       </p>
 
-      <div class="hero-cta-row">
-        <a id="dl" href="/docs#client-setup">
+      <div class="nsm-download-wrap">
+        <a href="/servers" target="_blank" rel="noopener" class="nsm-download-btn">
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:36px;height:36px;flex-shrink:0">
           <span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Client &mdash; NSM.exe
+            Launch NSM Client
+            <small>NSM.exe &bull; Browse Live Servers in New Tab</small>
           </span>
-          <sub>NSM.exe &bull; Windows 10 / 11 (64-bit) &bull; Terms of Service</sub>
         </a>
-
-        <a href="/servers" class="btn btn-ghost btn-lg">Browse Live Servers</a>
-        <a href="/keymaster" class="btn btn-ghost btn-lg">Server Keymaster</a>
-        <a href="/forum" class="btn btn-ghost btn-lg">Community Forum</a>
+        <div class="nsm-terms-note">
+          Need a server license key? Open <a href="/keymaster" target="_blank" rel="noopener">AFX Portal</a> or read the <a href="/docs" target="_blank" rel="noopener">NSM Documentation</a>.
+        </div>
       </div>
 
-      <div class="hero-live-pill">
-        <span class="pulse-dot"></span>
-        <span>
-          <strong data-stat="players">{{index .Stats "Players"}}</strong> players online right now across
-          <strong data-stat="servers">{{index .Stats "Servers"}}</strong> live servers &bull;
-          <strong>{{index .Stats "Accounts"}}</strong> accounts &bull;
-          <strong>{{index .Stats "Posts"}}</strong> forum posts
+      <!-- NSM.exe HomePage Continuity Grid (Play / Favorites / History / Localhost) -->
+      <div class="mp-continuity-grid">
+        <a href="/servers" target="_blank" rel="noopener" class="mp-cont-tile mp-cont-play">
+          <div class="mp-cont-play-icon">
+            <img src="/img/nsm-icon.png" alt="Play" style="width:42px;height:42px">
+          </div>
+          <div>
+            <div class="mp-cont-play-title">PLAY NSM</div>
+            <div class="mp-cont-play-sub"><span data-stat="servers">{{index .Stats "Servers"}}</span> live servers &bull; <span data-stat="players">{{index .Stats "Players"}}</span> players online</div>
+          </div>
+        </a>
+        <a href="/servers#favorites" target="_blank" rel="noopener" class="mp-cont-tile mp-cont-fav">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;color:#f40552"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>FAVORITES</span>
+        </a>
+        <a href="/servers#history" target="_blank" rel="noopener" class="mp-cont-tile mp-cont-hist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;color:#2096f3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>HISTORY</span>
+        </a>
+        <button type="button" class="mp-cont-tile mp-cont-local" data-connect-ep="127.0.0.1:30120">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:18px;height:18px;color:#00f8b9"><rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/></svg>
+          <span>CONNECT LOCALHOST (127.0.0.1:30120)</span>
+        </button>
+      </div>
+
+      <div class="nsm-hero-links">
+        <a href="/servers" target="_blank" rel="noopener" class="nsm-pill-link">
+          <span class="dot"></span>
+          <span><strong data-stat="players">{{index .Stats "Players"}}</strong> Players Online Across <strong data-stat="servers">{{index .Stats "Servers"}}</strong> Servers</span>
+        </a>
+        <a href="/keymaster" target="_blank" rel="noopener" class="nsm-pill-link">
+          <img src="/img/afx-icon.png" alt="AFX" style="width:15px;height:15px;border-radius:3px">
+          <span>AFX Portal &amp; Keymaster</span>
+        </a>
+        <a href="/user-api-key/new" class="nsm-pill-link">
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:15px;height:15px">
+          <span>Link NSM.exe Account</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nsm-hero-right">
+      <div class="nsm-video-card">
+        <img src="/img/hero-bg.jpg" alt="NSM Gameplay">
+        <div class="nsm-video-overlay">
+          <a href="/servers" target="_blank" rel="noopener" class="nsm-play-badge">
+            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Browse Live NSM Servers
+          </a>
+        </div>
+      </div>
+
+      <div class="nsm-promo-card">
+        <img src="/img/enhanced-art.jpg" alt="NSM Dedicated Servers">
+        <div class="nsm-promo-body">
+          <h3>Host Your Own Dedicated Server on NSM</h3>
+          <p>Issue a server key in <a href="/keymaster" target="_blank" rel="noopener" style="color:#00f8b9">AFX Portal</a> and launch <code>nsm-server.exe</code> with instant masterlist listing.</p>
+        </div>
+        <a href="/keymaster" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open AFX Portal</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 Official NSM & AFX Standalone Web Portals (Each Opens in a Separate Tab) -->
+<section class="afx-suite-section">
+  <div class="wrap">
+    <div class="afx-suite-header">
+      <div>
+        <span class="afx-eyebrow"><img src="/img/afx-icon.png" alt="AFX" style="width:14px;height:14px;border-radius:3px"> AFX &amp; NSM ECOSYSTEM</span>
+        <h2>Explore the Complete NSM &amp; AFX Platform Suite</h2>
+        <p>Every platform service opens in its own dedicated tab with its full layout, live database, and unified AFX account session.</p>
+      </div>
+    </div>
+
+    <div class="afx-suite-grid">
+      <!-- 1. Server List - NSM -->
+      <a href="/servers" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/nsm-icon.png" alt="NSM" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">servers.nsm &nearr;</span>
+        </div>
+        <h3>Server List - NSM</h3>
+        <p>1:1 NSM.exe live server browser with tag &amp; locale facets, Boost power sorting, Favorites, History, and instant in-game connect.</p>
+        <div class="afx-suite-foot">
+          <span><strong data-stat="servers">{{index .Stats "Servers"}}</strong> Live Servers</span>
+          <span class="afx-suite-cta">Open Server List &rarr;</span>
+        </div>
+      </a>
+
+      <!-- 2. Login - AFX Portal -->
+      <a href="/keymaster" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/afx-icon.png" alt="AFX Portal" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">portal.afx &nearr;</span>
+        </div>
+        <h3>Login - AFX Portal</h3>
+        <p>Manage your NSM server license keys (<code>nsm_srv_...</code>), rotate credentials, bind server endpoints, and manage granted assets.</p>
+        <div class="afx-suite-foot">
+          <span>Keymaster &amp; Assets</span>
+          <span class="afx-suite-cta">Open AFX Portal &rarr;</span>
+        </div>
+      </a>
+
+      <!-- 3. AFX Support -->
+      <a href="/support" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/afx-icon.png" alt="AFX Support" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">support.afx &nearr;</span>
+        </div>
+        <h3>AFX Support</h3>
+        <p>Search knowledge-base articles, client &amp; server troubleshooting guides, live platform status, and submit support tickets.</p>
+        <div class="afx-suite-foot">
+          <span>Help Center &amp; Tickets</span>
+          <span class="afx-suite-cta">Open AFX Support &rarr;</span>
+        </div>
+      </a>
+
+      <!-- 4. AFX Forum - The home of NSM -->
+      <a href="/forum" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/nsm-icon.png" alt="AFX Forum" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">forum.afx &nearr;</span>
+        </div>
+        <h3>AFX Forum - The home of NSM</h3>
+        <p>Join the NSM community forum: official announcements, server development, scripts, Server Bazaar, and technical support.</p>
+        <div class="afx-suite-foot">
+          <span><strong>{{index .Stats "Posts"}}</strong> Community Posts</span>
+          <span class="afx-suite-cta">Open AFX Forum &rarr;</span>
+        </div>
+      </a>
+
+      <!-- 5. AFX Marketplace -->
+      <a href="/marketplace" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/afx-icon.png" alt="AFX Marketplace" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">marketplace.afx &nearr;</span>
+        </div>
+        <h3>AFX Marketplace</h3>
+        <p>Discover verified NSM scripts, custom MLOs, vehicles, EUP packs, UI frameworks, and ready-to-run server bases.</p>
+        <div class="afx-suite-foot">
+          <span>Verified NSM Resources</span>
+          <span class="afx-suite-cta">Open Marketplace &rarr;</span>
+        </div>
+      </a>
+
+      <!-- 6. Home - NSM Documentation -->
+      <a href="/docs" target="_blank" rel="noopener" class="afx-suite-card">
+        <div class="afx-suite-top">
+          <img src="/img/nsm-icon.png" alt="NSM Docs" class="afx-suite-logo">
+          <span class="afx-suite-tab-pill">docs.nsm &nearr;</span>
+        </div>
+        <h3>Home - NSM Documentation</h3>
+        <p>Complete NSM client manual, dedicated server setup guide, Lua/JS/C# scripting reference, and searchable Native Reference.</p>
+        <div class="afx-suite-foot">
+          <span>Manuals &amp; Natives</span>
+          <span class="afx-suite-cta">Open Documentation &rarr;</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Embedded 1:1 NSM.exe Server Browser -->
+<section class="home-launcher-section">
+  <div class="wrap">
+    <div class="home-launcher-header">
+      <div>
+        <span class="nsm-launcher-badge">
+          <span class="dot"></span>
+          LIVE NSM.EXE SERVER LAUNCHER
         </span>
+        <h2 style="margin:6px 0 0;font-size:1.65rem;font-weight:700;color:#fff">Browse &amp; Connect to Live NSM Servers</h2>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <a href="/keymaster" target="_blank" rel="noopener" class="nsm-ctrl-btn">Issue Server Key</a>
+        <a href="/servers" target="_blank" rel="noopener" class="nsm-btn nsm-btn-primary">Open Fullscreen Server List Tab &nearr;</a>
       </div>
     </div>
-  </section>
-</div>
 
-<!-- 1:1 fivem.net Overlapping Features Grid (.features + article.a1..a4) -->
-<section class="features">
-  <h1>What we have for you</h1>
-  <div class="features-grid">
-    <article class="a1">
-      <h2>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        Streaming
-      </h2>
-      <p>
-        Custom cars, maps, weapons, clothes, and MLO interiors stream seamlessly on connect. NSM caches server assets locally so joining your favorite servers is fast and effortless.
-      </p>
-    </article>
-
-    <article class="a2">
-      <h2>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        AI &amp; Population
-      </h2>
-      <p>
-        Keep the original Grand Theft Auto V AI traffic and pedestrians synced across players, or script custom server-authoritative NPCs and missions with OneSync Infinity.
-      </p>
-    </article>
-
-    <article class="a3">
-      <h2>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Sync quality
-      </h2>
-      <p>
-        Uses the original GTA V network code enhanced by Cfx.re OneSync, supporting up to 2048 concurrent players per server with accurate vehicle, weapon, and animation sync.
-      </p>
-    </article>
-
-    <article class="a4">
-      <h2>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Standalone
-      </h2>
-      <p>
-        NSM never modifies your base Grand Theft Auto V installation files. Switch between GTA:Online and NSM at any time without ever risking a Rockstar ban.
-      </p>
-    </article>
+    <div class="home-embedded-mp">
+      {{template "nsm_server_launcher" .}}
+    </div>
   </div>
 </section>
 
-<!-- Live NSM.exe Server Browser Embedded Directly on the Homepage -->
-<section class="nsm-launcher-section">
-  <div class="nsm-launcher-header">
+<!-- 1:1 Feature Blocks -->
+<section class="nsm-features-section">
+  <div class="wrap">
+    <div class="nsm-features-grid">
+      <article class="nsm-feature-card a1">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div class="desc">
+          <h2>Streaming</h2>
+          <p>NSM allows servers to use custom cars, maps, weapons, and clothes dynamically — streamed directly from your server to connected players with zero manual client file edits.</p>
+        </div>
+      </article>
+
+      <article class="nsm-feature-card a2">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="desc">
+          <h2>NPCs &amp; World Sync</h2>
+          <p>NSM servers keep ambient world population, traffic, and synced entities active so your multiplayer world never feels empty. Build co-op missions, roleplay cities, or racing circuits.</p>
+        </div>
+      </article>
+
+      <article class="nsm-feature-card a3">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="desc">
+          <h2>Sync Quality</h2>
+          <p>NSM uses the original game network code augmented with OneSync state bags and high-frequency entity replication, delivering rock-solid synchronization up to 2048 players.</p>
+        </div>
+      </article>
+
+      <article class="nsm-feature-card a4">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="desc">
+          <h2>Standalone</h2>
+          <p>NSM does not touch your base Grand Theft Auto V installation files, so you can switch between singleplayer and NSM servers at any time without corrupting your game directory.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- Community Forum Highlights -->
+<section class="wrap" style="padding:16px 24px 48px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:12px">
     <div>
-      <h2>
-        <span>Live NSM.exe Server Browser</span>
-        <span class="nsm-live-badge"><span class="pulse-dot" style="width:7px;height:7px"></span> Shared with NSM.exe</span>
-      </h2>
-      <p class="muted" style="margin:4px 0 0;font-size:0.9rem">
-        The exact same live server list displayed inside the <code>NSM.exe</code> desktop launcher &mdash; click any row to inspect or connect
-      </p>
+      <h2 style="margin:0;font-size:1.5rem;font-weight:600;color:#fff">Latest on the AFX Community Forum</h2>
+      <p style="margin:4px 0 0;color:rgba(240,244,248,0.62);font-size:0.92rem">Announcements, resource releases, and server guides from the NSM community</p>
     </div>
-    <div style="display:flex;gap:8px">
-      <a href="/servers" class="btn btn-ghost btn-sm">Open Fullscreen Server Browser &rarr;</a>
-      <a href="/keymaster" class="btn btn-primary btn-sm">Register a Server Key</a>
-    </div>
+    <a href="/forum" target="_blank" rel="noopener" class="nsm-ctrl-btn">Open AFX Forum in New Tab &nearr;</a>
   </div>
 
-  {{template "nsm_server_launcher" .}}
+  <div class="discourse-table-wrap">
+    <table class="discourse-topic-table">
+      <thead>
+        <tr>
+          <th>Topic</th>
+          <th>Posters</th>
+          <th class="num">Replies</th>
+          <th class="num">Views</th>
+          <th class="num">Activity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .ForumTopics}}
+        <tr>
+          <td>
+            <a href="/forum/t/{{.ID}}" target="_blank" rel="noopener" class="topic-title-link">
+              {{if .Pinned}}<span style="color:#f40552;margin-right:4px" title="Pinned">&#128204;</span>{{end}}
+              {{.Title}}
+            </a>
+            <div class="topic-meta-row">
+              <span class="cat-badge" style="color:{{.Category.Color}}">
+                <span class="cat-dot" style="background:{{.Category.Color}}"></span>
+                {{.Category.Name}}
+              </span>
+              {{range .Tags}}
+              <span class="tag-pill">{{.}}</span>
+              {{end}}
+            </div>
+          </td>
+          <td>
+            <div class="poster-avatars">
+              {{range .Posters}}
+              <a href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
+                <img src="{{.Avatar}}" alt="{{.Username}}">
+              </a>
+              {{end}}
+            </div>
+          </td>
+          <td class="num">{{.Replies}}</td>
+          <td class="num">{{.Views}}</td>
+          <td class="num" style="font-size:0.82rem">{{.UpdatedAtStr}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
 </section>
 
-<!-- 1:1 fivem.net Gold-Framed Enhanced Card (.enhanced) -->
-<section class="enhanced">
-  <div class="enhanced-card">
-    <div class="cleft">
-      <span class="badge-enhanced">Enhanced Support</span>
-      <h1>Now supporting Grand Theft Auto V Enhanced</h1>
-      <p>
-        Jump into Los Santos with full support for both classic Grand Theft Auto V and the latest game builds, complete with NSM's integrated Discourse account sign-in, Keymaster server licensing, and real-time protobuf masterlist discovery.
-      </p>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:0.5rem">
-        <a href="/servers" class="btn btn-primary">Explore Live Servers</a>
-        <a href="/user-api-key/new" class="btn btn-ghost">Link Account in NSM.exe</a>
+<!-- FAQ Section -->
+<section class="nsm-faq-section">
+  <div class="wrap">
+    <div style="text-align:center;margin-bottom:32px">
+      <h2 style="font-size:1.85rem;font-weight:600;color:#fff;margin:0 0 8px">Frequently Asked Questions</h2>
+      <p style="color:rgba(240,244,248,0.62);margin:0">Everything you need to know about playing and hosting on NSM &amp; AFX</p>
+    </div>
+
+    <div class="nsm-faq-list">
+      <div class="nsm-faq-item open">
+        <button type="button" class="nsm-faq-q">
+          <span>Will I get banned from GTA:O for playing NSM?</span>
+          <span>+</span>
+        </button>
+        <div class="nsm-faq-a">
+          Nope! NSM does not interact with Rockstar Online Services other than to validate your game copy the first time you launch it. It never modifies your base Grand Theft Auto V installation files.
+        </div>
+      </div>
+
+      <div class="nsm-faq-item">
+        <button type="button" class="nsm-faq-q">
+          <span>How do I sign in to my account inside NSM.exe?</span>
+          <span>+</span>
+        </button>
+        <div class="nsm-faq-a">
+          Click <strong>Sign In / Link Account</strong> in the top-right corner of <code>NSM.exe</code>. If you are already signed in on this website, your account links automatically in one click! You can also authorize via <a href="/user-api-key/new" style="color:#00f8b9">/user-api-key/new</a> or customize your profile at <a href="/account" style="color:#00f8b9">/account</a>.
+        </div>
+      </div>
+
+      <div class="nsm-faq-item">
+        <button type="button" class="nsm-faq-q">
+          <span>How do I register a Server Key in AFX Portal?</span>
+          <span>+</span>
+        </button>
+        <div class="nsm-faq-a">
+          Sign in on <a href="/keymaster" target="_blank" rel="noopener" style="color:#00f8b9">AFX Portal</a>, enter your server name and optional IP:port, and click <strong>Generate Server Key</strong>. Copy the generated <code>sets sv_nsmServerKey "nsm_srv_..."</code> line into your <code>server.cfg</code> or <code>server-local.cfg</code>.
+        </div>
       </div>
     </div>
-    <div class="cright" aria-hidden="true"></div>
-  </div>
-</section>
-
-<!-- 1:1 fivem.net System Requirements (.reqs) -->
-<section class="reqs">
-  <h1>System requirements</h1>
-  <div>
-    <table>
-      <tbody>
-        <tr><td colspan="2" style="background:rgba(47,123,255,0.12);color:#fff;font-size:1.05rem">Minimum</td></tr>
-        <tr><td>CPU</td><td>Intel Core 2 Q6600 @ 2.40GHz / AMD Phenom 9850 @ 2.5GHz</td></tr>
-        <tr><td>GPU</td><td>NVIDIA 9800 GT 1GB / AMD HD 4870 1GB / Intel HD GT2</td></tr>
-        <tr><td>RAM</td><td>8 GB (4 GB may work)</td></tr>
-        <tr><td>Storage</td><td>72 GB + ~4 GB for NSM client &amp; server asset cache</td></tr>
-        <tr><td>OS</td><td>Windows 10 64-bit (1909 or newer)</td></tr>
-      </tbody>
-    </table>
-
-    <table>
-      <tbody>
-        <tr><td colspan="2" style="background:rgba(0,147,180,0.16);color:#fff;font-size:1.05rem">Recommended</td></tr>
-        <tr><td>CPU</td><td>Intel Core i5 3470 @ 3.2GHz / AMD X8 FX-8350 @ 4GHz</td></tr>
-        <tr><td>GPU</td><td>NVIDIA GTX 660 2GB / AMD HD 7870 2GB or newer</td></tr>
-        <tr><td>RAM</td><td>16 GB DDR4</td></tr>
-        <tr><td>Storage</td><td>72 GB + 8 GB SSD space for NSM fast streaming cache</td></tr>
-        <tr><td>OS</td><td>Windows 10 / Windows 11 64-bit</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="muted" style="font-size:0.88rem">
-    Just like Grand Theft Auto V, NSM requires an up-to-date 64-bit Windows installation and a legitimate copy of GTA V (Steam, Epic Games, or Rockstar Games Launcher).
-  </p>
-</section>
-
-<!-- 1:1 fivem.net Developers Band (.dev + .langs) -->
-<section class="dev">
-  <div class="text">
-    <div class="subtitle">Developers</div>
-    <div class="title">Creativity at its best</div>
-    <p>
-      Build rich gamemodes, custom NUI interfaces, and high-performance multiplayer experiences using the Cfx.re FXServer runtime. Issue your `sv_licenseKey` in NSM Keymaster and publish your server to the live masterlist in seconds.
-    </p>
-    <div class="action">
-      <a class="btn btn-primary btn-lg" href="/docs">Documentation</a>
-      <a class="btn btn-ghost btn-lg" href="/keymaster">Server Keymaster</a>
-      <a class="btn btn-ghost btn-lg" href="/forum">Developer Forum</a>
-    </div>
-  </div>
-</section>
-
-<section class="langs">
-  <div class="lang lua">
-    <div class="name">Lua</div>
-    <div class="desc">Lightweight, fast, and familiar scripting with coroutines and direct GTA V native access.</div>
-    <pre><code>CreateThread(function()
-  while true do
-    Wait(0)
-    DrawMarker(2, x, y, z, 0.0, 0.0, 0.0,
-      0.0, 180.0, 0.0, 2.0, 2.0, 2.0,
-      47, 123, 255, 180, false, true, 2)
-  end
-end)</code></pre>
-  </div>
-
-  <div class="lang cs">
-    <div class="name">C#</div>
-    <div class="desc">Strongly-typed .NET scripting for complex gamemodes and shared client/server libraries.</div>
-    <pre><code>public class MyScript : BaseScript
-{
-  [Command("car")]
-  public async void SpawnCar(int src, List&lt;object&gt; args)
-  {
-    var hash = (uint)GetHashKey("adder");
-    await World.CreateVehicle(hash, Game.PlayerPed.Position);
-  }
-}</code></pre>
-  </div>
-
-  <div class="lang js">
-    <div class="name">JavaScript</div>
-    <div class="desc">Modern V8 / Node.js runtime with full npm ecosystem support and React/Vue NUI integration.</div>
-    <pre><code>RegisterCommand('spawn', async (src, args) =&gt; {
-  const model = args[0] || 'zentorno';
-  emitNet('nsm:spawnVehicle', src, model);
-}, false);</code></pre>
-  </div>
-</section>
-
-<!-- 1:1 fivem.net 7-Item Anchored FAQ (.faq) -->
-<section class="faq">
-  <h1>FAQ</h1>
-  <div class="faq-grid">
-    <article id="faq1">
-      <h2><a href="#faq1">Will I get banned from GTA:Online for playing NSM?</a></h2>
-      <p>
-        No. NSM does not modify or touch your Grand Theft Auto V installation files at all, and runs inside an isolated application directory with its own network stack.
-      </p>
-    </article>
-
-    <article id="faq2">
-      <h2><a href="#faq2">Why can't I find any servers?</a></h2>
-      <p>
-        Make sure <code>NSM-Masterlist.exe</code> is running and that your FXServer has a valid <code>sv_licenseKey</code> issued from <a href="/keymaster">NSM Keymaster</a> and announces heartbeats to the masterlist.
-      </p>
-    </article>
-
-    <article id="faq3">
-      <h2><a href="#faq3">What are the requirements for running NSM?</a></h2>
-      <p>
-        A legitimate installation of Grand Theft Auto V on Windows 10 or Windows 11 (64-bit) via Steam, Epic Games, or Rockstar Games Launcher.
-      </p>
-    </article>
-
-    <article id="faq4">
-      <h2><a href="#faq4">Does NSM cost anything?</a></h2>
-      <p>
-        No! Downloading the client, creating an account, browsing servers, and issuing server license keys in <a href="/keymaster">Keymaster</a> are completely free.
-      </p>
-    </article>
-
-    <article id="faq5">
-      <h2><a href="#faq5">How do I host a server and get a license key?</a></h2>
-      <p>
-        Sign in and open <a href="/keymaster">Keymaster</a> to generate a <code>cfxk_nsm_...</code> license key. Add <code>set sv_licenseKey "cfxk_nsm_..."</code> to your <code>server.cfg</code> and start your server.
-      </p>
-    </article>
-
-    <article id="faq6">
-      <h2><a href="#faq6">How does signing in inside NSM.exe work?</a></h2>
-      <p>
-        You can sign in directly inside <code>NSM.exe</code>'s account flyout with your NSM username/email and password, or click Link Account to authorize via the website.
-      </p>
-    </article>
   </div>
 </section>
 

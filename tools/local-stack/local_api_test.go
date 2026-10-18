@@ -566,12 +566,12 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 		t.Fatalf("POST /l/api/validate/discourse failed: %d %s", wVal.Code, wVal.Body.String())
 	}
 
-	// 5. Verify patchUIBundleBytes rewrites Discord invite to http://127.0.0.1 and injects auth poller
+	// 5. Verify patchUIBundleBytes rewrites Discord invite to http://127.0.0.1, cache-busts static/js/main.js, and injects auth poller + interceptor
 	var zbuf bytes.Buffer
 	zw := zip.NewWriter(&zbuf)
-	f1, _ := zw.Create("index.html")
-	f1.Write([]byte(`<html><body><div id="root"></div></body></html>`))
-	f2, _ := zw.Create("mpMenu.js")
+	f1, _ := zw.Create("app/index.html")
+	f1.Write([]byte(`<html><head><script defer="defer" src="static/js/main.js"></script></head><body><div id="root"></div></body></html>`))
+	f2, _ := zw.Create("app/static/js/main.js")
 	f2.Write([]byte(`const BASE_URL = "https://discord.gg/UXj5QfCX88";`))
 	zw.Close()
 
@@ -587,11 +587,16 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 		rc, _ := zf.Open()
 		b, _ := io.ReadAll(rc)
 		rc.Close()
-		if zf.Name == "mpMenu.js" && !strings.Contains(string(b), `http://127.0.0.1`) {
-			t.Fatalf("mpMenu.js was not rewritten: %s", string(b))
+		if zf.Name == "app/static/js/main.js" && !strings.Contains(string(b), `http://127.0.0.1`) {
+			t.Fatalf("app/static/js/main.js was not rewritten: %s", string(b))
 		}
-		if zf.Name == "index.html" && !strings.Contains(string(b), `id="nsm-client-auth-poll-v2"`) {
-			t.Fatalf("index.html did not get auth poller injected: %s", string(b))
+		if zf.Name == "app/index.html" {
+			htmlStr := string(b)
+			for _, m := range []string{`id="nsm-client-auth-poll-v3"`, `id="nsm-discourse-interceptor"`, `src="static/js/main.js?v=nsm078b"`} {
+				if !strings.Contains(htmlStr, m) {
+					t.Fatalf("app/index.html missing %s: %s", m, htmlStr)
+				}
+			}
 		}
 	}
 }
@@ -699,30 +704,46 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("POST /account/claim-owner failed: %d %s", wClaim.Code, wClaim.Body.String())
 	}
 
-	// 5. Verify 1:1 fivem.net homepage + embedded NSM.exe server browser + /img/hero-bg.jpg
-	wHome := request(h, "GET", "/", "")
-	if wHome.Code != 200 {
-		t.Fatalf("GET / failed: %d", wHome.Code)
+	// 5. Verify NSM & AFX multi-site ecosystem (/ and 6 standalone target="_blank" apps), Private Network Access CORS, and NSM/AFX logos
+	wOpt := request(h, "OPTIONS", "/session/current.json", "")
+	if wOpt.Header().Get("Access-Control-Allow-Private-Network") != "true" {
+		t.Fatalf("OPTIONS /session/current.json missing Access-Control-Allow-Private-Network: true")
 	}
-	for _, needle := range []string{
-		`class="bg-holder with-bg"`,
-		`Welcome to Los Santos.`,
-		`id="dl"`,
-		`What we have for you`,
-		`id="nsm-launcher"`,
-		`Now supporting Grand Theft Auto V Enhanced`,
-		`System requirements`,
-		`Creativity at its best`,
-		`id="faq1"`,
-	} {
-		if !strings.Contains(wHome.Body.String(), needle) {
-			t.Fatalf("GET / missing 1:1 fivem.net / NSM launcher marker %q", needle)
+
+	siteChecks := []struct {
+		path   string
+		marker string
+	}{
+		{"/", `id="nsm-mp-app"`},
+		{"/servers", `<title>Server List - NSM</title>`},
+		{"/login", `<title>Login - AFX Portal</title>`},
+		{"/keymaster", `AFX <strong>Portal</strong>`},
+		{"/support", `<title>AFX Support</title>`},
+		{"/forum", `<title>AFX Forum - The home of NSM</title>`},
+		{"/marketplace", `<title>AFX Marketplace</title>`},
+		{"/docs", `<title>Home - NSM Documentation</title>`},
+	}
+	for _, sc := range siteChecks {
+		wPage := request(h, "GET", sc.path, "")
+		if wPage.Code != 200 {
+			t.Fatalf("GET %s failed: %d", sc.path, wPage.Code)
+		}
+		body := wPage.Body.String()
+		if !strings.Contains(body, sc.marker) {
+			t.Fatalf("GET %s missing marker %q", sc.path, sc.marker)
+		}
+		for _, forbidden := range []string{"FiveM", "Cfx.re", "CitizenFX"} {
+			if strings.Contains(body, forbidden) {
+				t.Fatalf("GET %s contains forbidden string %q", sc.path, forbidden)
+			}
 		}
 	}
 
-	wHeroImg := request(h, "GET", "/img/hero-bg.jpg", "")
-	if wHeroImg.Code != 200 || wHeroImg.Body.Len() < 10000 {
-		t.Fatalf("GET /img/hero-bg.jpg expected artwork bytes, got status %d len %d", wHeroImg.Code, wHeroImg.Body.Len())
+	for _, imgPath := range []string{"/img/nsm-icon.png", "/img/afx-icon.png", "/img/nsm-afx-logo.png", "/img/hero-bg.jpg"} {
+		wImg := request(h, "GET", imgPath, "")
+		if wImg.Code != 200 || wImg.Body.Len() < 5000 {
+			t.Fatalf("GET %s expected image bytes, got status %d len %d", imgPath, wImg.Code, wImg.Body.Len())
+		}
 	}
 }
 

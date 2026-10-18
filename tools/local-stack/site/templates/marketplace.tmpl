@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFX Marketplace</title>
+  <link rel="icon" type="image/png" href="/img/afx-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
+</head>
+<body class="afx-mp-body">
+  <!-- AFX Marketplace Header -->
+  <header class="afx-d-header">
+    <div class="afx-d-header-inner">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="/marketplace" class="afx-d-logo">
+          <img src="/img/afx-icon.png" alt="AFX" style="width:30px;height:30px;border-radius:7px">
+          <span style="font-weight:700;font-size:1.15rem;color:#fff">AFX <strong style="color:#00f8b9">Marketplace</strong></span>
+        </a>
+        <div class="mp-ext-links">
+          <a href="/" target="_blank" rel="noopener" class="mp-ext-link">NSM Home</a>
+          <a href="/servers" target="_blank" rel="noopener" class="mp-ext-link">Server List</a>
+          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
+          <a href="/forum" target="_blank" rel="noopener" class="mp-ext-link">AFX Forum</a>
+          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
+          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="afx-d-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="afx-mp-search" placeholder="Search scripts, MLOs, vehicles, EUP, or HUDs..." autocomplete="off">
+        </div>
+        <a href="/forum/c/releases" target="_blank" rel="noopener" class="btn btn-primary btn-sm">+ Publish Resource</a>
+        {{if .User}}
+        <a href="/account" class="user-chip">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+          <span>{{.User.EffectiveDisplayName}}</span>
+        </a>
+        {{else}}
+        <a href="/login?next=/marketplace" class="btn btn-ghost btn-sm">Sign In</a>
+        {{end}}
+      </div>
+    </div>
+  </header>
+
+  <!-- Marketplace Hero Banner -->
+  <section class="afx-mp-hero">
+    <div class="wrap afx-mp-hero-inner">
+      <div>
+        <span class="afx-eyebrow"><img src="/img/afx-icon.png" alt="AFX" style="width:14px;height:14px;border-radius:3px"> OFFICIAL AFX ASSET STOREFRONT</span>
+        <h1>Discover Verified Resources for Your NSM Server</h1>
+        <p>Browse community-vetted gameplay scripts, custom interiors (MLOs), addon vehicles, EUP packs, and NUI HUDs ready for <code>nsm-server.exe</code>.</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="/keymaster" target="_blank" rel="noopener" class="nsm-btn nsm-btn-primary">Manage Granted Assets in AFX Portal &nearr;</a>
+        <a href="/forum/c/releases" target="_blank" rel="noopener" class="nsm-ctrl-btn">Community Releases Forum &nearr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Category Filter Tabs + Storefront Grid -->
+  <main class="wrap" style="padding:28px 24px 64px">
+    <div class="afx-mp-toolbar">
+      <div class="afx-mp-cat-tabs" id="afx-mp-cats">
+        <button type="button" class="nsm-ctrl-btn active" data-mp-cat="all">All Resources</button>
+        <button type="button" class="nsm-ctrl-btn" data-mp-cat="scripts">Scripts &amp; Gameplay</button>
+        <button type="button" class="nsm-ctrl-btn" data-mp-cat="mlo">Maps &amp; MLOs</button>
+        <button type="button" class="nsm-ctrl-btn" data-mp-cat="vehicles">Vehicles</button>
+        <button type="button" class="nsm-ctrl-btn" data-mp-cat="ui">NUI &amp; HUDs</button>
+        <button type="button" class="nsm-ctrl-btn" data-mp-cat="server">Full Server Bases</button>
+      </div>
+    </div>
+
+    <div class="afx-mp-grid" id="afx-mp-grid">
+      <!-- Resource 1 -->
+      <article class="afx-mp-card" data-mp-cat="server" data-mp-title="nsm core roleplay framework onesync economy">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364)">
+          <span class="afx-mp-badge">VERIFIED CORE</span>
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:48px;height:48px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>Full Server Base</span><span>&bull;</span><span>by @Cravenz</span></div>
+          <h3>NSM Core Roleplay Framework v2.4</h3>
+          <p>Complete modular roleplay core with multicharacter, banking, inventory, jobs, OneSync state bags, and SQLite/MySQL persistence.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="nsm-core" data-mp-name="NSM Core Roleplay Framework">Get Resource</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resource 2 -->
+      <article class="afx-mp-card" data-mp-cat="ui" data-mp-title="afx glass hud speedometer voice radar nui">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#161923,#007892)">
+          <span class="afx-mp-badge">NUI 60FPS</span>
+          <img src="/img/afx-icon.png" alt="AFX" style="width:48px;height:48px;border-radius:10px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>NUI &amp; HUDs</span><span>&bull;</span><span>by @Cravenz</span></div>
+          <h3>AFX Glass HUD &amp; Vehicle Telemetry</h3>
+          <p>Ultra-clean dark glass status HUD matching the NSM.exe launcher theme, with digital speedometer, gear indicator, and Mumble voice proximity.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="afx-hud" data-mp-name="AFX Glass HUD">Get Resource</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resource 3 -->
+      <article class="afx-mp-card" data-mp-cat="scripts" data-mp-title="nsm admin menu spectate noclip moderation keymaster">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#1a1f35,#2f7bff)">
+          <span class="afx-mp-badge">STAFF TOOL</span>
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:48px;height:48px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>Scripts &amp; Gameplay</span><span>&bull;</span><span>by @Cravenz</span></div>
+          <h3>NSM Admin &amp; Server Inspector Panel</h3>
+          <p>In-game staff menu with player management, entity spawner, live resource profiler, weather/time sync, and AFX role permissions.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="nsm-admin" data-mp-name="NSM Admin Panel">Get Resource</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resource 4 -->
+      <article class="afx-mp-card" data-mp-cat="mlo" data-mp-title="downtown legion square plaza mlo custom interior">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#231528,#f40552)">
+          <span class="afx-mp-badge">CUSTOM MLO</span>
+          <img src="/img/afx-icon.png" alt="AFX" style="width:48px;height:48px;border-radius:10px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>Maps &amp; MLOs</span><span>&bull;</span><span>AFX Studios</span></div>
+          <h3>Downtown Legion Hub &amp; Underground Garage MLO</h3>
+          <p>Optimized multi-floor social hub and showcase garage with custom occlusion portals, dynamic lighting, and zero FPS drop.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="afx-legion-mlo" data-mp-name="Downtown Legion Hub MLO">Get Resource</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resource 5 -->
+      <article class="afx-mp-card" data-mp-cat="vehicles" data-mp-title="custom handling pack pursuit vehicles fleet">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#0f172a,#0284c7)">
+          <span class="afx-mp-badge">VEHICLE PACK</span>
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:48px;height:48px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>Vehicles</span><span>&bull;</span><span>AFX Fleet</span></div>
+          <h3>NSM Pursuit &amp; Street Spec Handling Pack</h3>
+          <p>Balanced server-side <code>handling.meta</code> and siren lightbar controller for emergency and street-tuned vehicles.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="nsm-vehicles" data-mp-name="NSM Pursuit &amp; Street Pack">Get Resource</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resource 6 -->
+      <article class="afx-mp-card" data-mp-cat="scripts" data-mp-title="mumble voip radio channels 3d spatial audio">
+        <div class="afx-mp-thumb" style="background:linear-gradient(135deg,#132a2e,#00f8b9)">
+          <span class="afx-mp-badge">VOICE &amp; RADIO</span>
+          <img src="/img/afx-icon.png" alt="AFX" style="width:48px;height:48px;border-radius:10px">
+        </div>
+        <div class="afx-mp-card-body">
+          <div class="afx-mp-meta"><span>Scripts &amp; Gameplay</span><span>&bull;</span><span>AFX Audio</span></div>
+          <h3>AFX Spatial Voice, Radio &amp; Phone Audio</h3>
+          <p>Native Mumble 3D positional voice integration with encrypted tactical radio channels, submix filters, and speakerphone effects.</p>
+          <div class="afx-mp-card-foot">
+            <span class="afx-mp-price free">Included / Free</span>
+            <button type="button" class="btn btn-primary btn-sm" data-mp-install="afx-voice" data-mp-name="AFX Spatial Voice &amp; Radio">Get Resource</button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Resource Install Modal -->
+    <div class="mp-modal-backdrop" id="afx-mp-modal" style="display:none">
+      <div class="mp-modal-card">
+        <div class="mp-modal-hdr">
+          <h3 id="afx-mp-modal-title">Install Resource on NSM Server</h3>
+          <button type="button" class="mp-modal-close" id="afx-mp-modal-close">&times;</button>
+        </div>
+        <div class="mp-modal-body">
+          <p class="muted" style="margin:0 0 12px;font-size:0.88rem">Add this line to your <code>server.cfg</code> or <code>server-local.cfg</code> and restart <code>nsm-server.exe</code>:</p>
+          <div class="nsm-f8-box">
+            <code id="afx-mp-modal-code">ensure nsm-core</code>
+            <button type="button" class="nsm-copy-mini" id="afx-mp-modal-copy">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/main.js?v=078c"></script>
+</body>
+</html>

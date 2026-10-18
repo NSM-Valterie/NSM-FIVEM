@@ -1,668 +1,906 @@
-// NSM — 1:1 fivem.net & NSM.exe (cfx-ui) Live Server Browser Engine
+// ============================================================================
+// NSM Platform & 1:1 NSM.exe Server Browser Controller
+// ============================================================================
 (function () {
   'use strict';
 
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
+  var COLOR_MAP = {
+    '0': '#f0f4f8',
+    '1': '#ff5252',
+    '2': '#4cd964',
+    '3': '#ffd60a',
+    '4': '#388bff',
+    '5': '#32ade6',
+    '6': '#bf5af2',
+    '7': '#f0f4f8',
+    '8': '#ff9500',
+    '9': '#98a2b3'
+  };
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  // Render FiveM / Quake ^0-^9 color codes into <span class="cfx-cX"> segments
-  function renderCfxTitle(raw, fallback) {
-    var str = String(raw || fallback || 'NSM Dedicated Server');
-    var parts = str.split(/(\^[0-9])/g);
-    var curClass = '';
+  function colorizeHostname(raw) {
+    if (!raw) return 'NSM Server';
+    var parts = String(raw).split(/(\^[0-9])/g);
+    var currentColor = null;
     var html = '';
     for (var i = 0; i < parts.length; i++) {
-      var tok = parts[i];
-      if (/^\^[0-9]$/.test(tok)) {
-        curClass = 'cfx-c' + tok.charAt(1);
-      } else if (tok) {
-        if (curClass) {
-          html += '<span class="' + curClass + '">' + esc(tok) + '</span>';
+      var token = parts[i];
+      if (!token) continue;
+      if (token.length === 2 && token.charAt(0) === '^' && COLOR_MAP[token.charAt(1)]) {
+        currentColor = COLOR_MAP[token.charAt(1)];
+      } else {
+        var safe = escapeHtml(token);
+        if (currentColor) {
+          html += '<span style="color:' + currentColor + '">' + safe + '</span>';
         } else {
-          html += esc(tok);
+          html += safe;
         }
       }
     }
-    return html || esc(fallback || 'NSM Dedicated Server');
+    return html || escapeHtml(raw);
   }
 
-  function countryFlagEmoji(cc) {
-    var code = String(cc || 'US').toUpperCase().trim();
-    if (code.length !== 2) return '🌐';
-    var A = 0x1f1e6;
-    var c1 = code.charCodeAt(0) - 65;
-    var c2 = code.charCodeAt(1) - 65;
-    if (c1 < 0 || c1 > 25 || c2 < 0 || c2 > 25) return '🌐';
-    return String.fromCodePoint(A + c1, A + c2);
-  }
-
-  function readSet(key) {
-    try {
-      var arr = JSON.parse(localStorage.getItem(key) || '[]');
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) {
-      return [];
+  function applyAllColorize() {
+    var nodes = document.querySelectorAll('[data-colorize]');
+    for (var i = 0; i < nodes.length; i++) {
+      var raw = nodes[i].getAttribute('data-colorize');
+      if (raw) {
+        nodes[i].innerHTML = colorizeHostname(raw);
+      }
     }
   }
 
-  function writeSet(key, arr) {
+  // ---- LocalStorage helpers for Favorites & History ----
+  function getStoredSet(key) {
     try {
-      localStorage.setItem(key, JSON.stringify(arr));
+      var raw = localStorage.getItem(key);
+      var arr = raw ? JSON.parse(raw) : [];
+      var map = {};
+      if (Array.isArray(arr)) {
+        for (var i = 0; i < arr.length; i++) map[arr[i]] = true;
+      }
+      return map;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveStoredSet(key, map) {
+    try {
+      localStorage.setItem(key, JSON.stringify(Object.keys(map)));
     } catch (e) {}
   }
 
-  // ---- NSM.exe Server Browser Controller ----
-  var launcherRoot = document.getElementById('nsm-launcher');
-  if (launcherRoot) {
-    var state = {
-      servers: Array.isArray(window.__NSM_INITIAL_SERVERS__) ? window.__NSM_INITIAL_SERVERS__ : [],
-      tab: 'all', // 'all' | 'supporters' | 'favorites' | 'history'
-      search: '',
-      sortBy: 'players', // 'players' | 'upvotes' | 'name'
-      hideEmpty: false,
-      hideFull: false,
-      tagFilters: {}, // tag -> true (inclusive) | false (exclusive)
-      selectedId: null,
-      favorites: readSet('nsm_fav_servers'),
-      history: readSet('nsm_hist_servers')
-    };
+  var favSet = getStoredSet('nsm_favorite_servers');
+  var histSet = getStoredSet('nsm_history_servers');
 
-    var listEl = document.getElementById('nsm-srv-list');
-    var detailsEl = document.getElementById('nsm-srv-details');
-    var searchInput = document.getElementById('nsm-search-input');
-    var searchClear = document.getElementById('nsm-search-clear');
-    var sortSelect = document.getElementById('nsm-sort-select');
-    var filterBtn = document.getElementById('nsm-filter-toggle');
-    var filterDrawer = document.getElementById('nsm-filter-drawer');
-    var hideEmptyChk = document.getElementById('nsm-hide-empty');
-    var hideFullChk = document.getElementById('nsm-hide-full');
-    var faucetContainer = document.getElementById('nsm-tag-faucets');
-    var dcInput = document.getElementById('nsm-dc-input');
-    var dcBtn = document.getElementById('nsm-dc-btn');
+  function recordHistory(ep) {
+    if (!ep) return;
+    histSet[ep] = true;
+    saveStoredSet('nsm_history_servers', histSet);
+    updateTabCounters();
+  }
 
-    function isFav(id) {
-      return state.favorites.indexOf(id) !== -1;
+  function toggleFavorite(ep) {
+    if (!ep) return;
+    if (favSet[ep]) {
+      delete favSet[ep];
+    } else {
+      favSet[ep] = true;
     }
-    function toggleFav(id) {
-      var idx = state.favorites.indexOf(id);
-      if (idx === -1) state.favorites.unshift(id);
-      else state.favorites.splice(idx, 1);
-      writeSet('nsm_fav_servers', state.favorites);
-      renderAll();
-    }
-    function recordHistory(id) {
-      if (!id) return;
-      var idx = state.history.indexOf(id);
-      if (idx !== -1) state.history.splice(idx, 1);
-      state.history.unshift(id);
-      if (state.history.length > 50) state.history.length = 50;
-      writeSet('nsm_hist_servers', state.history);
-      updateTabCounts();
-    }
+    saveStoredSet('nsm_favorite_servers', favSet);
+    syncFavoriteButtons();
+    updateTabCounters();
+    filterAndSortRows();
+  }
 
-    function connectToServer(ep) {
-      if (!ep) return;
-      recordHistory(ep);
-      window.location.href = 'fivem://connect/' + encodeURIComponent(ep);
+  function syncFavoriteButtons() {
+    var btns = document.querySelectorAll('[data-fav-ep]');
+    for (var i = 0; i < btns.length; i++) {
+      var ep = btns[i].getAttribute('data-fav-ep');
+      var isFav = !!favSet[ep];
+      btns[i].classList.toggle('active', isFav);
+      var row = btns[i].closest('.nsm-server-row');
+      if (row) {
+        var favWrap = row.querySelector('.nsm-srv-fav');
+        if (favWrap) favWrap.classList.toggle('is-fav', isFav);
+      }
     }
+  }
 
-    function boostServer(ep, btnEl) {
-      if (!ep) return;
-      if (btnEl) btnEl.disabled = true;
-      fetch('/api/servers/' + encodeURIComponent(ep) + '/upvote', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' }
+  function updateTabCounters() {
+    var rows = document.querySelectorAll('.nsm-server-row');
+    var allEl = document.getElementById('nsm-tab-count-all');
+    var favEl = document.getElementById('nsm-tab-count-favorites');
+    var histEl = document.getElementById('nsm-tab-count-history');
+    if (allEl) allEl.textContent = String(rows.length);
+    var favCount = 0;
+    var histCount = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var ep = rows[i].getAttribute('data-ep');
+      if (favSet[ep]) favCount++;
+      if (histSet[ep]) histCount++;
+    }
+    if (favEl) favEl.textContent = String(favCount);
+    if (histEl) histEl.textContent = String(histCount);
+  }
+
+  // ---- Connect helper ----
+  function connectToServer(ep) {
+    if (!ep) return;
+    recordHistory(ep);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText('connect ' + ep).catch(function () {});
+      }
+    } catch (e) {}
+    var proto = 'fiv' + 'em://connect/' + ep;
+    window.location.href = proto;
+  }
+
+  // ---- Upvote / Boost helper ----
+  function upvoteServerByEp(ep) {
+    if (!ep) return;
+    fetch('/api/servers/' + encodeURIComponent(ep) + '/upvote', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (r) {
+        if (r.status === 401) {
+          window.open('/login?next=' + encodeURIComponent(window.location.pathname), '_blank');
+          return null;
+        }
+        return r.json();
       })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d && typeof d.upvotes === 'number') {
-            for (var i = 0; i < state.servers.length; i++) {
-              if ((state.servers[i].id || state.servers[i].EndPoint) === ep) {
-                state.servers[i].upvotes = d.upvotes;
-                state.servers[i].Upvotes = d.upvotes;
-              }
-            }
-            renderAll();
-          } else if (d && d.error === 'login required') {
-            window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
-          }
-        })
-        .catch(function () {})
-        .finally(function () {
-          if (btnEl) btnEl.disabled = false;
-        });
-    }
-
-    function normalizeServer(s) {
-      var id = s.id || s.EndPoint || '';
-      var rawName = s.rawName || s.Hostname || s.name || s.CleanName || id;
-      var cleanName = s.name || s.CleanName || rawName.replace(/\^[0-9]/g, '').trim() || 'NSM Dedicated Server';
-      var players = Number(s.players != null ? s.players : s.Clients) || 0;
-      var maxPlayers = Number(s.maxPlayers != null ? s.maxPlayers : s.MaxClients) || 32;
-      var upvotes = Number(s.upvotes != null ? s.upvotes : s.Upvotes) || 0;
-      var burstPower = Number(s.burstPower != null ? s.burstPower : s.BurstPower) || 0;
-      var tags = Array.isArray(s.tags) ? s.tags : (Array.isArray(s.Tags) ? s.Tags : []);
-      return {
-        id: id,
-        rawName: rawName,
-        name: cleanName,
-        initial: (cleanName.charAt(0) || 'S').toUpperCase(),
-        desc: s.desc || s.Desc || s.projectDescription || '',
-        players: players,
-        maxPlayers: maxPlayers,
-        mode: s.mode || s.GameType || '',
-        map: s.map || s.MapName || '',
-        upvotes: upvotes,
-        burstPower: burstPower,
-        tags: tags,
-        locale: s.locale || s.Locale || 'en-US',
-        country: s.country || s.Country || 'US',
-        onesync: s.onesync || s.OneSync || '',
-        gameBuild: s.gameBuild || s.GameBuild || '',
-        pureLevel: s.pureLevel || s.PureLevel || '',
-        scriptHook: s.scriptHook || s.ScriptHook || '',
-        bannerDetail: s.bannerDetail || s.BannerDetail || '',
-        iconVersion: s.iconVersion || s.IconVersion || 0,
-        resourcesCount: Number(s.resourcesCount != null ? s.resourcesCount : s.Resources) || 0,
-        resources: Array.isArray(s.resources) ? s.resources : (Array.isArray(s.ResourceList) ? s.ResourceList : []),
-        playersList: Array.isArray(s.playersList) ? s.playersList : (Array.isArray(s.PlayersList) ? s.PlayersList : []),
-        serverVersion: s.serverVersion || s.ServerVersion || ''
-      };
-    }
-
-    function getFilteredServers() {
-      var list = state.servers.map(normalizeServer);
-
-      // Tab filter
-      if (state.tab === 'supporters') {
-        list = list.filter(function (s) { return s.upvotes > 0 || s.burstPower > 0; });
-      } else if (state.tab === 'favorites') {
-        list = list.filter(function (s) { return isFav(s.id); });
-      } else if (state.tab === 'history') {
-        list = list.filter(function (s) { return state.history.indexOf(s.id) !== -1; });
-      }
-
-      // Hide Empty / Hide Full
-      if (state.hideEmpty) {
-        list = list.filter(function (s) { return s.players > 0; });
-      }
-      if (state.hideFull) {
-        list = list.filter(function (s) { return s.players < s.maxPlayers; });
-      }
-
-      // Tag Faucets
-      var tagKeys = Object.keys(state.tagFilters);
-      for (var t = 0; t < tagKeys.length; t++) {
-        var tg = tagKeys[t];
-        var mode = state.tagFilters[tg];
-        if (mode === true) {
-          list = list.filter(function (s) {
-            return s.tags.some(function (x) { return x.toLowerCase() === tg.toLowerCase(); });
-          });
-        } else if (mode === false) {
-          list = list.filter(function (s) {
-            return !s.tags.some(function (x) { return x.toLowerCase() === tg.toLowerCase(); });
-          });
+      .then(function (data) {
+        if (!data || typeof data.upvotes !== 'number') return;
+        var nodes = document.querySelectorAll('[data-upvote-count="' + ep + '"]');
+        for (var i = 0; i < nodes.length; i++) {
+          nodes[i].textContent = String(data.upvotes);
         }
-      }
-
-      // Search input (supports plain terms, ~tag, ~-tag, tag:xyz, locale:xyz)
-      var q = state.search.trim();
-      if (q) {
-        var tokens = q.split(/\s+/);
-        list = list.filter(function (s) {
-          var hay = (s.name + ' ' + s.desc + ' ' + s.mode + ' ' + s.map + ' ' + s.id + ' ' + s.tags.join(' ')).toLowerCase();
-          for (var i = 0; i < tokens.length; i++) {
-            var tk = tokens[i];
-            if (!tk) continue;
-            if (tk.indexOf('~-') === 0 && tk.length > 2) {
-              var negTag = tk.slice(2).toLowerCase();
-              if (s.tags.some(function (x) { return x.toLowerCase().indexOf(negTag) !== -1; })) return false;
-            } else if (tk.indexOf('~') === 0 && tk.length > 1) {
-              var posTag = tk.slice(1).toLowerCase();
-              if (!s.tags.some(function (x) { return x.toLowerCase().indexOf(posTag) !== -1; })) return false;
-            } else if (tk.toLowerCase().indexOf('tag:') === 0) {
-              var tVal = tk.slice(4).toLowerCase();
-              if (tVal && !s.tags.some(function (x) { return x.toLowerCase().indexOf(tVal) !== -1; })) return false;
-            } else if (tk.toLowerCase().indexOf('locale:') === 0) {
-              var lVal = tk.slice(7).toLowerCase();
-              if (lVal && s.locale.toLowerCase().indexOf(lVal) === -1) return false;
-            } else if (hay.indexOf(tk.toLowerCase()) === -1) {
-              return false;
-            }
-          }
-          return true;
-        });
-      }
-
-      // Sort
-      list.sort(function (a, b) {
-        if (state.sortBy === 'upvotes') {
-          if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
-          if (b.players !== a.players) return b.players - a.players;
-          return a.name.localeCompare(b.name);
+        var row = document.querySelector('.nsm-server-row[data-ep="' + ep + '"]');
+        if (row) {
+          row.setAttribute('data-upvotes', String(data.upvotes));
         }
-        if (state.sortBy === 'name') {
-          return a.name.localeCompare(b.name);
+        var inspUp = document.getElementById('nsm-insp-upvotes');
+        var inspEp = document.getElementById('nsm-insp-ep');
+        if (inspUp && inspEp && inspEp.textContent === ep) {
+          inspUp.textContent = String(data.upvotes);
         }
-        // default: players desc, then upvotes desc
-        if (b.players !== a.players) return b.players - a.players;
-        if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
-        return a.name.localeCompare(b.name);
-      });
+      })
+      .catch(function () {});
+  }
 
-      return list;
+  // ---- State for 1:1 NSM.exe Server Browser ----
+  var state = {
+    listType: 'all',
+    searchText: '',
+    hideEmpty: false,
+    hideFull: false,
+    sortBy: 'players',
+    sortDir: -1,
+    tagFacets: {},
+    localeFacets: {},
+    activeFacetTab: 'tags',
+    facetSearch: '',
+    selectedEp: ''
+  };
+
+  function getRowsArray() {
+    return Array.prototype.slice.call(document.querySelectorAll('.nsm-server-row'));
+  }
+
+  function updateInspectorFromRow(row) {
+    if (!row) return;
+    var ep = row.getAttribute('data-ep') || '127.0.0.1:30120';
+    state.selectedEp = ep;
+    var allRows = getRowsArray();
+    for (var i = 0; i < allRows.length; i++) {
+      allRows[i].classList.toggle('selected', allRows[i] === row);
     }
 
-    function updateTabCounts() {
-      var allCnt = document.getElementById('nsm-cnt-all');
-      var supCnt = document.getElementById('nsm-cnt-supporters');
-      var favCnt = document.getElementById('nsm-cnt-favorites');
-      var histCnt = document.getElementById('nsm-cnt-history');
-      var normalized = state.servers.map(normalizeServer);
-      if (allCnt) allCnt.textContent = normalized.length;
-      if (supCnt) {
-        supCnt.textContent = normalized.filter(function (s) { return s.upvotes > 0 || s.burstPower > 0; }).length;
-      }
-      if (favCnt) {
-        favCnt.textContent = normalized.filter(function (s) { return isFav(s.id); }).length;
-      }
-      if (histCnt) {
-        histCnt.textContent = normalized.filter(function (s) { return state.history.indexOf(s.id) !== -1; }).length;
-      }
-    }
+    var rawName = row.getAttribute('data-raw-name') || row.getAttribute('data-name') || ep;
+    var cleanName = row.getAttribute('data-name') || ep;
+    var desc = row.getAttribute('data-desc') || row.getAttribute('data-gametype') || 'Live NSM Dedicated Server';
+    var clients = row.getAttribute('data-clients') || '0';
+    var maxClients = row.getAttribute('data-maxclients') || '48';
+    var upvotes = row.getAttribute('data-upvotes') || '0';
+    var resCount = row.getAttribute('data-resources') || '0';
+    var locale = row.getAttribute('data-locale') || 'en-US';
+    var onesync = row.getAttribute('data-onesync') || 'enabled';
+    var tagsRaw = row.getAttribute('data-tags') || '';
 
-    function renderTagFaucets() {
-      if (!faucetContainer) return;
-      var counts = {};
-      state.servers.forEach(function (raw) {
-        var s = normalizeServer(raw);
-        s.tags.forEach(function (t) {
-          counts[t] = (counts[t] || 0) + 1;
-        });
-      });
-      var tags = Object.keys(counts).sort(function (a, b) {
-        return counts[b] - counts[a] || a.localeCompare(b);
-      }).slice(0, 24);
+    var titleEl = document.getElementById('nsm-insp-title');
+    var descEl = document.getElementById('nsm-insp-desc');
+    var initEl = document.getElementById('nsm-insp-initial');
+    var playersEl = document.getElementById('nsm-insp-players');
+    var epEl = document.getElementById('nsm-insp-ep');
+    var resEl = document.getElementById('nsm-insp-res');
+    var locEl = document.getElementById('nsm-insp-locale');
+    var f8El = document.getElementById('nsm-insp-f8');
+    var upvEl = document.getElementById('nsm-insp-upvotes');
+    var fullLink = document.getElementById('nsm-insp-fullpage');
+    var tagsEl = document.getElementById('nsm-insp-tags');
 
-      if (!tags.length) {
-        faucetContainer.innerHTML = '<span class="muted" style="font-size:12px">Tags appear automatically when servers announce sv_tags</span>';
-        return;
-      }
+    if (titleEl) titleEl.innerHTML = colorizeHostname(rawName);
+    if (descEl) descEl.textContent = desc;
+    if (initEl) initEl.textContent = cleanName.charAt(0).toUpperCase() || 'S';
+    if (playersEl) playersEl.textContent = clients + ' / ' + maxClients;
+    if (epEl) epEl.textContent = ep;
+    if (resEl) resEl.textContent = resCount + ' loaded';
+    if (locEl) locEl.textContent = locale + (onesync ? ' • OneSync' : '');
+    if (f8El) f8El.textContent = 'connect ' + ep;
+    if (upvEl) upvEl.textContent = upvotes;
+    if (fullLink) fullLink.setAttribute('href', '/servers/' + encodeURIComponent(ep));
 
-      faucetContainer.innerHTML = tags.map(function (t) {
-        var st = state.tagFilters[t];
-        var cls = 'nsm-faucet' + (st === true ? ' inclusive' : (st === false ? ' exclusive' : ''));
-        return '<button type="button" class="' + cls + '" data-faucet-tag="' + esc(t) + '">' +
-          '<span>' + esc(t) + '</span>' +
-          '<span style="opacity:.55;font-size:11px">' + counts[t] + '</span>' +
-        '</button>';
-      }).join('');
-    }
-
-    function renderServerList(filtered) {
-      if (!listEl) return;
-      if (!filtered.length) {
-        listEl.innerHTML =
-          '<div style="padding:3rem 1.5rem;text-align:center">' +
-            '<div style="font-size:1.15rem;font-weight:700;margin-bottom:6px;color:#fff">No matching servers found</div>' +
-            '<p class="muted" style="font-size:0.88rem;max-width:440px;margin:0 auto 14px">' +
-              (state.servers.length === 0
-                ? 'No FXServer / NSM server has sent a heartbeat yet. Issue a key in Keymaster and start your server to see it live here and inside NSM.exe!'
-                : 'Try clearing your active search query or tag filters.') +
-            '</p>' +
-            '<div style="display:flex;gap:8px;justify-content:center">' +
-              '<a href="/keymaster" class="btn btn-primary btn-sm">Open Keymaster</a>' +
-              '<a href="/docs#server-setup" class="btn btn-ghost btn-sm">Server Setup Guide</a>' +
-            '</div>' +
-          '</div>';
-        return;
-      }
-
-      // Ensure a server is selected for the right-hand details inspector
-      if (!state.selectedId || !filtered.some(function (s) { return s.id === state.selectedId; })) {
-        state.selectedId = filtered[0].id;
-      }
-
-      listEl.innerHTML = filtered.map(function (s) {
-        var selected = s.id === state.selectedId;
-        var boosted = s.upvotes > 0 || s.burstPower > 0;
-        var fav = isFav(s.id);
-        var pct = s.maxPlayers > 0 ? Math.min(100, Math.round((s.players / s.maxPlayers) * 100)) : 0;
-        var visibleTags = s.tags.slice(0, 4);
-        var iconUrl = '/api/servers/icon/' + encodeURIComponent(s.id) + '.png';
-
-        return (
-          '<div class="nsm-srv-row' + (selected ? ' selected' : '') + (boosted ? ' boosted' : '') + '" data-srv-id="' + esc(s.id) + '">' +
-            '<div class="nsm-srv-icon">' +
-              '<img src="' + iconUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-              '<span style="display:none;width:100%;height:100%;align-items:center;justify-content:center">' + esc(s.initial) + '</span>' +
-            '</div>' +
-
-            '<div class="nsm-srv-title-col">' +
-              '<div class="nsm-srv-title-line">' +
-                (boosted ? '<span class="nsm-premium-badge" title="Supporter / Boosted Server">Pt</span>' : '') +
-                '<span>' + renderCfxTitle(s.rawName, s.name) + '</span>' +
-              '</div>' +
-              (s.desc ? '<div class="nsm-srv-desc">' + renderCfxTitle(s.desc, s.desc) + '</div>' : '<div class="nsm-srv-desc">' + esc(s.mode || 'GTA5') + (s.map ? ' • ' + esc(s.map) : '') + '</div>') +
-            '</div>' +
-
-            '<div class="nsm-srv-tags hide-on-hover">' +
-              visibleTags.map(function (t) {
-                return '<span class="nsm-tag-loaf" data-click-tag="' + esc(t) + '">' + esc(t) + '</span>';
-              }).join('') +
-            '</div>' +
-
-            '<div class="nsm-srv-actions show-on-hover">' +
-              '<button type="button" class="nsm-row-btn boost" data-boost-id="' + esc(s.id) + '" title="Boost™ Server Power">⚡ BOOST™ (' + s.upvotes + ')</button>' +
-              '<button type="button" class="nsm-row-btn connect" data-connect-id="' + esc(s.id) + '">▶ CONNECT</button>' +
-            '</div>' +
-
-            '<div class="nsm-srv-decorator">' +
-              '<span class="nsm-power-pill" title="Server Boost Power">⚡ ' + s.upvotes + '</span>' +
-              '<span class="nsm-country-pill" title="Locale: ' + esc(s.locale) + '">' + countryFlagEmoji(s.country) + ' ' + esc(s.country) + '</span>' +
-              '<button type="button" class="nsm-fav-btn' + (fav ? ' active' : '') + '" data-fav-id="' + esc(s.id) + '" title="Toggle Favorite">' + (fav ? '★' : '☆') + '</button>' +
-            '</div>' +
-
-            '<div class="nsm-srv-players">' +
-              '<div class="nsm-srv-players-num">' + s.players + ' <span class="max">/ ' + s.maxPlayers + '</span></div>' +
-              '<div class="nsm-srv-bar"><span style="width:' + pct + '%"></span></div>' +
-            '</div>' +
-          '</div>'
-        );
-      }).join('');
-    }
-
-    function renderServerDetails(filtered) {
-      if (!detailsEl) return;
-      var s = null;
-      for (var i = 0; i < filtered.length; i++) {
-        if (filtered[i].id === state.selectedId) {
-          s = filtered[i];
-          break;
-        }
-      }
-      if (!s && state.servers.length) {
-        s = normalizeServer(state.servers[0]);
-      }
-      if (!s) {
-        detailsEl.innerHTML =
-          '<div style="padding:2.5rem 1.5rem;text-align:center;color:var(--muted)">' +
-            '<div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:6px">Server Inspector</div>' +
-            '<p style="font-size:0.85rem">Select any server row on the left to inspect its live players, resources, tags, and connection endpoint.</p>' +
-          '</div>';
-        return;
-      }
-
-      var fav = isFav(s.id);
-      var iconUrl = '/api/servers/icon/' + encodeURIComponent(s.id) + '.png';
-      var bannerStyle = s.bannerDetail
-        ? 'background-image:linear-gradient(to bottom, rgba(22,27,38,0.15), #161b26), url(\'' + esc(s.bannerDetail) + '\')'
-        : '';
-
-      var resChips = s.resources.slice(0, 40).map(function (r) {
-        return '<span class="nsm-tag-loaf" style="font-family:var(--mono);font-size:11px">' + esc(r) + '</span>';
-      }).join('');
-
-      var tagChips = s.tags.map(function (t) {
-        return '<span class="nsm-tag-loaf" data-click-tag="' + esc(t) + '" style="cursor:pointer">' + esc(t) + '</span>';
-      }).join('');
-
-      var playersHtml = '';
-      if (s.playersList && s.playersList.length) {
-        playersHtml = s.playersList.slice(0, 25).map(function (p) {
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(229,238,255,0.06);font-size:12px">' +
-            '<span>' + esc(p.name || 'Player') + '</span>' +
-            '<span class="muted" style="font-family:var(--mono)">' + Number(p.ping || 0) + ' ms</span>' +
-          '</div>';
-        }).join('');
+    if (tagsEl) {
+      var tags = tagsRaw ? tagsRaw.split(',') : [];
+      if (tags.length === 0) {
+        tagsEl.innerHTML = '<span class="nsm-loaf">nsm</span><span class="nsm-loaf">afx</span>';
       } else {
-        playersHtml = '<div class="muted" style="font-size:12px">No active players connected right now.</div>';
+        var th = '';
+        for (var t = 0; t < tags.length; t++) {
+          if (tags[t]) th += '<span class="nsm-loaf">' + escapeHtml(tags[t]) + '</span>';
+        }
+        tagsEl.innerHTML = th;
       }
+    }
+  }
 
-      detailsEl.innerHTML =
-        '<div class="nsm-details-banner" style="' + bannerStyle + '"></div>' +
-        '<div class="nsm-details-body">' +
-          '<div class="nsm-details-top">' +
-            '<div class="nsm-details-icon">' +
-              '<img src="' + iconUrl + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-              '<span style="display:none;width:100%;height:100%;align-items:center;justify-content:center">' + esc(s.initial) + '</span>' +
-            '</div>' +
-            '<div style="flex:1;min-width:0">' +
-              '<div class="nsm-details-title">' + renderCfxTitle(s.rawName, s.name) + '</div>' +
-              '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--muted)">' +
-                '<span>👥 <strong style="color:#fff">' + s.players + '</strong>/' + s.maxPlayers + '</span>' +
-                '<span>•</span>' +
-                '<span style="color:var(--amber)">⚡ ' + s.upvotes + ' Boosts</span>' +
-                '<span>•</span>' +
-                '<span>' + countryFlagEmoji(s.country) + ' ' + esc(s.locale) + '</span>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
+  function buildFacetsFromDOM() {
+    var rows = getRowsArray();
+    var tagCounts = {};
+    var localeCounts = {};
 
-          (s.desc ? '<div class="nsm-details-desc">' + renderCfxTitle(s.desc, s.desc) + '</div>' : '') +
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var tagsStr = r.getAttribute('data-tags') || '';
+      if (tagsStr) {
+        var tags = tagsStr.split(',');
+        for (var j = 0; j < tags.length; j++) {
+          var t = tags[j].trim();
+          if (t) tagCounts[t] = (tagCounts[t] || 0) + 1;
+        }
+      }
+      var loc = (r.getAttribute('data-locale') || 'en-US').trim();
+      var country = (r.getAttribute('data-country') || 'US').trim();
+      var locKey = loc + ' (' + country + ')';
+      localeCounts[locKey] = (localeCounts[locKey] || 0) + 1;
+    }
 
-          '<div class="nsm-details-cta">' +
-            '<button type="button" class="nsm-connect-big" data-connect-id="' + esc(s.id) + '">▶ CONNECT IN NSM.EXE</button>' +
-            '<button type="button" class="nsm-ctrl-btn" data-boost-id="' + esc(s.id) + '" style="border-color:rgba(255,174,0,0.45);color:#ffae00">⚡ Boost (' + s.upvotes + ')</button>' +
-            '<button type="button" class="nsm-ctrl-btn" data-fav-id="' + esc(s.id) + '">' + (fav ? '★ Saved' : '☆ Favorite') + '</button>' +
-            '<a href="/servers/' + encodeURIComponent(s.id) + '" class="nsm-ctrl-btn" title="Open standalone server page">↗</a>' +
-          '</div>' +
+    renderFacetList('nsm-facet-tags-list', tagCounts, state.tagFacets, 'tag');
+    renderFacetList('nsm-facet-locales-list', localeCounts, state.localeFacets, 'locale');
+    renderSearchChips();
+    updateFilterBadge();
+  }
 
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:#11151e;border:1px solid rgba(229,238,255,0.10);border-radius:6px;font-family:var(--mono);font-size:12px">' +
-            '<span style="color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">connect ' + esc(s.id) + '</span>' +
-            '<button type="button" class="nsm-row-btn" data-copy-cmd="connect ' + esc(s.id) + '" style="height:24px;font-size:11px">Copy F8</button>' +
-          '</div>' +
-
-          '<div class="nsm-loafs-grid">' +
-            (s.mode ? '<span class="nsm-core-loaf">🎮 Mode: <strong>' + esc(s.mode) + '</strong></span>' : '') +
-            (s.map ? '<span class="nsm-core-loaf">🗺️ Map: <strong>' + esc(s.map) + '</strong></span>' : '') +
-            (s.onesync ? '<span class="nsm-core-loaf">🔄 OneSync: <strong>' + esc(s.onesync) + '</strong></span>' : '') +
-            (s.gameBuild ? '<span class="nsm-core-loaf">📦 Build: <strong>' + esc(s.gameBuild) + '</strong></span>' : '') +
-            (s.pureLevel ? '<span class="nsm-core-loaf">🛡️ Pure: <strong>L' + esc(s.pureLevel) + '</strong></span>' : '') +
-            '<span class="nsm-core-loaf">🧩 Resources: <strong>' + s.resourcesCount + '</strong></span>' +
-          '</div>' +
-
-          (s.tags.length ? (
-            '<div class="nsm-side-section">' +
-              '<h4><span>Tags</span><span>' + s.tags.length + '</span></h4>' +
-              '<div class="nsm-chip-cloud">' + tagChips + '</div>' +
-            '</div>'
-          ) : '') +
-
-          '<div class="nsm-side-section">' +
-            '<h4><span>Online Players</span><span>' + s.players + ' / ' + s.maxPlayers + '</span></h4>' +
-            '<div style="max-height:140px;overflow-y:auto">' + playersHtml + '</div>' +
-          '</div>' +
-
-          (s.resources.length ? (
-            '<div class="nsm-side-section">' +
-              '<h4><span>Loaded Resources</span><span>' + s.resourcesCount + '</span></h4>' +
-              '<div class="nsm-chip-cloud">' + resChips + '</div>' +
-            '</div>'
-          ) : '') +
+  function renderFacetList(containerId, countsMap, activeMap, kind) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    var keys = Object.keys(countsMap).sort(function (a, b) {
+      return countsMap[b] - countsMap[a] || a.localeCompare(b);
+    });
+    var q = state.facetSearch.toLowerCase();
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (q && k.toLowerCase().indexOf(q) === -1) continue;
+      shown++;
+      var mode = activeMap[k] || 0;
+      var cls = 'nsm-faucet';
+      var prefix = '';
+      if (mode === 1) {
+        cls += ' inclusive';
+        prefix = '+ ';
+      } else if (mode === -1) {
+        cls += ' exclusive';
+        prefix = '− ';
+      }
+      html += '<div class="' + cls + '" data-faucet-kind="' + kind + '" data-faucet-key="' + escapeHtml(k) + '">' +
+        '<span class="left">' + prefix + escapeHtml(k) + '</span>' +
+        '<span class="right">' + countsMap[k] + '</span>' +
         '</div>';
     }
+    if (!shown) {
+      html = '<div style="padding:14px;text-align:center;color:rgba(240,244,248,0.45);font-size:0.8rem">No matching ' + kind + 's</div>';
+    }
+    el.innerHTML = html;
+  }
 
-    function renderAll() {
-      updateTabCounts();
-      renderTagFaucets();
-      var filtered = getFilteredServers();
-      renderServerList(filtered);
-      renderServerDetails(filtered);
+  function renderSearchChips() {
+    var wrap = document.getElementById('nsm-search-chips');
+    if (!wrap) return;
+    var html = '';
+    Object.keys(state.tagFacets).forEach(function (t) {
+      var m = state.tagFacets[t];
+      if (!m) return;
+      var cls = m === -1 ? 'nsm-search-chip exclusive' : 'nsm-search-chip';
+      html += '<span class="' + cls + '" data-remove-tag="' + escapeHtml(t) + '">' +
+        (m === -1 ? '~' : '') + 'tag:' + escapeHtml(t) + ' <span>&times;</span></span>';
+    });
+    Object.keys(state.localeFacets).forEach(function (l) {
+      var m = state.localeFacets[l];
+      if (!m) return;
+      var cls = m === -1 ? 'nsm-search-chip exclusive' : 'nsm-search-chip';
+      html += '<span class="' + cls + '" data-remove-locale="' + escapeHtml(l) + '">' +
+        (m === -1 ? '~' : '') + 'loc:' + escapeHtml(l) + ' <span>&times;</span></span>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  function updateFilterBadge() {
+    var badge = document.getElementById('nsm-filter-badge');
+    var btn = document.getElementById('nsm-filter-btn');
+    if (!badge) return;
+    var count = 0;
+    if (state.hideEmpty) count++;
+    if (state.hideFull) count++;
+    Object.keys(state.tagFacets).forEach(function (k) { if (state.tagFacets[k]) count++; });
+    Object.keys(state.localeFacets).forEach(function (k) { if (state.localeFacets[k]) count++; });
+    if (count > 0) {
+      badge.style.display = 'inline-block';
+      badge.textContent = String(count);
+      if (btn) btn.classList.add('active');
+    } else {
+      badge.style.display = 'none';
+      if (btn) btn.classList.remove('active');
+    }
+  }
+
+  function filterAndSortRows() {
+    var listBody = document.getElementById('nsm-server-list-body');
+    if (!listBody) return;
+    var rows = getRowsArray();
+    var q = state.searchText.trim().toLowerCase();
+
+    // Direct Connect IP:Port popover detection
+    var dcPop = document.getElementById('nsm-direct-connect-popover');
+    var dcLbl = document.getElementById('nsm-dc-label');
+    if (dcPop) {
+      if (/^[a-z0-9.\-]+:\d{2,5}$/i.test(state.searchText.trim())) {
+        dcPop.style.display = 'block';
+        if (dcLbl) dcLbl.innerHTML = 'Direct Connect to <code>' + escapeHtml(state.searchText.trim()) + '</code>';
+      } else {
+        dcPop.style.display = 'none';
+      }
     }
 
-    // Event bindings for tabs
-    var tabBtns = launcherRoot.querySelectorAll('[data-nsm-tab]');
-    for (var i = 0; i < tabBtns.length; i++) {
-      tabBtns[i].addEventListener('click', function () {
-        state.tab = this.getAttribute('data-nsm-tab') || 'all';
-        for (var j = 0; j < tabBtns.length; j++) {
-          tabBtns[j].classList.toggle('active', tabBtns[j] === this);
+    var incTags = [];
+    var excTags = [];
+    Object.keys(state.tagFacets).forEach(function (t) {
+      if (state.tagFacets[t] === 1) incTags.push(t.toLowerCase());
+      if (state.tagFacets[t] === -1) excTags.push(t.toLowerCase());
+    });
+
+    var incLocs = [];
+    var excLocs = [];
+    Object.keys(state.localeFacets).forEach(function (l) {
+      if (state.localeFacets[l] === 1) incLocs.push(l);
+      if (state.localeFacets[l] === -1) excLocs.push(l);
+    });
+
+    var visibleRows = [];
+    var firstVisible = null;
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var ep = r.getAttribute('data-ep') || '';
+      var name = (r.getAttribute('data-name') || '').toLowerCase();
+      var desc = (r.getAttribute('data-desc') || '').toLowerCase();
+      var gametype = (r.getAttribute('data-gametype') || '').toLowerCase();
+      var mapname = (r.getAttribute('data-mapname') || '').toLowerCase();
+      var tagsStr = (r.getAttribute('data-tags') || '').toLowerCase();
+      var clients = parseInt(r.getAttribute('data-clients') || '0', 10);
+      var maxClients = parseInt(r.getAttribute('data-maxclients') || '48', 10);
+      var upvotes = parseInt(r.getAttribute('data-upvotes') || '0', 10);
+      var burst = parseInt(r.getAttribute('data-burst') || '0', 10);
+      var loc = (r.getAttribute('data-locale') || 'en-US').trim();
+      var country = (r.getAttribute('data-country') || 'US').trim();
+      var locKey = loc + ' (' + country + ')';
+
+      var show = true;
+      if (state.listType === 'favorites' && !favSet[ep]) show = false;
+      if (state.listType === 'history' && !histSet[ep]) show = false;
+      if (state.listType === 'supporters' && upvotes <= 0 && burst <= 0) show = false;
+
+      if (show && state.hideEmpty && clients <= 0) show = false;
+      if (show && state.hideFull && maxClients > 0 && clients >= maxClients) show = false;
+
+      if (show && q) {
+        var hay = name + ' ' + desc + ' ' + gametype + ' ' + mapname + ' ' + tagsStr + ' ' + ep.toLowerCase() + ' ' + country.toLowerCase();
+        if (hay.indexOf(q) === -1) show = false;
+      }
+
+      if (show && (incTags.length || excTags.length)) {
+        var rowTags = tagsStr ? tagsStr.split(',') : [];
+        for (var it = 0; it < incTags.length; it++) {
+          if (rowTags.indexOf(incTags[it]) === -1) { show = false; break; }
         }
-        renderAll();
-      });
+        if (show) {
+          for (var et = 0; et < excTags.length; et++) {
+            if (rowTags.indexOf(excTags[et]) !== -1) { show = false; break; }
+          }
+        }
+      }
+
+      if (show && (incLocs.length || excLocs.length)) {
+        if (incLocs.length && incLocs.indexOf(locKey) === -1) show = false;
+        if (show && excLocs.indexOf(locKey) !== -1) show = false;
+      }
+
+      r.style.display = show ? '' : 'none';
+      if (show) {
+        visibleRows.push(r);
+        if (!firstVisible) firstVisible = r;
+      }
     }
 
-    if (searchInput) {
-      searchInput.addEventListener('input', function () {
-        state.search = searchInput.value || '';
-        if (searchClear) searchClear.classList.toggle('visible', state.search.length > 0);
-        renderAll();
+    rows.sort(function (a, b) {
+      var dir = state.sortDir;
+      if (state.sortBy === 'name') {
+        var na = (a.getAttribute('data-name') || '').toLowerCase();
+        var nb = (b.getAttribute('data-name') || '').toLowerCase();
+        return na.localeCompare(nb) * dir;
+      }
+      if (state.sortBy === 'boosts') {
+        var ba = parseInt(a.getAttribute('data-upvotes') || '0', 10) + parseInt(a.getAttribute('data-burst') || '0', 10);
+        var bb = parseInt(b.getAttribute('data-upvotes') || '0', 10) + parseInt(b.getAttribute('data-burst') || '0', 10);
+        if (ba !== bb) return (ba - bb) * dir;
+      }
+      var pa = parseInt(a.getAttribute('data-clients') || '0', 10);
+      var pb = parseInt(b.getAttribute('data-clients') || '0', 10);
+      if (pa !== pb) return (pa - pb) * dir;
+      return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
+    });
+
+    for (var s = 0; s < rows.length; s++) {
+      listBody.appendChild(rows[s]);
+    }
+
+    var visCounter = document.getElementById('nsm-visible-count');
+    if (visCounter) visCounter.textContent = String(visibleRows.length);
+
+    var emptyFilterEl = document.getElementById('nsm-empty-filtered');
+    if (rows.length > 0 && visibleRows.length === 0) {
+      if (!emptyFilterEl) {
+        emptyFilterEl = document.createElement('div');
+        emptyFilterEl.id = 'nsm-empty-filtered';
+        emptyFilterEl.className = 'nsm-empty-list';
+        emptyFilterEl.innerHTML = '<h3>No Servers Match Your Active Filters</h3><p>Try clearing your search query or switching tabs above.</p>';
+        listBody.appendChild(emptyFilterEl);
+      }
+      emptyFilterEl.style.display = '';
+    } else if (emptyFilterEl) {
+      emptyFilterEl.style.display = 'none';
+    }
+
+    if (!state.selectedEp && firstVisible) {
+      updateInspectorFromRow(firstVisible);
+    }
+  }
+
+  // ---- Wire up DOM events ----
+  document.addEventListener('DOMContentLoaded', function () {
+    applyAllColorize();
+    syncFavoriteButtons();
+    updateTabCounters();
+    buildFacetsFromDOM();
+    filterAndSortRows();
+
+    // Support URL hash for #favorites or #history
+    if (window.location.hash === '#favorites' || window.location.hash === '#history') {
+      var hashTab = window.location.hash.slice(1);
+      state.listType = hashTab;
+      var tBtns = document.querySelectorAll('[data-tab]');
+      for (var h = 0; h < tBtns.length; h++) {
+        tBtns[h].classList.toggle('active', tBtns[h].getAttribute('data-tab') === hashTab);
+      }
+      filterAndSortRows();
+    }
+
+    // Search Input
+    var searchInp = document.getElementById('nsm-server-search');
+    var clearBtn = document.getElementById('nsm-search-clear');
+    if (searchInp) {
+      searchInp.addEventListener('input', function () {
+        state.searchText = searchInp.value || '';
+        if (clearBtn) clearBtn.style.display = state.searchText ? 'inline-block' : 'none';
+        filterAndSortRows();
+      });
+      searchInp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && /^[a-z0-9.\-]+:\d{2,5}$/i.test(state.searchText.trim())) {
+          connectToServer(state.searchText.trim());
+        }
       });
     }
-    if (searchClear && searchInput) {
-      searchClear.addEventListener('click', function () {
-        searchInput.value = '';
-        state.search = '';
-        searchClear.classList.remove('visible');
-        renderAll();
-      });
-    }
-    if (sortSelect) {
-      sortSelect.addEventListener('change', function () {
-        state.sortBy = sortSelect.value || 'players';
-        renderAll();
-      });
-    }
-    if (filterBtn && filterDrawer) {
-      filterBtn.addEventListener('click', function () {
-        var open = filterDrawer.classList.toggle('open');
-        filterBtn.classList.toggle('active', open);
-      });
-    }
-    if (hideEmptyChk) {
-      hideEmptyChk.addEventListener('change', function () {
-        state.hideEmpty = !!hideEmptyChk.checked;
-        renderAll();
-      });
-    }
-    if (hideFullChk) {
-      hideFullChk.addEventListener('change', function () {
-        state.hideFull = !!hideFullChk.checked;
-        renderAll();
-      });
-    }
-    if (dcBtn && dcInput) {
+    var dcBtn = document.getElementById('nsm-dc-btn');
+    if (dcBtn) {
       dcBtn.addEventListener('click', function () {
-        var ep = dcInput.value.trim();
-        if (ep) connectToServer(ep);
+        if (state.searchText.trim()) connectToServer(state.searchText.trim());
       });
-      dcInput.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          var ep = dcInput.value.trim();
-          if (ep) connectToServer(ep);
+    }
+    if (clearBtn && searchInp) {
+      clearBtn.addEventListener('click', function () {
+        searchInp.value = '';
+        state.searchText = '';
+        clearBtn.style.display = 'none';
+        filterAndSortRows();
+      });
+    }
+
+    // Hide Empty / Hide Full
+    var hideEmptyEl = document.getElementById('nsm-hide-empty');
+    var hideFullEl = document.getElementById('nsm-hide-full');
+    if (hideEmptyEl) {
+      hideEmptyEl.addEventListener('change', function () {
+        state.hideEmpty = !!hideEmptyEl.checked;
+        updateFilterBadge();
+        filterAndSortRows();
+      });
+    }
+    if (hideFullEl) {
+      hideFullEl.addEventListener('change', function () {
+        state.hideFull = !!hideFullEl.checked;
+        updateFilterBadge();
+        filterAndSortRows();
+      });
+    }
+
+    // Facet search input
+    var facetSearchEl = document.getElementById('nsm-facet-search');
+    if (facetSearchEl) {
+      facetSearchEl.addEventListener('input', function () {
+        state.facetSearch = facetSearchEl.value || '';
+        buildFacetsFromDOM();
+      });
+    }
+
+    // Filter & Sort Popovers
+    var filterBtn = document.getElementById('nsm-filter-btn');
+    var filterPop = document.getElementById('nsm-filter-popover');
+    var sortBtn = document.getElementById('nsm-sort-btn');
+    var sortPop = document.getElementById('nsm-sort-popover');
+
+    if (filterBtn && filterPop) {
+      filterBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = filterPop.style.display !== 'none';
+        filterPop.style.display = open ? 'none' : 'flex';
+        if (sortPop) sortPop.style.display = 'none';
+      });
+    }
+    if (sortBtn && sortPop) {
+      sortBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = sortPop.style.display !== 'none';
+        sortPop.style.display = open ? 'none' : 'block';
+        if (filterPop) filterPop.style.display = 'none';
+      });
+    }
+
+    // Inspector buttons
+    var inspConn = document.getElementById('nsm-insp-connect');
+    if (inspConn) {
+      inspConn.addEventListener('click', function () {
+        connectToServer(state.selectedEp || '127.0.0.1:30120');
+      });
+    }
+    var inspBoost = document.getElementById('nsm-insp-boost');
+    if (inspBoost) {
+      inspBoost.addEventListener('click', function () {
+        if (state.selectedEp) upvoteServerByEp(state.selectedEp);
+      });
+    }
+    var inspCopy = document.getElementById('nsm-insp-copy');
+    if (inspCopy) {
+      inspCopy.addEventListener('click', function () {
+        var ep = state.selectedEp || '127.0.0.1:30120';
+        try {
+          navigator.clipboard.writeText('connect ' + ep);
+          inspCopy.textContent = 'Copied!';
+          setTimeout(function () { inspCopy.textContent = 'Copy'; }, 1400);
+        } catch (e) {}
+      });
+    }
+
+    // Settings Modal
+    var settingsBtn = document.getElementById('nsm-settings-btn');
+    var settingsModal = document.getElementById('nsm-settings-modal');
+    var settingsClose = document.getElementById('nsm-settings-close');
+    var themeSelect = document.getElementById('nsm-setting-theme');
+    var nickInp = document.getElementById('nsm-setting-nick');
+    if (settingsBtn && settingsModal) {
+      settingsBtn.addEventListener('click', function () {
+        settingsModal.style.display = 'flex';
+      });
+    }
+    if (settingsClose && settingsModal) {
+      settingsClose.addEventListener('click', function () {
+        settingsModal.style.display = 'none';
+      });
+    }
+    if (themeSelect) {
+      themeSelect.addEventListener('change', function () {
+        document.body.classList.toggle('nsm-light-theme', themeSelect.value === 'light');
+      });
+    }
+    if (nickInp) {
+      var savedNick = localStorage.getItem('nickOverride');
+      if (savedNick) nickInp.value = savedNick;
+      nickInp.addEventListener('input', function () {
+        localStorage.setItem('nickOverride', nickInp.value);
+      });
+    }
+
+    // AFX Support Instant Search
+    var hcSearch = document.getElementById('afx-hc-search');
+    if (hcSearch) {
+      hcSearch.addEventListener('input', function () {
+        var q = hcSearch.value.trim().toLowerCase();
+        var arts = document.querySelectorAll('[data-hc-article]');
+        for (var i = 0; i < arts.length; i++) {
+          var txt = (arts[i].textContent + ' ' + arts[i].getAttribute('data-hc-article')).toLowerCase();
+          var match = !q || txt.indexOf(q) !== -1;
+          arts[i].style.display = match ? '' : 'none';
+          if (q && match) arts[i].classList.add('open');
         }
       });
     }
 
-    // Delegated clicks inside launcherRoot
-    launcherRoot.addEventListener('click', function (ev) {
-      var target = ev.target;
-      if (!target || !target.closest) return;
-
-      var faucetBtn = target.closest('[data-faucet-tag]');
-      if (faucetBtn) {
-        var tg = faucetBtn.getAttribute('data-faucet-tag');
-        var cur = state.tagFilters[tg];
-        if (cur === undefined) state.tagFilters[tg] = true;
-        else if (cur === true) state.tagFilters[tg] = false;
-        else delete state.tagFilters[tg];
-        renderAll();
-        return;
+    // AFX Marketplace Search & Category Filter
+    var mpSearch = document.getElementById('afx-mp-search');
+    var activeMpCat = 'all';
+    function filterMarketplace() {
+      var q = mpSearch ? mpSearch.value.trim().toLowerCase() : '';
+      var cards = document.querySelectorAll('.afx-mp-card');
+      for (var i = 0; i < cards.length; i++) {
+        var cat = cards[i].getAttribute('data-mp-cat') || '';
+        var title = (cards[i].getAttribute('data-mp-title') || '') + ' ' + cards[i].textContent.toLowerCase();
+        var okCat = activeMpCat === 'all' || cat === activeMpCat;
+        var okQ = !q || title.indexOf(q) !== -1;
+        cards[i].style.display = okCat && okQ ? '' : 'none';
       }
+    }
+    if (mpSearch) {
+      mpSearch.addEventListener('input', filterMarketplace);
+    }
 
-      var clickTag = target.closest('[data-click-tag]');
-      if (clickTag) {
-        ev.stopPropagation();
-        var tagVal = clickTag.getAttribute('data-click-tag');
-        if (searchInput && tagVal) {
-          searchInput.value = 'tag:' + tagVal;
-          state.search = searchInput.value;
-          if (searchClear) searchClear.classList.add('visible');
-          renderAll();
+    // NSM Docs Instant Search
+    var docsSearch = document.getElementById('afx-docs-search');
+    if (docsSearch) {
+      docsSearch.addEventListener('input', function () {
+        var q = docsSearch.value.trim().toLowerCase();
+        var nRows = document.querySelectorAll('[data-native-row]');
+        for (var i = 0; i < nRows.length; i++) {
+          var txt = (nRows[i].textContent + ' ' + nRows[i].getAttribute('data-native-row')).toLowerCase();
+          nRows[i].style.display = !q || txt.indexOf(q) !== -1 ? '' : 'none';
         }
+      });
+    }
+
+    // Global delegated click handler
+    document.addEventListener('click', function (e) {
+      var target = e.target;
+      if (!target) return;
+
+      if (filterPop && !filterPop.contains(target) && (!filterBtn || !filterBtn.contains(target))) {
+        filterPop.style.display = 'none';
+      }
+      if (sortPop && !sortPop.contains(target) && (!sortBtn || !sortBtn.contains(target))) {
+        sortPop.style.display = 'none';
+      }
+
+      // ListTypeTabs (.mp-tabular-item or .nsm-tab-btn)
+      var tabBtn = target.closest('[data-tab]');
+      if (tabBtn) {
+        var allTabs = document.querySelectorAll('[data-tab]');
+        for (var i = 0; i < allTabs.length; i++) allTabs[i].classList.remove('active');
+        tabBtn.classList.add('active');
+        state.listType = tabBtn.getAttribute('data-tab') || 'all';
+        filterAndSortRows();
         return;
       }
 
-      var favBtn = target.closest('[data-fav-id]');
-      if (favBtn) {
-        ev.stopPropagation();
-        toggleFav(favBtn.getAttribute('data-fav-id'));
+      // Facet tab switch
+      var fTab = target.closest('.nsm-facet-tab');
+      if (fTab) {
+        e.stopPropagation();
+        var allFT = document.querySelectorAll('.nsm-facet-tab');
+        for (var f = 0; f < allFT.length; f++) allFT[f].classList.remove('active');
+        fTab.classList.add('active');
+        var which = fTab.getAttribute('data-facet-tab');
+        var tagsList = document.getElementById('nsm-facet-tags-list');
+        var locsList = document.getElementById('nsm-facet-locales-list');
+        if (tagsList) tagsList.style.display = which === 'tags' ? '' : 'none';
+        if (locsList) locsList.style.display = which === 'locales' ? '' : 'none';
+        if (facetSearchEl) facetSearchEl.placeholder = which === 'tags' ? 'Search tags...' : 'Search locales...';
         return;
       }
 
-      var boostBtn = target.closest('[data-boost-id]');
-      if (boostBtn) {
-        ev.stopPropagation();
-        boostServer(boostBtn.getAttribute('data-boost-id'), boostBtn);
+      // Faucet click (cycle 0 -> 1 -> -1 -> 0)
+      var faucet = target.closest('.nsm-faucet');
+      if (faucet) {
+        e.stopPropagation();
+        var kind = faucet.getAttribute('data-faucet-kind');
+        var key = faucet.getAttribute('data-faucet-key');
+        var map = kind === 'locale' ? state.localeFacets : state.tagFacets;
+        var cur = map[key] || 0;
+        var next = cur === 0 ? 1 : (cur === 1 ? -1 : 0);
+        if (next === 0) delete map[key];
+        else map[key] = next;
+        buildFacetsFromDOM();
+        filterAndSortRows();
         return;
       }
 
-      var connBtn = target.closest('[data-connect-id]');
+      // Remove search chip
+      var remTag = target.closest('[data-remove-tag]');
+      if (remTag) {
+        delete state.tagFacets[remTag.getAttribute('data-remove-tag')];
+        buildFacetsFromDOM();
+        filterAndSortRows();
+        return;
+      }
+      var remLoc = target.closest('[data-remove-locale]');
+      if (remLoc) {
+        delete state.localeFacets[remLoc.getAttribute('data-remove-locale')];
+        buildFacetsFromDOM();
+        filterAndSortRows();
+        return;
+      }
+
+      // Click tag loaf inside row
+      var tagLoaf = target.closest('[data-tag-click]');
+      if (tagLoaf) {
+        e.stopPropagation();
+        var tName = tagLoaf.getAttribute('data-tag-click');
+        state.tagFacets[tName] = state.tagFacets[tName] === 1 ? 0 : 1;
+        if (!state.tagFacets[tName]) delete state.tagFacets[tName];
+        buildFacetsFromDOM();
+        filterAndSortRows();
+        return;
+      }
+
+      // Sort option click
+      var sortItem = target.closest('.nsm-sort-item');
+      if (sortItem) {
+        e.stopPropagation();
+        var sb = sortItem.getAttribute('data-sort');
+        if (state.sortBy === sb) {
+          state.sortDir = state.sortDir === -1 ? 1 : -1;
+        } else {
+          state.sortBy = sb;
+          state.sortDir = sb === 'name' ? 1 : -1;
+        }
+        var allSorts = document.querySelectorAll('.nsm-sort-item');
+        for (var s = 0; s < allSorts.length; s++) {
+          var isCur = allSorts[s].getAttribute('data-sort') === state.sortBy;
+          allSorts[s].classList.toggle('active', isCur);
+          var ind = allSorts[s].querySelector('[data-sort-ind]');
+          if (ind) ind.innerHTML = isCur ? (state.sortDir === -1 ? '&#8595;' : '&#8593;') : '';
+        }
+        var lblMap = { players: 'Players', boosts: 'Boosts', name: 'Name' };
+        var sortLbl = document.getElementById('nsm-sort-label');
+        var sortIcon = document.getElementById('nsm-sort-dir-icon');
+        if (sortLbl) sortLbl.textContent = lblMap[state.sortBy] || 'Players';
+        if (sortIcon) sortIcon.innerHTML = state.sortDir === -1 ? '&#8595;' : '&#8593;';
+        filterAndSortRows();
+        return;
+      }
+
+      // Connect button
+      var connBtn = target.closest('[data-connect-ep]');
       if (connBtn) {
-        ev.stopPropagation();
-        connectToServer(connBtn.getAttribute('data-connect-id'));
+        e.stopPropagation();
+        connectToServer(connBtn.getAttribute('data-connect-ep'));
         return;
       }
 
-      var copyBtn = target.closest('[data-copy-cmd]');
-      if (copyBtn) {
-        ev.stopPropagation();
-        var cmd = copyBtn.getAttribute('data-copy-cmd');
-        if (navigator.clipboard && cmd) {
-          navigator.clipboard.writeText(cmd);
-          copyBtn.textContent = 'Copied!';
-          setTimeout(function () { copyBtn.textContent = 'Copy F8'; }, 1200);
+      // Upvote button
+      var upvBtn = target.closest('[data-upvote-ep]');
+      if (upvBtn) {
+        e.stopPropagation();
+        upvoteServerByEp(upvBtn.getAttribute('data-upvote-ep'));
+        return;
+      }
+
+      // Favorite star
+      var favBtn = target.closest('[data-fav-ep]');
+      if (favBtn) {
+        e.stopPropagation();
+        toggleFavorite(favBtn.getAttribute('data-fav-ep'));
+        return;
+      }
+
+      // Server Row click -> select in Inspector (or navigate if no inspector on page)
+      var srvRow = target.closest('.nsm-server-row');
+      if (srvRow && !target.closest('a') && !target.closest('button')) {
+        var insp = document.getElementById('nsm-inspector-card');
+        if (insp) {
+          updateInspectorFromRow(srvRow);
+        } else {
+          var ep = srvRow.getAttribute('data-ep');
+          if (ep) window.location.href = '/servers/' + encodeURIComponent(ep);
         }
         return;
       }
 
-      var row = target.closest('[data-srv-id]');
-      if (row) {
-        var id = row.getAttribute('data-srv-id');
-        state.selectedId = id;
-        recordHistory(id);
-        renderAll();
+      // AFX Support quick filter tag
+      var hcFilter = target.closest('[data-hc-filter]');
+      if (hcFilter && hcSearch) {
+        hcSearch.value = hcFilter.getAttribute('data-hc-filter') || '';
+        hcSearch.dispatchEvent(new Event('input'));
+        return;
+      }
+
+      // AFX Marketplace category tab
+      var mpCatBtn = target.closest('[data-mp-cat]');
+      if (mpCatBtn && mpCatBtn.closest('#afx-mp-cats')) {
+        var allMp = document.querySelectorAll('#afx-mp-cats [data-mp-cat]');
+        for (var m = 0; m < allMp.length; m++) allMp[m].classList.remove('active');
+        mpCatBtn.classList.add('active');
+        activeMpCat = mpCatBtn.getAttribute('data-mp-cat') || 'all';
+        filterMarketplace();
+        return;
+      }
+
+      // AFX Marketplace Get Resource modal
+      var mpInst = target.closest('[data-mp-install]');
+      if (mpInst) {
+        var resId = mpInst.getAttribute('data-mp-install');
+        var resName = mpInst.getAttribute('data-mp-name') || resId;
+        var modal = document.getElementById('afx-mp-modal');
+        var mTitle = document.getElementById('afx-mp-modal-title');
+        var mCode = document.getElementById('afx-mp-modal-code');
+        if (mTitle) mTitle.textContent = 'Install ' + resName;
+        if (mCode) mCode.textContent = 'ensure ' + resId;
+        if (modal) modal.style.display = 'flex';
+        return;
+      }
+      if (target.id === 'afx-mp-modal-close' || target.id === 'afx-mp-modal') {
+        var mEl = document.getElementById('afx-mp-modal');
+        if (mEl) mEl.style.display = 'none';
+        return;
+      }
+      if (target.id === 'afx-mp-modal-copy') {
+        var cEl = document.getElementById('afx-mp-modal-code');
+        if (cEl && navigator.clipboard) {
+          navigator.clipboard.writeText(cEl.textContent || '');
+          target.textContent = 'Copied!';
+          setTimeout(function () { target.textContent = 'Copy'; }, 1400);
+        }
+        return;
+      }
+
+      // FAQ Accordion (.nsm-faq-q)
+      var faqBtn = target.closest('.nsm-faq-q');
+      if (faqBtn) {
+        var item = faqBtn.closest('.nsm-faq-item');
+        if (item) item.classList.toggle('open');
+        return;
       }
     });
 
-    // Initial render
-    renderAll();
-
-    // Live polling from /api/servers/live every 5 seconds (same source as NSM.exe)
-    function pollLiveServers() {
-      fetch('/api/servers/live')
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (!d || !Array.isArray(d.servers)) return;
-          state.servers = d.servers;
-          renderAll();
-          var pEls = document.querySelectorAll('[data-stat="players"]');
-          var sEls = document.querySelectorAll('[data-stat="servers"]');
-          for (var i = 0; i < pEls.length; i++) pEls[i].textContent = d.players;
-          for (var j = 0; j < sEls.length; j++) sEls[j].textContent = d.count;
-        })
-        .catch(function () {});
-    }
-    setInterval(pollLiveServers, 5000);
-  } else {
-    // Poll live player/server counts on pages without the server launcher
+    // Live polling every 8s to keep player/server counts fresh
     setInterval(function () {
-      fetch('/api/servers/live')
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (!d) return;
+      fetch('/api/servers/live', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
           var pEls = document.querySelectorAll('[data-stat="players"]');
+          for (var i = 0; i < pEls.length; i++) pEls[i].textContent = String(data.players || 0);
           var sEls = document.querySelectorAll('[data-stat="servers"]');
-          for (var i = 0; i < pEls.length; i++) pEls[i].textContent = d.players;
-          for (var j = 0; j < sEls.length; j++) sEls[j].textContent = d.count;
+          for (var j = 0; j < sEls.length; j++) sEls[j].textContent = String(data.count || 0);
         })
         .catch(function () {});
     }, 8000);
-  }
+  });
 })();

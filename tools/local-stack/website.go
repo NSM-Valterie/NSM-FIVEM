@@ -250,7 +250,7 @@ func serversPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(allTags)
 	renderPage(w, r, "servers.tmpl", map[string]interface{}{
-		"Title":   "Server List",
+		"Title":   "Server List - NSM",
 		"Servers": srvs,
 		"Tags":    allTags,
 	})
@@ -260,7 +260,7 @@ func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 	ep := r.PathValue("ep")
 	d := reg.get(ep)
 	if d == nil {
-		renderPage(w, r, "server_missing.tmpl", map[string]interface{}{"Title": "Server Offline", "EndPoint": ep})
+		renderPage(w, r, "server_missing.tmpl", map[string]interface{}{"Title": "Server Offline - NSM", "EndPoint": ep})
 		return
 	}
 	applyMods(ep, d)
@@ -287,7 +287,7 @@ func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 	reg.mu.RUnlock()
 
 	renderPage(w, r, "server.tmpl", map[string]interface{}{
-		"Title":         cleanHostname(d.Hostname),
+		"Title":         cleanHostname(d.Hostname) + " - Server List - NSM",
 		"CleanName":     cleanHostname(d.Hostname),
 		"EndPoint":      ep,
 		"Srv":           d,
@@ -299,12 +299,12 @@ func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 
 func loginPage(w http.ResponseWriter, r *http.Request) {
 	next := r.URL.Query().Get("next")
-	renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Log in", "Next": next})
+	renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Login - AFX Portal", "Next": next})
 }
 
 func registerPage(w http.ResponseWriter, r *http.Request) {
 	next := r.URL.Query().Get("next")
-	renderPage(w, r, "register.tmpl", map[string]interface{}{"Title": "Create account", "Next": next})
+	renderPage(w, r, "register.tmpl", map[string]interface{}{"Title": "Create Account - AFX Portal", "Next": next})
 }
 
 func logoutPage(w http.ResponseWriter, r *http.Request) {
@@ -318,13 +318,16 @@ func accountPage(w http.ResponseWriter, r *http.Request) {
 
 func supportPage(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, r, "support.tmpl", map[string]interface{}{
-		"Title":  "Support & Status",
+		"Title":  "AFX Support",
 		"Invite": "https://discord.gg/UXj5QfCX88",
 	})
 }
 
 func marketplacePage(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/forum/c/releases", http.StatusSeeOther)
+	renderPage(w, r, "marketplace.tmpl", map[string]interface{}{
+		"Title":  "AFX Marketplace",
+		"Topics": recentForumTopics(8),
+	})
 }
 
 func keymasterPage(w http.ResponseWriter, r *http.Request) {
@@ -332,7 +335,7 @@ func keymasterPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func docsPage(w http.ResponseWriter, r *http.Request) {
-	renderPage(w, r, "docs.tmpl", map[string]interface{}{"Title": "Documentation"})
+	renderPage(w, r, "docs.tmpl", map[string]interface{}{"Title": "Home - NSM Documentation"})
 }
 
 func apiServersLive(w http.ResponseWriter, r *http.Request) {
@@ -356,6 +359,7 @@ func buildMux() *http.ServeMux {
 	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.FS(static))))
 	mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(static))))
 	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.FS(static))))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 
 	// pages
 	mux.HandleFunc("GET /{$}", homePage)
@@ -387,7 +391,9 @@ func buildMux() *http.ServeMux {
 
 	mux.HandleFunc("GET /docs", docsPage)
 	mux.HandleFunc("GET /support", supportPage)
+	mux.HandleFunc("GET /hc/en-us", supportPage)
 	mux.HandleFunc("GET /marketplace", marketplacePage)
+	mux.HandleFunc("GET /portal", keymasterPage)
 
 	// Forum (full Discourse-style forum at /forum + /f/ compatibility)
 	mux.HandleFunc("GET /forum", forumPage)

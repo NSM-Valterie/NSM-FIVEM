@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{if .Title}}{{.Title}} - {{end}}NSM</title>
-  <link rel="stylesheet" href="/css/style.css?v=078b">
+  <title>{{if .Title}}{{.Title}}{{else}}NSM — AFX Multiplayer Platform{{end}}</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
 </head>
 <body>
 
@@ -31,31 +32,43 @@
 <header class="site-header">
   <div class="hbar">
     <a class="logo" href="/">
-      <span class="brand-mark">NSM</span>
+      <img src="/img/nsm-icon.png" alt="NSM" class="brand-logo-img">
       <span>NSM</span>
-      <span class="brand-sub">Cfx.re</span>
+      <span class="brand-sub"><img src="/img/afx-icon.png" alt="AFX" class="brand-sub-icon">AFX</span>
     </a>
 
     <nav>
       <a href="/" {{if eq .Page "/"}}class="active"{{end}}>Home</a>
-      <a href="/servers" {{if or (eq .Page "/servers") (eq .Title "Server List")}}class="active"{{end}}>
+      <a href="/servers" target="_blank" rel="noopener" {{if eq .Page "/servers"}}class="active"{{end}}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/><circle cx="6" cy="6.5" r="1"/><circle cx="6" cy="17.5" r="1"/></svg>
-        Servers
+        Server List
         {{if .Stats}}<span class="nav-pill" data-stat="servers">{{index .Stats "Servers"}}</span>{{end}}
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
-      <a href="/forum" {{if or (eq .Page "/forum") (eq .Title "Community Forum")}}class="active"{{end}}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Forum
-      </a>
-      <a href="/keymaster" {{if eq .Page "/keymaster"}}class="active"{{end}}>
+      <a href="/keymaster" target="_blank" rel="noopener" {{if eq .Page "/keymaster"}}class="active"{{end}}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-        Keymaster
+        AFX Portal
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
-      <a href="/docs" {{if eq .Page "/docs"}}class="active"{{end}}>
+      <a href="/forum" target="_blank" rel="noopener" {{if eq .Page "/forum"}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        AFX Forum
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+      <a href="/marketplace" target="_blank" rel="noopener" {{if eq .Page "/marketplace"}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        AFX Marketplace
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+      <a href="/docs" target="_blank" rel="noopener" {{if eq .Page "/docs"}}class="active"{{end}}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Documentation
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>
-      <a href="/support" {{if eq .Page "/support"}}class="active"{{end}}>Support</a>
+      <a href="/support" target="_blank" rel="noopener" {{if eq .Page "/support"}}class="active"{{end}}>
+        AFX Support
+        <svg class="ext-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
       {{if and .User (or (eq .User.Role "owner") (eq .User.Role "admin") (eq .User.Role "staff"))}}
       <a href="/admin/users" {{if eq .Page "/admin/users"}}class="active"{{end}}>Staff</a>
       {{end}}
@@ -71,8 +84,8 @@
         <a href="/u/{{.User.Username}}" class="btn btn-ghost btn-sm">Profile</a>
         <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
       {{else}}
-        <a href="/login" class="btn btn-ghost btn-sm">Log In</a>
-        <a href="/register" class="btn btn-primary btn-sm">Create Account</a>
+        <a href="/login" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">AFX Login</a>
+        <a href="/register" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Create Account</a>
       {{end}}
     </div>
   </div>

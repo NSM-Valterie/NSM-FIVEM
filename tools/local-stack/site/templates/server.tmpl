@@ -1,58 +1,130 @@
-{{template "head" .}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.CleanName}} - Server List - NSM</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078c">
+</head>
+<body class="mp-standalone-body">
+  <div class="mp-app-frame">
+    <!-- NSM.exe Top NavBar -->
+    <header class="mp-navbar">
+      <div class="mp-navbar-left">
+        <a href="/" class="mp-home-btn" title="Home — NSM">
+          <img src="/img/nsm-icon.png" alt="NSM" class="mp-brand-icon">
+        </a>
+        <a href="/servers" class="nsm-ctrl-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Back to Server List</span>
+        </a>
+        <span style="font-size:0.9rem;color:rgba(240,244,248,0.65);font-weight:500">{{.CleanName}}</span>
+      </div>
 
-<section class="wrap section">
-  <p style="margin-bottom:12px"><a href="/servers" class="muted">&larr; Back to Server List</a></p>
-  <div class="srv-detail">
-    <div class="srv-detail-head">
-      <div>
-        <h1>{{.CleanName}}</h1>
-        <div class="srv-sub" style="margin-top:8px">
-          {{if .Srv.Gametype}}<span class="tag">{{.Srv.Gametype}}</span>{{end}}
-          {{if .Srv.Mapname}}<span class="tag">{{.Srv.Mapname}}</span>{{end}}
-          <span class="tag"><code>{{.EndPoint}}</code></span>
-          {{if .OwnerUsername}}
-          <a href="/u/{{.OwnerUsername}}" class="tag" style="color:var(--accent-light);border-color:rgba(47,123,255,.35)">Verified Owner: @{{.OwnerUsername}}</a>
-          {{end}}
+      <div class="mp-navbar-right">
+        <div class="mp-ext-links">
+          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
+          <a href="/forum" target="_blank" rel="noopener" class="mp-ext-link">Forum</a>
+          <a href="/marketplace" target="_blank" rel="noopener" class="mp-ext-link">Marketplace</a>
+          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
+          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
         </div>
-      </div>
-      <div class="srv-detail-cta">
-        <div class="srv-big-count"><b>{{.Srv.Clients}}</b><span>/{{.Srv.SVMaxclients}} players</span></div>
-        <form method="post" action="/servers/{{.EndPoint}}/upvote" style="display:inline">
-          <button class="btn {{if .Voted}}btn-voted{{else}}btn-ghost{{end}}" type="submit">
-            &#9650; {{.Upvotes}} {{if .Voted}}Boosted{{else}}Boost Server{{end}}
-          </button>
-        </form>
-        <button type="button" class="btn btn-ghost" onclick="navigator.clipboard.writeText('connect {{.EndPoint}}');this.textContent='Copied F8 Connect!'">Copy F8 Connect</button>
-        <a href="nsm://connect/{{.EndPoint}}" class="btn btn-primary btn-lg">Connect in NSM</a>
-      </div>
-    </div>
-
-    {{with index .Srv.Vars "sv_projectDesc"}}
-    <p class="lead" style="margin-top:16px">{{.}}</p>
-    {{end}}
-
-    <div class="detail-cols">
-      <div class="detail-box">
-        <h3>Connected Players ({{len .Srv.Players}})</h3>
-        {{if .Srv.Players}}
-        <ul class="plist">
-          {{range .Srv.Players}}
-          <li><span>{{.Name}}</span><span class="muted">{{.Ping}} ms</span></li>
-          {{end}}
-        </ul>
+        {{if .User}}
+        <a href="/account" class="mp-user-bar">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="mp-user-avatar">
+          <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
+        </a>
         {{else}}
-        <p class="muted">No players currently in this server.</p>
+        <a href="/login" target="_blank" rel="noopener" class="mp-user-bar mp-user-signin">
+          <span>Sign In</span>
+        </a>
         {{end}}
       </div>
+    </header>
 
-      <div class="detail-box">
-        <h3>Loaded Resources ({{len .Srv.Resources}})</h3>
-        <div class="tags">
-          {{range .Srv.Resources}}<span class="tag">{{.}}</span>{{end}}
+    <!-- NSM.exe ServerDetailsPage (Banner + Header + 2-Column Content & Right Sidebar) -->
+    <div class="mp-details-scroll">
+      <div class="mp-details-root">
+        <div class="mp-details-hero">
+          <div class="mp-details-hero-inner">
+            <div class="nsm-srv-icon" style="width:68px;height:68px;border-radius:10px;font-size:1.5rem">
+              <img src="/api/servers/icon/{{.EndPoint}}/{{.Srv.IconVersion}}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <span class="nsm-srv-icon-fallback" style="display:none">S</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <h1 style="margin:0 0 6px;font-size:1.7rem;color:#fff" data-colorize="{{.Srv.Hostname}}">{{.CleanName}}</h1>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                {{if .Srv.Gametype}}<span class="nsm-loaf">{{.Srv.Gametype}}</span>{{end}}
+                {{if .Srv.Mapname}}<span class="nsm-loaf">{{.Srv.Mapname}}</span>{{end}}
+                <span class="nsm-loaf"><code>{{.EndPoint}}</code></span>
+                {{if .OwnerUsername}}
+                <a href="/u/{{.OwnerUsername}}" class="nsm-loaf" style="color:#00f8b9;border-color:rgba(0,248,185,0.35)">Owner: @{{.OwnerUsername}}</a>
+                {{end}}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="text-align:right;margin-right:6px">
+                <div style="font-size:1.35rem;font-weight:700;color:#fff">{{.Srv.Clients}} <span style="opacity:0.45;font-size:0.95rem">/ {{.Srv.SVMaxclients}}</span></div>
+                <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(240,244,248,0.5)">Players Online</div>
+              </div>
+              <form method="post" action="/servers/{{.EndPoint}}/upvote" style="display:inline">
+                <button class="nsm-ctrl-btn" type="submit">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span>{{.Upvotes}} {{if .Voted}}Boosted{{else}}Boost{{end}}</span>
+                </button>
+              </form>
+              <button type="button" class="nsm-btn nsm-btn-primary" data-connect-ep="{{.EndPoint}}">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Connect in NSM.exe
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mp-details-cols">
+          <div class="mp-details-main">
+            {{with index .Srv.Vars "sv_projectDesc"}}
+            <div class="mp-details-box">
+              <h3>Project Description</h3>
+              <p style="margin:0;color:rgba(240,244,248,0.85);line-height:1.6">{{.}}</p>
+            </div>
+            {{end}}
+
+            <div class="mp-details-box">
+              <h3>Loaded Resources ({{len .Srv.Resources}})</h3>
+              <div class="nsm-tag-cloud">
+                {{range .Srv.Resources}}<span class="nsm-loaf">{{.}}</span>{{end}}
+              </div>
+            </div>
+
+            <div class="mp-details-box">
+              <h3>Direct F8 Console Connect</h3>
+              <div class="nsm-f8-box">
+                <code>connect {{.EndPoint}}</code>
+                <button type="button" class="nsm-copy-mini" onclick="navigator.clipboard.writeText('connect {{.EndPoint}}');this.textContent='Copied!'">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="mp-details-side">
+            <div class="mp-details-box">
+              <h3>Online Players ({{len .Srv.Players}})</h3>
+              {{if .Srv.Players}}
+              <ul class="plist">
+                {{range .Srv.Players}}
+                <li><span>{{.Name}}</span><span class="muted">{{.Ping}} ms</span></li>
+                {{end}}
+              </ul>
+              {{else}}
+              <p class="muted" style="margin:0">No players currently connected.</p>
+              {{end}}
+            </div>
+          </aside>
         </div>
       </div>
     </div>
   </div>
-</section>
-
-{{template "foot" .}}
+  <script src="/js/main.js?v=078c"></script>
+</body>
+</html>

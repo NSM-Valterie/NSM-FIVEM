@@ -352,8 +352,12 @@ func extractHeartbeatServerKey(r *http.Request, hb *heartbeat) string {
 
 func serveKeymasterPage(w http.ResponseWriter, r *http.Request, extra map[string]interface{}) {
 	u := currentUser(r)
+	title := "AFX Portal — NSM Keymaster"
+	if u == nil {
+		title = "Login - AFX Portal"
+	}
 	data := map[string]interface{}{
-		"Title":       "NSM Keymaster",
+		"Title":       title,
 		"Page":        "/keymaster",
 		"User":        u,
 		"RequireKeys": requireKeys,
