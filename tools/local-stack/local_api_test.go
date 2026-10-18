@@ -445,13 +445,13 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 	}
 
 	// Verify email using the issued verification code
-	accMu.RLock()
+	accMu.Lock()
 	regUser := findUser("cravenz_dev")
 	verifyCode := ""
 	if regUser != nil {
 		verifyCode = regUser.EmailVerifyCode
 	}
-	accMu.RUnlock()
+	accMu.Unlock()
 	if verifyCode == "" {
 		t.Fatalf("expected registration to generate a 6-digit EmailVerifyCode")
 	}
@@ -947,16 +947,16 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	}
 
 	// 14. Verify Self-Views do NOT increment ProfileViews, while Another User viewing DOES increment once
-	accMu.RLock()
+	accMu.Lock()
 	viewsBeforeSelf := findUser("neon_captain").ProfileViews
-	accMu.RUnlock()
+	accMu.Unlock()
 
 	_ = requestAuth(h, "GET", "/u/neon_captain?tab=activity", "", map[string]string{"X-NSM-Session": customSess})
 	_ = requestAuth(h, "GET", "/u/neon_captain?tab=summary", "", map[string]string{"X-NSM-Session": customSess})
 
-	accMu.RLock()
+	accMu.Lock()
 	viewsAfterSelf := findUser("neon_captain").ProfileViews
-	accMu.RUnlock()
+	accMu.Unlock()
 	if viewsAfterSelf != viewsBeforeSelf {
 		t.Fatalf("clicking own profile tabs must not increment ProfileViews: before=%d after=%d", viewsBeforeSelf, viewsAfterSelf)
 	}
@@ -1051,9 +1051,9 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 
 	// Staff views neon_captain profile -> increments ProfileViews by 1
 	_ = requestAuth(h, "GET", "/u/neon_captain", "", map[string]string{"X-NSM-Session": staffSess})
-	accMu.RLock()
+	accMu.Lock()
 	viewsAfterOther := findUser("neon_captain").ProfileViews
-	accMu.RUnlock()
+	accMu.Unlock()
 	if viewsAfterOther != viewsBeforeSelf+1 {
 		t.Fatalf("other user viewing profile should increment ProfileViews by 1: got %d want %d", viewsAfterOther, viewsBeforeSelf+1)
 	}
