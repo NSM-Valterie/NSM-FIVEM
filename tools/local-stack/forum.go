@@ -1132,8 +1132,7 @@ func serveForumRealtimeJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	forumMu.Unlock()
 
-	var profileViews int64
-	var topicsViewed, postsRead int
+	var profileViews, topicsViewed, postsRead int
 	var unreadCount int
 	accMu.Lock()
 	if profileUser != "" {
