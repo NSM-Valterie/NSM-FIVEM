@@ -142,7 +142,7 @@ func marketplacePage(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Marketplace", "Stub": "Marketplace"})
 }
 func keymasterPage(w http.ResponseWriter, r *http.Request) {
-	renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Portal", "Stub": "Portal (keymaster)"})
+	serveKeymasterPage(w, r, nil)
 }
 
 func docsPage(w http.ResponseWriter, r *http.Request) {
@@ -183,17 +183,23 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /forum", forumPage)
 	mux.HandleFunc("GET /marketplace", marketplacePage)
 	mux.HandleFunc("GET /keymaster", keymasterPage)
+	mux.HandleFunc("POST /keymaster/create", keymasterCreateForm)
+	mux.HandleFunc("POST /keymaster/{id}/revoke", keymasterRevokeForm)
 
 	// staff admin
 	mux.HandleFunc("GET /admin/users", adminUsersPage)
 	mux.HandleFunc("POST /admin/users/{id}/role", adminSetRole)
 
-	// JSON API (client + site)
+	// JSON API (client + site + keymaster)
 	mux.HandleFunc("GET /api/auth/me", apiMe)
 	mux.HandleFunc("POST /api/auth/login", apiLogin)
 	mux.HandleFunc("POST /api/auth/register", apiRegister)
 	mux.HandleFunc("POST /api/auth/logout", apiLogout)
 	mux.HandleFunc("GET /api/servers/live", apiServersLive)
+	mux.HandleFunc("GET /api/keymaster/keys", apiKeymasterList)
+	mux.HandleFunc("POST /api/keymaster/issue", apiKeymasterIssue)
+	mux.HandleFunc("POST /api/keymaster/revoke", apiKeymasterRevoke)
+	mux.HandleFunc("POST /api/nsm/servers/register", apiServerRegister)
 
 	// updater: no updates in local mode
 	mux.HandleFunc("/updates/", func(w http.ResponseWriter, r *http.Request) {

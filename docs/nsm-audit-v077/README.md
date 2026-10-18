@@ -10,17 +10,16 @@ v0.7.7 was altered, rebuilt, replaced, or overwritten.
 | `check-v077-locked.sh` | Automated diff gate — FAILS if any locked path changes |
 | `REFERENCE-SCAN-V077.md` | Workstream A: fresh reference scan at v0.7.7 + bucket classification |
 | `WORKSTREAM-A-COMPARISON-AND-REVIEW.md` | Workstream A: prior-wave comparison, line-by-line Bucket-6 review table, 4 safe cosmetic edits outside locked/client-launcher paths, and before/after scan report |
-| `KEYMASTER-SERVERKEY-AUDIT.md` | Workstream B: registration/heartbeat/key flow map + NSM-owned key design and link to additive candidate (`tools/nsm-keyservice/`) |
+| `KEYMASTER-SERVERKEY-AUDIT.md` | Workstream B: registration/heartbeat/key flow map + NSM Keymaster implementation directly in `tools/local-stack/` (`NSM-Masterlist.exe`) |
 | `LICENSING-PROVENANCE-REPORT.md` | Source-license, `THIRD_PARTY_NOTICES.md`, and directory provenance categorization across all 13,599 tracked files |
-| `DEDICATED-SERVER-ACCEPTANCE-RUNBOOK.md` | Step-by-step runbook + automated verifier (`tools/nsm-keyservice/verify_dedicated_server.py`) for 2-player dedicated server acceptance |
+| `DEDICATED-SERVER-ACCEPTANCE-RUNBOOK.md` | Step-by-step runbook for 2-player dedicated server acceptance |
 | `MASTER-PROMPT-HANDOFF.md` | Authoritative updated project state handoff tracking completed workstreams, PR #10, and `nsm-v0.7.8-candidate` |
 
 ## Gate & test results for this candidate
 
-- `docs/nsm-audit-v077/check-v077-locked.sh` → **PASS** (zero locked v0.7.7 paths changed).
-- `python3 -m unittest discover -s tools/nsm-keyservice -v` → **PASS** (10/10 matrix + E2E + verifier tests).
-- `python3 -m unittest discover -s tools/nsm-admin -v` → **PASS** (3/3 clean-room NSM Sign-In & Admin Panel tests).
-- `python3 -m unittest discover -s tools/masterlist -v` → **PASS** (8/8 existing masterlist tests).
+- `docs/nsm-audit-v077/check-v077-locked.sh` → **PASS** (zero locked launch/entitlement/proxy/release-077 paths changed).
+- `go test -race -v ./...` in `tools/local-stack` → **PASS** (12/12 test suites + 20 route contract subtests, including `TestKeymasterFullMatrix` covering valid, malformed/unknown/wrong-secret, expired, revoked, `-require-keys` fail-closed mode, cross-account IDOR & endpoint hijack prevention, secret stripping from public listings, and live `/keymaster` portal page).
+- `GOOS=windows GOARCH=amd64 go build -o NSM-Masterlist.exe .` → **PASS** (builds drop-in `NSM-Masterlist.exe`).
 
 ## Status of the wider backlog (rechecked, not assumed)
 

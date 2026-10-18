@@ -1,0 +1,62 @@
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <h1>NSM Keymaster</h1>
+    <p class="lead">Issue and manage authorized NSM server keys for the NSM masterlist. Keys authenticate your server on <code>POST /api/serverlist/ingress</code>.</p>
+    {{if .User}}
+    {{if .Error}}<div class="error" style="margin-bottom:20px">{{.Error}}</div>{{end}}
+    {{if .Msg}}<p class="lead" style="color:#4cd964">{{.Msg}}</p>{{end}}
+    {{if .NewKey}}
+    <article class="a2" style="margin-bottom:var(--q3);padding:20px">
+      <h2>New Server Key ({{.NewKeyID}})</h2>
+      <p class="txt">Copy this secret now — only a salted hash is stored on disk:</p>
+      <pre style="overflow-x:auto;padding:12px;background:#111;color:#fff;border-radius:6px"><code>{{.NewKey}}</code></pre>
+      <p class="txt" style="margin-top:10px">Add to your <code>server.cfg</code> (works with existing <code>nsm-server.exe</code>):</p>
+      <pre style="overflow-x:auto;padding:12px;background:#111;color:#fff;border-radius:6px"><code>sets sv_nsmServerKey "{{.NewKey}}"</code></pre>
+    </article>
+    {{end}}
+    <div class="fx">
+      <div class="c-lg-5 c-xs-12">
+        <div class="form-card">
+          <h1 style="margin-bottom:20px">Issue server key</h1>
+          <form method="POST" action="/keymaster/create">
+            <div class="form-row"><label>Server label</label><input type="text" name="label" placeholder="My NSM RP Server" maxlength="100" required></div>
+            <div class="form-row"><label>Bind to endpoint (optional)</label><input type="text" name="boundEndpoint" placeholder="127.0.0.1:30120"></div>
+            <div class="form-row"><label>Validity (days)</label><input type="number" name="days" value="90" min="1" max="365" required></div>
+            <button class="btn btn-accent" style="width:100%">CREATE KEY</button>
+          </form>
+        </div>
+      </div>
+      <div class="c-lg-7 c-xs-12">
+        <h2 class="sub">Your server keys</h2>
+        {{if .Keys}}
+        <div class="fx">
+          {{range .Keys}}
+          <div class="c-xs-12" style="margin-bottom:16px">
+            <article class="a1">
+              <h2>{{.label}} <span class="muted">({{.id}})</span></h2>
+              <span class="txt">
+                status: <strong>{{.status}}</strong>
+                {{if .boundEndpoint}} &middot; bound: <code>{{.boundEndpoint}}</code>{{end}}
+                {{if .lastEndpoint}} &middot; last seen: <code>{{.lastEndpoint}}</code>{{end}}
+              </span>
+              {{if not .revoked}}
+              <form method="POST" action="/keymaster/{{.id}}/revoke" class="btnpadder">
+                <button class="btn btn-accent" style="width:auto;display:inline-block">REVOKE KEY</button>
+              </form>
+              {{end}}
+            </article>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="muted">No server keys issued yet. Create one on the left to authenticate your NSM server.</p>
+        {{end}}
+      </div>
+    </div>
+    {{else}}
+    <p class="lead">Please <a href="/login">log in</a> or <a href="/register">create an NSM account</a> to issue and manage server keys.</p>
+    {{end}}
+  </div></div>
+</section>
+{{template "foot" .}}

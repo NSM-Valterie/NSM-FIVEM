@@ -1,0 +1,121 @@
+name: Build & Package NSM v0.7.8 Candidate Release
+
+on:
+  push:
+    branches:
+      - arena/b9db485b-nsm-fivem
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v078-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags and verify locked v0.7.7 launch/entitlement paths
+        run: |
+          git fetch origin --tags
+          bash docs/nsm-audit-v077/check-v077-locked.sh
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/local-stack/go.sum
+
+      - name: Run Go tests, race detector, and vet on tools/local-stack
+        working-directory: tools/local-stack
+        run: |
+          go vet ./...
+          go test -v ./... | tee /tmp/go-tests.txt
+          go test -race -v ./... | tee /tmp/race-tests.txt
+
+      - name: Cross-compile Windows x64 NSM-Masterlist.exe
+        working-directory: tools/local-stack
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o /tmp/NSM-Masterlist.exe .
+          ls -lh /tmp/NSM-Masterlist.exe
+          sha256sum /tmp/NSM-Masterlist.exe
+
+      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/v078-dist
+          cp /tmp/NSM-Masterlist.exe /tmp/v078-dist/NSM-Masterlist.exe
+          gh release download nsm-v0.7.7-localtest -p "NSM-client-v0.7.7-localtest.zip" -D /tmp
+          python3 - << 'EOF'
+          import hashlib, zipfile
+          from pathlib import Path
+
+          base_zip = Path("/tmp/NSM-client-v0.7.7-localtest.zip")
+          new_exe = Path("/tmp/NSM-Masterlist.exe").read_bytes()
+          out_zip = Path("/tmp/v078-dist/NSM-client-v0.7.8-candidate.zip")
+          src_zip = Path("/tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip")
+          RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
+
+          def sha(b):
+              return hashlib.sha256(b).hexdigest()
+
+          overlay = {
+              "NSM-Client/NSM-Masterlist.exe": new_exe,
+              "NSM-Client/repair-info/go-tests.txt": Path("/tmp/go-tests.txt").read_bytes(),
+              "NSM-Client/repair-info/race-tests.txt": Path("/tmp/race-tests.txt").read_bytes(),
+          }
+          for p in Path("tools/local-stack").rglob("*"):
+              if p.is_file() and "__pycache__" not in p.parts:
+                  overlay["NSM-Client/repair-info/source/" + p.relative_to("tools/local-stack").as_posix()] = p.read_bytes()
+
+          sums = {}
+          with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
+              for info in zin.infolist():
+                  if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt" or info.filename in overlay:
+                      continue
+                  data = zin.read(info.filename)
+                  zout.writestr(info, data)
+                  sums[info.filename] = sha(data)
+              for name, data in sorted(overlay.items()):
+                  zout.writestr(name, data)
+                  sums[name] = sha(data)
+              manifest = "".join(f"{d}  {n}\n" for n, d in sorted(sums.items()))
+              zout.writestr("NSM-Client/SHA256SUMS.txt", manifest.encode("utf-8"))
+
+          with zipfile.ZipFile(out_zip, "r") as zcheck:
+              assert zcheck.testzip() is None
+              assert sha(zcheck.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
+              assert zcheck.read("NSM-Client/NSM-Masterlist.exe") == new_exe
+
+          with zipfile.ZipFile(src_zip, "w", zipfile.ZIP_DEFLATED) as zsrc:
+              for p in sorted(list(Path("tools/local-stack").rglob("*")) + list(Path("docs/nsm-audit-v077").rglob("*"))):
+                  if p.is_file():
+                      zsrc.write(p, arcname=p.as_posix())
+              zsrc.write("/tmp/go-tests.txt", arcname="test-results/go-tests.txt")
+              zsrc.write("/tmp/race-tests.txt", arcname="test-results/race-tests.txt")
+
+          dist_sums = []
+          for asset in sorted(Path("/tmp/v078-dist").glob("*")):
+              if asset.name != "SHA256SUMS.txt":
+                  dist_sums.append(f"{sha(asset.read_bytes())}  {asset.name}\n")
+          Path("/tmp/v078-dist/SHA256SUMS.txt").write_text("".join(dist_sums), encoding="utf-8")
+          print("".join(dist_sums))
+          EOF
+
+      - name: Upload release assets to nsm-v0.7.8-candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view nsm-v0.7.8-candidate >/dev/null 2>&1; then
+            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 Candidate — NSM-Masterlist.exe Keymaster Update" --notes "NSM v0.7.8 Candidate with Keymaster built directly into NSM-Masterlist.exe."
+          fi
+          gh release upload nsm-v0.7.8-candidate \
+            /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip \
+            /tmp/v078-dist/NSM-Masterlist.exe \
+            /tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip \
+            /tmp/v078-dist/SHA256SUMS.txt \
+            --clobber

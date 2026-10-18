@@ -33,11 +33,12 @@ type Session struct {
 }
 
 type Accounts struct {
-	mu       sync.Mutex
-	Users    []User             `json:"users"`
-	Sessions map[string]Session `json:"sessions"`
-	Upvotes  map[string][]int64 `json:"upvotes"` // endpoint -> user ids
-	NextID   int64              `json:"nextId"`
+	mu         sync.Mutex
+	Users      []User             `json:"users"`
+	Sessions   map[string]Session `json:"sessions"`
+	Upvotes    map[string][]int64 `json:"upvotes"` // endpoint -> user ids
+	ServerKeys []ServerKey        `json:"serverKeys,omitempty"`
+	NextID     int64              `json:"nextId"`
 }
 
 var (
@@ -104,13 +105,21 @@ func newSession(userID int64) string {
 }
 
 func currentUser(r *http.Request) *User {
-	c, err := r.Cookie("nsm_session")
-	if err != nil {
+	tok := ""
+	if c, err := r.Cookie("nsm_session"); err == nil && c.Value != "" {
+		tok = c.Value
+	} else if hdr := strings.TrimSpace(r.Header.Get("X-NSM-Session")); hdr != "" {
+		tok = hdr
+	}
+	if tok == "" {
 		return nil
 	}
 	accMu.Lock()
 	defer accMu.Unlock()
-	s, ok := acc.Sessions[c.Value]
+	if acc == nil {
+		return nil
+	}
+	s, ok := acc.Sessions[tok]
 	if !ok || s.Expires < time.Now().Unix() {
 		return nil
 	}

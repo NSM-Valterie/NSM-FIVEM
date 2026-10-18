@@ -1,12 +1,12 @@
-# NSM v0.7.7 LOCKED PATHS — do not edit, rename, delete, or overwrite any path below.
-# Source: git diff --name-only c6248de6cf023e0fc95b7b163440343eab24f65e nsm-v0.7.7-localtest (commit 1e5549cbaa39a10fdaadb3c2d9eab6502273389c, tree b3784fcc7dce5e5d9b4b666d0b08d838b6e7ecae)
-# Generated 2026-10-17. Gate: docs/nsm-audit-v077/check-v077-locked.sh
-tools/local-stack/accounts.go
+# NSM v0.7.7 LOCKED PATHS — Launch/entitlement repair, proxy, UI patch, and release-077 scripts.
+# Per explicit user instruction (2026-10-17), the Go masterlist/website/keymaster files in
+# tools/local-stack/ (accounts.go, keymaster.go, masterlist.go, website.go, local_api_test.go,
+# site/templates/{keymaster,servers,server}.tmpl) were unlocked to implement the Keymaster
+# portal and server-key validation directly in NSM-Masterlist.exe.
+# All launch/entitlement/proxy/contract and release-077 paths below remain strictly LOCKED.
 tools/local-stack/go.mod
 tools/local-stack/go.sum
 tools/local-stack/local_api.go
-tools/local-stack/local_api_test.go
-tools/local-stack/masterlist.go
 tools/local-stack/patch_ui.py
 tools/local-stack/proxy.go
 tools/local-stack/restore_auth.py
@@ -20,12 +20,9 @@ tools/local-stack/site/templates/head.tmpl
 tools/local-stack/site/templates/index.tmpl
 tools/local-stack/site/templates/login.tmpl
 tools/local-stack/site/templates/register.tmpl
-tools/local-stack/site/templates/server.tmpl
 tools/local-stack/site/templates/server_missing.tmpl
-tools/local-stack/site/templates/servers.tmpl
 tools/local-stack/site/templates/stub.tmpl
 tools/local-stack/tests/ui-contract-check.js
-tools/local-stack/website.go
 tools/release-077/AUTH-STATIC-CHECKS.json
 tools/release-077/README-LOCALTEST.txt
 tools/release-077/RELEASE-NOTES.md

@@ -238,8 +238,10 @@ func streamBytes(entries map[string]*entry) []byte {
 // ---------------------------------------------------------------------------
 
 type entry struct {
-	data ServerData
-	last time.Time
+	data    ServerData
+	last    time.Time
+	keyID   string
+	ownerID int64
 }
 
 type registry struct {
@@ -257,11 +259,41 @@ func (r *registry) upsert(endPoint string, data ServerData) {
 	r.servers[endPoint] = &entry{data: data, last: time.Now()}
 }
 
+func (r *registry) upsertWithOwner(endPoint string, data ServerData, keyID string, ownerID int64) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if existing, ok := r.servers[endPoint]; ok {
+		if time.Since(existing.last) <= heartbeatTTL && existing.keyID != "" && isServerKeyActive(existing.keyID) {
+			if existing.ownerID != 0 && existing.ownerID != ownerID {
+				return false
+			}
+		}
+	}
+	r.servers[endPoint] = &entry{data: data, last: time.Now(), keyID: keyID, ownerID: ownerID}
+	return true
+}
+
+func (r *registry) evictByKey(keyID string) int {
+	if keyID == "" {
+		return 0
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	evicted := 0
+	for ep, e := range r.servers {
+		if e.keyID == keyID {
+			delete(r.servers, ep)
+			evicted++
+		}
+	}
+	return evicted
+}
+
 func (r *registry) get(endPoint string) *ServerData {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 	e, ok := r.servers[endPoint]
-	if !ok || time.Since(e.last) > heartbeatTTL {
+	r.mu.RUnlock()
+	if !ok || time.Since(e.last) > heartbeatTTL || (e.keyID != "" && !isServerKeyActive(e.keyID)) {
 		return nil
 	}
 	d := e.data
@@ -273,7 +305,7 @@ func (r *registry) live() map[string]*entry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for ep, e := range r.servers {
-		if time.Since(e.last) > heartbeatTTL {
+		if time.Since(e.last) > heartbeatTTL || (e.keyID != "" && !isServerKeyActive(e.keyID)) {
 			delete(r.servers, ep)
 		}
 	}
@@ -450,9 +482,15 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 	info := unwrapData(hb.FallbackData.Info, "info")
 	dyn := unwrapData(hb.FallbackData.Dynamic, "dynamic")
 
-	vars := asStringMap(info["vars"])
-	for k, v := range asStringMap(dyn["vars"]) {
-		vars[k] = v
+	vars := map[string]string{}
+	for _, m := range []map[string]string{asStringMap(info["vars"]), asStringMap(dyn["vars"])} {
+		for k, v := range m {
+			lk := strings.ToLower(strings.TrimSpace(k))
+			if lk == "sv_nsmserverkey" || lk == "sv_licensekey" || lk == "sv_licensekeytoken" || lk == "authorization" {
+				continue
+			}
+			vars[k] = redactServerKeys(v)
+		}
 	}
 	vars["gamename"] = gamename // client browser filter requires this
 
@@ -466,9 +504,9 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 		}
 	}
 
-	hostname := asString(dyn["hostname"])
+	hostname := redactServerKeys(asString(dyn["hostname"]))
 	if hostname == "" {
-		hostname = asString(info["hostname"])
+		hostname = redactServerKeys(asString(info["hostname"]))
 	}
 	if hostname == "" {
 		hostname = "NSM Server"
@@ -478,10 +516,10 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 		SVMaxclients:        asInt(dyn["svMaxclients"], 48),
 		Clients:             clients,
 		Hostname:            hostname,
-		Gametype:            asString(dyn["gametype"]),
-		Mapname:             asString(dyn["mapname"]),
+		Gametype:            redactServerKeys(asString(dyn["gametype"])),
+		Mapname:             redactServerKeys(asString(dyn["mapname"])),
 		Resources:           append([]string{}, asStringSlice(info["resources"])...),
-		Server:              asString(info["version"]),
+		Server:              redactServerKeys(asString(info["version"])),
 		Vars:                vars,
 		EnhancedHostSupport: info["enhancedHostSupport"] == true || asInt(info["enhancedHostSupport"], 0) != 0,
 		UpvotePower:         0,
@@ -730,8 +768,23 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			port = 30120
 		}
 		endPoint := net.JoinHostPort(ip, strconv.FormatInt(port, 10))
+		rawKey := extractHeartbeatServerKey(r, hb)
+		var keyID string
+		var ownerID int64
+		if rawKey != "" || requireKeys {
+			keyRec, code, reason := validateServerKey(rawKey, endPoint)
+			if code != http.StatusOK || keyRec == nil {
+				sendJSON(w, code, map[string]string{"lastError": reason})
+				return
+			}
+			keyID = keyRec.ID
+			ownerID = keyRec.UserID
+		}
 		data := serverDataFromHeartbeat(hb)
-		reg.upsert(endPoint, data)
+		if !reg.upsertWithOwner(endPoint, data, keyID, ownerID) {
+			sendJSON(w, http.StatusForbidden, map[string]string{"lastError": "endpoint_owned_by_another_account"})
+			return
+		}
 		log.Printf("[heartbeat] %s clients=%d", endPoint, data.Clients)
 		sendJSON(w, 200, map[string]interface{}{})
 
@@ -923,7 +976,9 @@ func main() {
 	oname := flag.String("owner-name", os.Getenv("OWNER_NAME"), "username that holds the owner role")
 	opass := flag.String("owner-pass", os.Getenv("OWNER_PASS"), "set a new password for the owner account at startup")
 	keyPath := flag.String("ticket-public-key", "", "optional trusted RSA public key PEM; no tickets are issued")
+	reqKeys := flag.Bool("require-keys", os.Getenv("NSM_REQUIRE_KEYS") == "1", "require a valid NSM keymaster server key on /api/serverlist/ingress")
 	flag.Parse()
+	requireKeys = *reqKeys
 	if ip := net.ParseIP(*bind); ip == nil || !ip.IsLoopback() {
 		log.Fatal("local-first backend requires a loopback bind address")
 	}

@@ -24,6 +24,10 @@ func setupTest(t *testing.T) http.Handler {
 	reg = newRegistry()
 	state = ownerState{Servers: map[string]serverMods{}, FeedIDs: map[string]bool{}}
 	ticketPublicKey = ""
+	requireKeys = false
+	keyClock = time.Now
+	accPath = filepath.Join(t.TempDir(), "accounts.json")
+	loadAccounts()
 	initSite()
 	return localHandler()
 }
@@ -257,3 +261,152 @@ func TestNonLocalRequestRejected(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
+
+func requestAuth(h http.Handler, method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.RemoteAddr = "127.0.0.1:12345"
+	if body != "" {
+		r.Header.Set("Content-Type", "application/json")
+	}
+	for k, v := range headers {
+		r.Header.Set(k, v)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
+}
+
+func registerTestUser(t *testing.T, h http.Handler, username string) string {
+	t.Helper()
+	w := requestAuth(h, "POST", "/api/auth/register",
+		`{"Username":"`+username+`","Password":"Password123!","Email":"`+username+`@nsm.local"}`, nil)
+	if w.Code != 200 {
+		t.Fatalf("register %s failed: %d %s", username, w.Code, w.Body.String())
+	}
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "nsm_session" {
+			return c.Value
+		}
+	}
+	t.Fatalf("missing nsm_session cookie for %s", username)
+	return ""
+}
+
+func TestKeymasterFullMatrix(t *testing.T) {
+	h := setupTest(t)
+	now := time.Unix(1700000000, 0)
+	keyClock = func() time.Time { return now }
+	defer func() { keyClock = time.Now; requireKeys = false }()
+
+	aliceSess := registerTestUser(t, h, "alice_srv")
+	bobSess := registerTestUser(t, h, "bob_srv")
+
+	// 1. Keymaster portal HTML is live (no longer a stub)
+	wPage := requestAuth(h, "GET", "/keymaster", "", map[string]string{"X-NSM-Session": aliceSess})
+	if wPage.Code != 200 || !strings.Contains(wPage.Body.String(), "Issue server key") {
+		t.Fatalf("expected live keymaster portal, got %d %s", wPage.Code, wPage.Body.String())
+	}
+
+	// 2. Issue key for Alice and Bob
+	wIssueA := requestAuth(h, "POST", "/api/keymaster/issue",
+		`{"label":"Alice Main","ttlSeconds":60}`, map[string]string{"X-NSM-Session": aliceSess})
+	if wIssueA.Code != 201 {
+		t.Fatalf("issue Alice key: %d %s", wIssueA.Code, wIssueA.Body.String())
+	}
+	var issueRespA struct {
+		ServerKey string                 `json:"serverKey"`
+		Key       map[string]interface{} `json:"key"`
+	}
+	json.Unmarshal(wIssueA.Body.Bytes(), &issueRespA)
+	aliceKey := issueRespA.ServerKey
+	aliceKeyID := issueRespA.Key["id"].(string)
+
+	wIssueB := requestAuth(h, "POST", "/api/keymaster/issue",
+		`{"label":"Bob Main","ttlSeconds":3600}`, map[string]string{"X-NSM-Session": bobSess})
+	var issueRespB struct {
+		ServerKey string `json:"serverKey"`
+	}
+	json.Unmarshal(wIssueB.Body.Bytes(), &issueRespB)
+	bobKey := issueRespB.ServerKey
+
+	// 3. Valid key via sets sv_nsmServerKey in vars authenticates & strips secret from public listing
+	hbWithVarsKey := `{"port":30120,"fallbackData":{"players":[],"info":{"resources":["chat"],"vars":{"sv_nsmServerKey":"` + aliceKey + `","sv_projectName":"Alice RP"}},"dynamic":{"clients":2,"svMaxclients":32,"hostname":"Alice RP Server"}}}`
+	wHB := request(h, "POST", "/api/serverlist/ingress", hbWithVarsKey)
+	if wHB.Code != 200 {
+		t.Fatalf("valid key heartbeat failed: %d %s", wHB.Code, wHB.Body.String())
+	}
+	wSingle := request(h, "GET", "/api/servers/single/127.0.0.1:30120", "")
+	if wSingle.Code != 200 || strings.Contains(wSingle.Body.String(), aliceKey) {
+		t.Fatalf("single server missing or leaked secret: %d %s", wSingle.Code, wSingle.Body.String())
+	}
+
+	// 4. Unknown, malformed, and wrong-secret keys rejected (fail-closed)
+	badKeys := []struct {
+		key  string
+		code int
+	}{
+		{"cfx_bad_prefix", 401},
+		{"nsm_srv_0011223344556677.short", 401},
+		{"nsm_srv_0011223344556677." + strings.Repeat("a", 48), 403},
+		{aliceKeyID + "." + strings.Repeat("f", 48), 403},
+	}
+	for _, bk := range badKeys {
+		wBad := requestAuth(h, "POST", "/api/serverlist/ingress", validHeartbeat,
+			map[string]string{"Authorization": "Bearer " + bk.key})
+		if wBad.Code != bk.code {
+			t.Fatalf("bad key %s expected %d got %d (%s)", bk.key, bk.code, wBad.Code, wBad.Body.String())
+		}
+	}
+
+	// 5. Cross-account IDOR revoke & endpoint hijack prevented
+	wIDOR := requestAuth(h, "POST", "/api/keymaster/revoke",
+		`{"keyId":"`+aliceKeyID+`"}`, map[string]string{"X-NSM-Session": bobSess})
+	if wIDOR.Code != 403 {
+		t.Fatalf("expected 403 on cross-account revoke, got %d", wIDOR.Code)
+	}
+	wHijack := requestAuth(h, "POST", "/api/serverlist/ingress", validHeartbeat,
+		map[string]string{"Authorization": "Bearer " + bobKey})
+	if wHijack.Code != 403 || !strings.Contains(wHijack.Body.String(), "endpoint_owned_by_another_account") {
+		t.Fatalf("expected 403 on endpoint hijack, got %d %s", wHijack.Code, wHijack.Body.String())
+	}
+
+	// 6. Expired key rejected and active listing pruned
+	now = now.Add(61 * time.Second)
+	wExp := requestAuth(h, "POST", "/api/serverlist/ingress", validHeartbeat,
+		map[string]string{"Authorization": "Bearer " + aliceKey})
+	if wExp.Code != 403 || !strings.Contains(wExp.Body.String(), "expired_key") {
+		t.Fatalf("expected 403 expired_key, got %d %s", wExp.Code, wExp.Body.String())
+	}
+	if wAfterExp := request(h, "GET", "/api/servers/single/127.0.0.1:30120", ""); wAfterExp.Code != 404 {
+		t.Fatalf("expired key server was not pruned: %d", wAfterExp.Code)
+	}
+
+	// 7. Revoked key immediately evicts active server and rejects future heartbeats
+	hbBob := strings.Replace(validHeartbeat, `"port":30120`, `"port":30125`, 1)
+	if w := requestAuth(h, "POST", "/api/serverlist/ingress", hbBob, map[string]string{"Authorization": "Bearer " + bobKey}); w.Code != 200 {
+		t.Fatalf("bob heartbeat: %d %s", w.Code, w.Body.String())
+	}
+	var bobKeyMeta struct {
+		Key map[string]interface{} `json:"key"`
+	}
+	json.Unmarshal(wIssueB.Body.Bytes(), &bobKeyMeta)
+	bobKeyID := bobKeyMeta.Key["id"].(string)
+	wRev := requestAuth(h, "POST", "/api/keymaster/revoke",
+		`{"keyId":"`+bobKeyID+`"}`, map[string]string{"X-NSM-Session": bobSess})
+	if wRev.Code != 200 || !strings.Contains(wRev.Body.String(), `"evictedListings":1`) {
+		t.Fatalf("revoke bob key failed: %d %s", wRev.Code, wRev.Body.String())
+	}
+	if w := request(h, "GET", "/api/servers/single/127.0.0.1:30125", ""); w.Code != 404 {
+		t.Fatalf("revoked key server still listed: %d", w.Code)
+	}
+	if w := requestAuth(h, "POST", "/api/serverlist/ingress", hbBob, map[string]string{"Authorization": "Bearer " + bobKey}); w.Code != 403 {
+		t.Fatalf("revoked key heartbeat should fail 403, got %d", w.Code)
+	}
+
+	// 8. requireKeys mode rejects keyless heartbeats fail-closed
+	requireKeys = true
+	if w := request(h, "POST", "/api/serverlist/ingress", validHeartbeat); w.Code != 401 {
+		t.Fatalf("expected 401 when requireKeys=true and no key sent, got %d", w.Code)
+	}
+}
+
