@@ -171,6 +171,13 @@
   <div class="mp-page-body">
     <!-- Left: .list (exact NSM.exe ServerListItem rows) -->
     <div class="mp-servers-list-pane" id="nsm-server-list-body">
+      <div class="mp-list-col-header">
+        <span>ICON</span>
+        <span>SERVER NAME &amp; GAMEMODE</span>
+        <span>TAGS / ACTIONS</span>
+        <span style="text-align:right">LOCALE &amp; BOOST</span>
+        <span style="text-align:right">PLAYERS</span>
+      </div>
       {{if .Servers}}
         {{range .Servers}}
         <div class="nsm-server-row"
@@ -402,10 +409,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Server List - NSM</title>
   <link rel="icon" type="image/png" href="/img/nsm-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body class="mp-standalone-body">
   {{template "nsm_server_launcher" .}}
-  <script src="/js/main.js?v=078f"></script>
+  <script src="/js/main.js?v=078k"></script>
 </body>
 </html>

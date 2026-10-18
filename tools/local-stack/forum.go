@@ -50,6 +50,7 @@ type ForumTopic struct {
 	Pinned         bool        `json:"pinned,omitempty"`
 	Locked         bool        `json:"locked,omitempty"`
 	Views          int         `json:"views"`
+	ViewedBy       []string    `json:"viewedBy,omitempty"`
 	CreatedAt      int64       `json:"createdAt"`
 	UpdatedAt      int64       `json:"updatedAt"`
 	Posts          []ForumPost `json:"posts"`
@@ -206,7 +207,7 @@ func loadForum() {
 				Slug:           "welcome-to-the-nsm-community-forum-platform-guide",
 				CategorySlug:   "announcements",
 				Tags:           []string{"official", "guide", "nsm"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         true,
 				Views:          142,
 				CreatedAt:      now - 86400*3,
@@ -215,9 +216,9 @@ func loadForum() {
 					{
 						ID:             1,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400*3,
-						Likes:          []string{"Cravenz"},
+						Likes:          []string{"nta~"},
 						Content: "Welcome to the official NSM Community Forum!\n\nEverything on this platform runs natively inside your NSM stack:\n\n1. **Unified NSM Accounts & In-App Sign-In:** Click **Link Account** inside the NSM client and it opens this website (`http://127.0.0.1/user-api-key/new`) so you can sign in with your NSM account and sync your custom profile picture and role directly into the game client.\n2. **NSM Keymaster (`/keymaster`):** Issue, manage, and revoke `nsm_srv_...` server keys for your dedicated servers.\n3. **Live Server Browser (`/servers`):** Browse live servers, inspect connected players and resources, upvote your favorites, and launch directly via `nsm://connect/`.\n4. **Custom Profiles (`/account`):** Upload a custom avatar, set your display name, custom title, banner color, and bio.",
 					},
 				},
@@ -228,7 +229,7 @@ func loadForum() {
 				Slug:           "how-to-register-a-server-key-in-nsm-keymaster-configure-server-cfg",
 				CategorySlug:   "server-dev",
 				Tags:           []string{"keymaster", "server-cfg", "tutorial"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         true,
 				Views:          89,
 				CreatedAt:      now - 86400*2,
@@ -237,7 +238,7 @@ func loadForum() {
 					{
 						ID:             2,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400*2,
 						Content: "To authenticate your dedicated server with the NSM Masterlist:\n\n1. Sign in and open **Keymaster** (`/keymaster`).\n2. Enter a **Server Name / Label** and optional **Endpoint Hint** (e.g. `127.0.0.1:30120`) and click **Generate Server Key**.\n3. Copy the one-time `sets sv_nsmServerKey \"nsm_srv_...\"` line and add it to your `server-local.cfg` or `server.cfg`.\n4. Start `nsm-server.exe`. Your server will automatically authenticate its heartbeat, strip the secret key from public listings, and bind your endpoint to your account.",
 					},
@@ -249,7 +250,7 @@ func loadForum() {
 				Slug:           "signing-in-inside-the-nsm-client-customizing-your-profile-avatar",
 				CategorySlug:   "support",
 				Tags:           []string{"account", "profile", "client"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         false,
 				Views:          64,
 				CreatedAt:      now - 86400,
@@ -258,9 +259,9 @@ func loadForum() {
 					{
 						ID:             3,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400,
-						Likes:          []string{"Cravenz"},
+						Likes:          []string{"nta~"},
 						Content: "When you click **Link Account** in the NSM client navbar, it opens our NSM Client Authorization page in your browser instead of Discord.\n\nOnce you sign in or click **Authorize & Sign In to NSM App**, your NSM client receives an RSA-encrypted session key and logs you in immediately. Visit **My Account** (`/account`) at any time to upload a custom avatar, change your display name, or set a custom title!",
 					},
 				},
@@ -271,7 +272,7 @@ func loadForum() {
 				Slug:           "release-standalone-nsm-onesync-modern-hud-speedometer-voice-indicator-v2-4",
 				CategorySlug:   "releases",
 				Tags:           []string{"release", "standalone", "hud", "nui"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         false,
 				Views:          318,
 				CreatedAt:      now - 86400*4,
@@ -280,9 +281,9 @@ func loadForum() {
 					{
 						ID:             4,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400*4,
-						Likes:          []string{"Cravenz"},
+						Likes:          []string{"nta~"},
 						Content: "Here is the official standalone NSM OneSync HUD & Speedometer resource (`nsm-hud`) built for NSM dedicated servers!\n\n### Features\n- Zero idle CPU usage (`0.00ms` in resmon)\n- Reactive NUI health, armor, stamina, and voice proximity ring\n- Dynamic vehicle speedometer with RPM bar, gear indicator, seatbelt chime, and fuel gauge\n- Drop-in `fxmanifest.lua` compatible with any Lua, C#, or JS framework",
 					},
 				},
@@ -293,7 +294,7 @@ func loadForum() {
 				Slug:           "bazaar-los-santos-official-nsm-roleplay-custom-framework-onesync",
 				CategorySlug:   "bazaar",
 				Tags:           []string{"roleplay", "onesync", "economy", "custom-cars"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         false,
 				Views:          275,
 				CreatedAt:      now - 86400*5,
@@ -302,9 +303,9 @@ func loadForum() {
 					{
 						ID:             5,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400*5,
-						Likes:          []string{"Cravenz"},
+						Likes:          []string{"nta~"},
 						Content: "Join **Los Santos Official NSM Roleplay** directly from the NSM Server List (`/servers`) or inside `NSM.exe`!\n\n- **Custom Streamed Vehicles & MLO Interiors**\n- **Player-Run Economy, Businesses & Heists**\n- **Active Whitelisted Police, EMS & DOJ Departments**\n- **Direct Connect:** `127.0.0.1:30120`",
 					},
 				},
@@ -315,7 +316,7 @@ func loadForum() {
 				Slug:           "tutorial-streaming-add-on-vehicles-weapons-custom-mlo-interiors-in-nsm",
 				CategorySlug:   "discussion",
 				Tags:           []string{"tutorial", "streaming", "mlo", "vehicles"},
-				AuthorUsername: "Cravenz",
+				AuthorUsername: "nta~",
 				Pinned:         false,
 				Views:          194,
 				CreatedAt:      now - 86400*6,
@@ -324,9 +325,9 @@ func loadForum() {
 					{
 						ID:             6,
 						PostNumber:     1,
-						AuthorUsername: "Cravenz",
+						AuthorUsername: "nta~",
 						CreatedAt:      now - 86400*6,
-						Likes:          []string{"Cravenz"},
+						Likes:          []string{"nta~"},
 						Content: "Streaming custom vehicles, ped clothing (EUP), and MLO interiors in NSM only requires placing your `.yft`, `.ytd`, and `.ymap` assets inside a resource's `stream/` folder and declaring `data_file` entries in `fxmanifest.lua`.\n\nNSM automatically caches streamed assets locally so players load into your server instantaneously.",
 					},
 				},
@@ -336,6 +337,29 @@ func loadForum() {
 		forum.NextTopic = 7
 		forum.NextPostID = 7
 		saveForumLocked()
+	} else {
+		migrated := false
+		for ti := range forum.Topics {
+			if strings.EqualFold(forum.Topics[ti].AuthorUsername, "Cravenz") {
+				forum.Topics[ti].AuthorUsername = "nta~"
+				migrated = true
+			}
+			for pi := range forum.Topics[ti].Posts {
+				if strings.EqualFold(forum.Topics[ti].Posts[pi].AuthorUsername, "Cravenz") {
+					forum.Topics[ti].Posts[pi].AuthorUsername = "nta~"
+					migrated = true
+				}
+				for li := range forum.Topics[ti].Posts[pi].Likes {
+					if strings.EqualFold(forum.Topics[ti].Posts[pi].Likes[li], "Cravenz") {
+						forum.Topics[ti].Posts[pi].Likes[li] = "nta~"
+						migrated = true
+					}
+				}
+			}
+		}
+		if migrated {
+			saveForumLocked()
+		}
 	}
 }
 
@@ -754,7 +778,7 @@ func forumCreateTopic(w http.ResponseWriter, r *http.Request) {
 		CategorySlug:   cat.Slug,
 		Tags:           tags,
 		AuthorUsername: u.Username,
-		Views:          1,
+		Views:          0,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 		Posts: []ForumPost{
@@ -782,15 +806,35 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u := currentUser(r)
+
 	forumMu.Lock()
 	var found *ForumTopic
 	for i := range forum.Topics {
 		if forum.Topics[i].ID == id {
-			forum.Topics[i].Views++
+			// Topic views ONLY count when another user (not the topic's author) views the topic
+			isOtherViewer := u == nil || !strings.EqualFold(u.Username, forum.Topics[i].AuthorUsername)
+			if isOtherViewer {
+				viewerKey := "ip:" + clientIP(r)
+				if u != nil {
+					viewerKey = "user:" + strconv.FormatInt(u.ID, 10)
+				}
+				alreadyViewed := false
+				for _, vk := range forum.Topics[i].ViewedBy {
+					if vk == viewerKey {
+						alreadyViewed = true
+						break
+					}
+				}
+				if !alreadyViewed {
+					forum.Topics[i].ViewedBy = append(forum.Topics[i].ViewedBy, viewerKey)
+					forum.Topics[i].Views++
+					saveForumLocked()
+				}
+			}
 			cp := forum.Topics[i]
 			cp.Posts = append([]ForumPost{}, forum.Topics[i].Posts...)
 			found = &cp
-			saveForumLocked()
 			break
 		}
 	}
@@ -807,8 +851,9 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := currentUser(r)
-	recordTopicViewByUser(u, found.ID, len(found.Posts))
+	if u != nil && !strings.EqualFold(u.Username, found.AuthorUsername) {
+		recordTopicViewByUser(u, found.ID, len(found.Posts))
+	}
 	canMod := u != nil && (roleAtLeast(u.Role, "staff") || strings.EqualFold(u.Username, found.AuthorUsername))
 
 	cat := categoryBySlug(found.CategorySlug)

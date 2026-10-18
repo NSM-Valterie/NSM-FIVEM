@@ -1,194 +1,172 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AFX Support</title>
-  <link rel="icon" type="image/png" href="/img/afx-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
-</head>
-<body class="afx-hc-body">
-  <!-- Zendesk Help Center Header -->
-  <header class="afx-hc-header">
-    <div class="wrap afx-hc-hbar">
-      <a href="/support" class="afx-hc-brand">
-        <img src="/img/afx-icon.png" alt="AFX" style="width:30px;height:30px;border-radius:7px">
-        <img src="/img/nsm-icon.png" alt="NSM" style="width:26px;height:26px">
-        <span>AFX <strong>Support</strong></span>
-      </a>
-
-      <div class="afx-hc-nav">
-        <a href="/">NSM Home</a>
-        <a href="/servers">Server List</a>
-        <a href="/keymaster">AFX Portal</a>
-        <a href="/forum">Community Forum</a>
-        <a href="#submit-ticket" class="btn btn-ghost btn-sm">Submit a request</a>
-        {{if .User}}
-        <a href="/account" class="user-chip">
-          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
-          <span>{{.User.EffectiveDisplayName}}</span>
-        </a>
-        {{else}}
-        <a href="/login" class="btn btn-primary btn-sm">Sign in</a>
-        {{end}}
-      </div>
-    </div>
-  </header>
-
-  <!-- Zendesk Help Center Hero Banner with Instant Search -->
-  <section class="afx-hc-hero">
-    <div class="wrap afx-hc-hero-inner">
-      <span class="afx-eyebrow" style="margin-bottom:10px;display:inline-flex">AFX HELP CENTER &amp; KNOWLEDGE BASE</span>
-      <h1>How can we help you today?</h1>
-      <div class="afx-hc-search-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="search" id="afx-hc-search" placeholder="Search articles, server setup, account linking, or error codes..." autocomplete="off">
-      </div>
-      <div class="afx-hc-popular-tags">
+{{template "head" .}}
+<div class="zd-support-shell">
+  <!-- Zendesk-style Help Center Subheader (support.cfx.re/hc/en-us) -->
+  <section class="zd-hero">
+    <div class="zd-hero-inner">
+      <div class="zd-hero-badge">AFX Official Help Center</div>
+      <h1 class="zd-hero-title">How can we help you today?</h1>
+      <form class="zd-search-box" action="/forum" method="get">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" name="q" placeholder="Search support articles, error codes, or topics..." autocomplete="off">
+        <button type="submit" class="btn primary sm">Search</button>
+      </form>
+      <div class="zd-quick-pills">
         <span>Popular:</span>
-        <button type="button" class="nsm-loaf" data-hc-filter="login">In-App Sign In</button>
-        <button type="button" class="nsm-loaf" data-hc-filter="keymaster">Server Keys</button>
-        <button type="button" class="nsm-loaf" data-hc-filter="connect">Connect to Server</button>
-        <button type="button" class="nsm-loaf" data-hc-filter="cravenz">Owner Account</button>
+        <a href="/docs#quick-start">Connecting to a Server</a>
+        <a href="/keymaster">Generating a Server Key</a>
+        <a href="#submit-ticket">Submit a Support Request</a>
+        <a href="/forum/c/support">Technical Support Forum</a>
       </div>
     </div>
   </section>
 
-  <!-- Main Help Center Content -->
-  <main class="wrap" style="padding:40px 24px 64px">
-    <!-- 6 Zendesk Category Blocks -->
-    <div class="afx-hc-blocks-grid" id="afx-hc-categories">
-      <a href="#promoted-articles" class="afx-hc-block" data-hc-cat="client login">
-        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="NSM" style="width:28px;height:28px"></div>
-        <h3>NSM Client &amp; Technical Support</h3>
-        <p>Launching <code>NSM.exe</code>, clearing CEF cache, Direct Connect, audio/graphics settings, and game verification.</p>
-      </a>
-
-      <a href="/keymaster" class="afx-hc-block" data-hc-cat="keymaster portal server key">
-        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px"></div>
-        <h3>AFX Portal &amp; Registration Keys</h3>
-        <p>Issuing, rotating, and revoking <code>nsm_srv_...</code> server keys in AFX Portal and binding IP endpoints.</p>
-      </a>
-
-      <a href="/docs#server-setup" class="afx-hc-block" data-hc-cat="server hosting cfg onesync">
-        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Server" style="width:28px;height:28px"></div>
-        <h3>Dedicated Server Administration</h3>
-        <p>Configuring <code>nsm-server.exe</code>, <code>server-local.cfg</code>, heartbeats on <code>/api/serverlist/ingress</code>, and OneSync.</p>
-      </a>
-
-      <a href="/account" class="afx-hc-block" data-hc-cat="account login cravenz profile avatar">
-        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="Account" style="width:28px;height:28px;border-radius:6px"></div>
-        <h3>AFX Account &amp; In-App Sign-In</h3>
-        <p>Linking your account inside <code>NSM.exe</code>, claiming the <code>Cravenz</code> owner account, and custom profile avatars.</p>
-      </a>
-
-      <a href="/marketplace" class="afx-hc-block" data-hc-cat="marketplace resources scripts mlo">
-        <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="Marketplace" style="width:28px;height:28px;border-radius:6px"></div>
-        <h3>AFX Marketplace &amp; Resources</h3>
-        <p>Downloading verified NSM resources, installing scripts and custom MLOs, and managing granted assets.</p>
-      </a>
-
-      <a href="/docs#natives" class="afx-hc-block" data-hc-cat="scripting lua js csharp natives">
-        <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Scripting" style="width:28px;height:28px"></div>
-        <h3>Scripting, NUI &amp; Native Reference</h3>
-        <p>Building Lua, JavaScript, and C# resources, CEF NUI interfaces, state bags, and server events.</p>
-      </a>
+  <!-- Main Category Blocks (1:1 support.cfx.re layout) -->
+  <main class="zd-container">
+    {{if .Error}}
+    <div style="margin-bottom:1.5rem;padding:12px 18px;border-radius:10px;background:rgba(239,68,68,0.16);border:1px solid rgba(239,68,68,0.45);color:#fecaca;font-weight:600">
+      ⚠️ {{.Error}}
     </div>
+    {{end}}
+    {{if .Msg}}
+    <div style="margin-bottom:1.5rem;padding:12px 18px;border-radius:10px;background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.45);color:#a7f3d0;font-weight:600">
+      ✓ {{.Msg}}
+    </div>
+    {{end}}
 
-    <!-- Promoted Articles + Live Status 2-Column Section -->
-    <div class="afx-hc-two-col" id="promoted-articles" style="margin-top:44px">
-      <div>
-        <h2 style="margin:0 0 16px;font-size:1.35rem;color:#fff">Promoted Knowledge-Base Articles</h2>
-        <div class="nsm-faq-list" id="afx-hc-articles">
-          <div class="nsm-faq-item open" data-hc-article="login sign in nsm.exe unknown auth discourse client">
-            <button type="button" class="nsm-faq-q">
-              <span>How to sign in to your AFX account inside NSM.exe</span>
-              <span>+</span>
-            </button>
-            <div class="nsm-faq-a">
-              <p style="margin:0 0 8px"><strong>1. Ensure <code>NSM-Masterlist.exe</code> is running on port 80:</strong> Start the local stack via <code>START-LOCALHOST.ps1</code> or run <code>NSM-Masterlist.exe -bind 127.0.0.1 -port 80</code>.</p>
-              <p style="margin:0 0 8px"><strong>2. Sign in on AFX Portal or in-app:</strong> Click <strong>Sign In / Link Account</strong> in <code>NSM.exe</code>. If you are signed in on the web (<a href="/login" style="color:#00f8b9">/login</a>), <code>NSM.exe</code> links your account automatically within 1 second!</p>
-              <p style="margin:0"><strong>3. Instant browser authorization:</strong> You can also visit <a href="/user-api-key/new" style="color:#00f8b9">http://127.0.0.1/user-api-key/new</a> at any time and click <strong>Authorize NSM.exe</strong>.</p>
-            </div>
+    <!-- Active Support Requests Table (if user has tickets or is staff) -->
+    {{if .Tickets}}
+    <section class="zd-ticket-section" style="margin-bottom:2rem">
+      <div class="zd-ticket-card">
+        <div class="zd-ticket-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <h2 style="margin:0">{{if and .User .User.IsStaffOrHigher}}All Community Support Requests (Staff Queue){{else}}My Support Requests{{end}}</h2>
+            <p style="margin:4px 0 0">Click any request below to view details, status, and replies from AFX Support Staff.</p>
           </div>
-
-          <div class="nsm-faq-item" data-hc-article="cravenz owner account password claim reset">
-            <button type="button" class="nsm-faq-q">
-              <span>How to claim or reset the Cravenz Platform Owner account</span>
-              <span>+</span>
-            </button>
-            <div class="nsm-faq-a">
-              Open <a href="/login" style="color:#00f8b9">Login - AFX Portal (/login)</a> on <code>127.0.0.1</code>. Either sign in directly with username <code>Cravenz</code> (or <code>cravenz@owner.local</code>) and your chosen password, or use the <strong>Owner Account Quick Access</strong> box at the bottom of the login card to set a new password and sign in immediately with full <code>owner</code> privileges.
-            </div>
-          </div>
-
-          <div class="nsm-faq-item" data-hc-article="keymaster server key nsm_srv_ sv_nsmServerKey">
-            <button type="button" class="nsm-faq-q">
-              <span>How to generate a Server Key in AFX Portal and list your server</span>
-              <span>+</span>
-            </button>
-            <div class="nsm-faq-a">
-              Open <a href="/keymaster" style="color:#00f8b9">AFX Portal (/keymaster)</a>, enter your server's Display Name and optional IP:port, and click <strong>Generate Server Key</strong>. Copy the <code>sets sv_nsmServerKey "nsm_srv_..."</code> line into your <code>server.cfg</code> or <code>server-local.cfg</code> and launch <code>nsm-server.exe</code>.
-            </div>
-          </div>
-
-          <div class="nsm-faq-item" data-hc-article="connect server list f8 console localhost">
-            <button type="button" class="nsm-faq-q">
-              <span>Connecting to a server via Server List or F8 Console</span>
-              <span>+</span>
-            </button>
-            <div class="nsm-faq-a">
-              Open <a href="/servers" style="color:#00f8b9">Server List - NSM (/servers)</a> and click <strong>Connect</strong> on any server row, or press <code>F8</code> inside <code>NSM.exe</code> and type <code>connect 127.0.0.1:30120</code>.
-            </div>
-          </div>
+          <a class="btn primary sm" href="#submit-ticket">+ Submit a Request</a>
+        </div>
+        <div style="overflow-x:auto;margin-top:1rem">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:0.76rem;text-transform:uppercase;letter-spacing:0.06em">
+                <th style="padding:10px 12px">ID</th>
+                <th style="padding:10px 12px">Subject</th>
+                <th style="padding:10px 12px">Requester Email</th>
+                <th style="padding:10px 12px">Category</th>
+                <th style="padding:10px 12px">Last Activity</th>
+                <th style="padding:10px 12px">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Tickets}}
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                <td style="padding:12px;font-family:var(--mono);color:#60a5fa;font-weight:700">#{{.ID}}</td>
+                <td style="padding:12px">
+                  <a href="/support/requests/{{.ID}}" style="color:#fff;font-weight:700;text-decoration:none">{{.Subject}}</a>
+                </td>
+                <td style="padding:12px;font-size:0.86rem;color:#cbd5e1">{{.RequesterEmail}}</td>
+                <td style="padding:12px;font-size:0.84rem;color:#94a3b8">{{.Category}}</td>
+                <td style="padding:12px;font-size:0.84rem;color:#94a3b8">{{.UpdatedStr}}</td>
+                <td style="padding:12px">
+                  <a href="/support/requests/{{.ID}}" style="text-decoration:none;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;{{if eq .Status "Open"}}background:rgba(245,158,11,0.18);color:#fcd34d{{else if eq .Status "Answered"}}background:rgba(56,189,248,0.18);color:#7dd3fc{{else}}background:rgba(16,185,129,0.18);color:#6ee7b7{{end}}">
+                    {{.Status}} &rarr;
+                  </a>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
       </div>
+    </section>
+    {{end}}
 
-      <!-- Right Column: Platform Status + Submit a Request -->
-      <div style="display:flex;flex-direction:column;gap:20px">
-        <div class="afx-portal-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:1.05rem;color:#fff">AFX &amp; NSM Service Status</h3>
-            <span class="role" style="background:rgba(0,248,185,0.18);color:#00f8b9">All Systems Operational</span>
-          </div>
-          <div class="afx-status-list">
-            <div class="afx-status-row"><span>NSM Masterlist &amp; Protobuf Stream</span><strong style="color:#00f8b9">Operational</strong></div>
-            <div class="afx-status-row"><span>AFX Portal &amp; Keymaster Auth</span><strong style="color:#00f8b9">Operational</strong></div>
-            <div class="afx-status-row"><span>NSM.exe In-App Auth Bridge</span><strong style="color:#00f8b9">Operational</strong></div>
-            <div class="afx-status-row"><span>AFX Forum &amp; Marketplace</span><strong style="color:#00f8b9">Operational</strong></div>
-          </div>
+    <section class="zd-blocks-grid">
+      <a href="/docs" class="zd-block-card">
+        <div class="zd-block-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
+        <h3>NSM Client Support</h3>
+        <p>Installation, Rockstar game cache verification, Direct Connect, and in-app AFX account linking.</p>
+      </a>
 
-        <div class="afx-portal-card" id="submit-ticket">
-          <h3 style="margin:0 0 6px;font-size:1.08rem;color:#fff">Submit a Support Request</h3>
-          <p class="muted" style="margin:0 0 14px;font-size:0.84rem">Post a technical support ticket directly to the AFX Support category on the community forum.</p>
-          <form method="post" action="/forum/new" class="form">
-            <input type="hidden" name="category" value="support">
-            <input type="hidden" name="tags" value="support,ticket">
-            <label>Subject
-              <input type="text" name="title" class="inp" placeholder="Brief summary of your question or issue" required>
-            </label>
-            <label>Description
-              <textarea name="content" class="inp" rows="3" placeholder="Include steps to reproduce, server endpoint, or error message..." required></textarea>
-            </label>
-            <button type="submit" class="btn btn-primary btn-block">Submit Support Ticket</button>
-          </form>
+      <a href="/keymaster" class="zd-block-card">
+        <div class="zd-block-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         </div>
+        <h3>AFX Portal &amp; Server Keys</h3>
+        <p>Issue, manage, and configure <code>sv_nsmServerKey</code> license keys and masterlist heartbeats.</p>
+      </a>
+
+      <a href="/account" class="zd-block-card">
+        <div class="zd-block-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3>Account, Email &amp; 2FA</h3>
+        <p>Verify your email address, configure Two-Step Verification (2FA), and customize your AFX profile.</p>
+      </a>
+
+      <a href="#submit-ticket" class="zd-block-card">
+        <div class="zd-block-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>Submit a Report / Ticket</h3>
+        <p>Submit an official support ticket or report directly to AFX Support Staff and track replies on your request page.</p>
+      </a>
+    </section>
+
+    <!-- Submit a Support Request Form (1:1 Zendesk Request Form -> redirects to /support/requests/{id}) -->
+    <section class="zd-ticket-section" id="submit-ticket">
+      <div class="zd-ticket-card">
+        <div class="zd-ticket-head">
+          <h2>Submit a request</h2>
+          <p>Submit a report or support request below. After clicking <strong>Submit Report</strong>, you will be taken directly to your dedicated Request Page showing your email, subject, ticket status, and replies from AFX Staff &amp; Owners.</p>
+        </div>
+        <form class="zd-ticket-form" action="/support/requests" method="post">
+          <div class="zd-form-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+            <div>
+              <label>Your email address <span style="color:#f87171">*</span></label>
+              <input type="email" name="email" class="finput" required value="{{if .User}}{{.User.Email}}{{end}}" placeholder="you@example.com">
+            </div>
+            <div>
+              <label>What can we help you with? <span style="color:#f87171">*</span></label>
+              <select name="category" class="finput">
+                <option value="Client & Technical Support">NSM Client &amp; Technical Support</option>
+                <option value="Report a Player / Server">Report a Player or Server Violation</option>
+                <option value="AFX Portal & Server Keys">AFX Portal &amp; Server License Keys</option>
+                <option value="Account, Email & 2FA">Account, Email Verification &amp; Two-Step (2FA)</option>
+                <option value="Bug Report">Platform Bug Report</option>
+              </select>
+            </div>
+          </div>
+          <div class="zd-form-row">
+            <label>Subject <span style="color:#f87171">*</span></label>
+            <input type="text" name="subject" class="finput" required placeholder="Brief summary of your report or issue...">
+          </div>
+          <div class="zd-form-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+            <div>
+              <label>Priority</label>
+              <select name="priority" class="finput">
+                <option value="Normal">Normal</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label>Server Endpoint / Connect Code (optional)</label>
+              <input type="text" name="endpoint" class="finput" placeholder="e.g. 127.0.0.1:30120">
+            </div>
+          </div>
+          <div class="zd-form-row">
+            <label>Description <span style="color:#f87171">*</span></label>
+            <textarea name="body" class="finput" rows="6" required placeholder="Please enter the details of your request, steps to reproduce, or evidence. A member of our AFX Support Staff will respond as soon as possible."></textarea>
+          </div>
+          <div class="zd-form-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button type="submit" class="btn primary">Submit Report</button>
+            <a href="{{.Invite}}" class="btn ghost">Join Support Discord</a>
+          </div>
+        </form>
       </div>
-    </div>
+    </section>
   </main>
-
-  <footer class="site-footer" style="margin-top:0">
-    <div class="footer-bottom">
-      <span>&copy; {{.Year}} AFX Support &amp; NSM Platform.</span>
-      <div style="display:flex;gap:16px">
-        <a href="/" style="color:rgba(240,244,248,0.65)">NSM Home</a>
-        <a href="/servers" style="color:rgba(240,244,248,0.65)">Server List</a>
-        <a href="/keymaster" style="color:rgba(240,244,248,0.65)">AFX Portal</a>
-        <a href="/forum" style="color:rgba(240,244,248,0.65)">AFX Forum</a>
-      </div>
-    </div>
-  </footer>
-  <script src="/js/main.js?v=078f"></script>
-</body>
-</html>
+</div>
+{{template "foot" .}}

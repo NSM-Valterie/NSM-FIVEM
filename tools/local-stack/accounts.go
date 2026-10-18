@@ -57,24 +57,50 @@ type User struct {
 	Twitch           string `json:"twitch,omitempty"`
 	Twitter          string `json:"twitter,omitempty"`
 	FavoriteServer   string `json:"favoriteServer,omitempty"`
-	Email            string `json:"email"`
-	Pass             string `json:"pass"`
-	Role             string `json:"role"`
-	CreatedAt        int64   `json:"createdAt"`
-	UpdatedAt        int64   `json:"updatedAt,omitempty"`
-	LastLogin        int64   `json:"lastLogin,omitempty"`
-	ProfileViews     int     `json:"profileViews,omitempty"`
-	TopicsViewed     []int64 `json:"topicsViewed,omitempty"`
-	PostsRead        int     `json:"postsRead,omitempty"`
-	DaysVisitedCount int     `json:"daysVisitedCount,omitempty"`
-	LastVisitDay     string  `json:"lastVisitDay,omitempty"`
+	Email            string   `json:"email"`
+	Pass             string   `json:"pass"`
+	Role             string   `json:"role"`
+	CreatedAt        int64    `json:"createdAt"`
+	UpdatedAt        int64    `json:"updatedAt,omitempty"`
+	LastLogin        int64    `json:"lastLogin,omitempty"`
+	ProfileViews     int      `json:"profileViews,omitempty"`
+	ProfileViewedBy  []string `json:"profileViewedBy,omitempty"`
+	TopicsViewed     []int64  `json:"topicsViewed,omitempty"`
+	PostsRead        int      `json:"postsRead,omitempty"`
+	DaysVisitedCount int      `json:"daysVisitedCount,omitempty"`
+	LastVisitDay     string   `json:"lastVisitDay,omitempty"`
+	Friends          []string `json:"friends,omitempty"`
+	EmailVerified    bool     `json:"emailVerified,omitempty"`
+	EmailVerifyCode  string   `json:"emailVerifyCode,omitempty"`
+	TwoFactorEnabled bool     `json:"twoFactorEnabled,omitempty"`
+	TwoFactorCode    string   `json:"twoFactorCode,omitempty"`
+	Banned           bool     `json:"banned,omitempty"`
+	BanReason        string   `json:"banReason,omitempty"`
+	BannedAt         int64    `json:"bannedAt,omitempty"`
+	BannedBy         string   `json:"bannedBy,omitempty"`
 }
 
 func (u *User) IsFounderAccount() bool {
 	if u == nil {
 		return false
 	}
-	return strings.EqualFold(u.Username, ownerName) || strings.EqualFold(u.Username, "Cravenz") || u.Role == "owner" || u.ID == 1
+	return strings.EqualFold(u.Username, ownerName) || strings.EqualFold(u.Username, "nta~") || strings.EqualFold(u.Username, "Cravenz") || u.Role == "owner" || u.ID == 1
+}
+
+func (u *User) HasFriend(otherUsername string) bool {
+	if u == nil {
+		return false
+	}
+	otherUsername = strings.TrimPrefix(strings.TrimSpace(otherUsername), "@")
+	if otherUsername == "" {
+		return false
+	}
+	for _, f := range u.Friends {
+		if strings.EqualFold(strings.TrimSpace(f), otherUsername) {
+			return true
+		}
+	}
+	return false
 }
 
 func (u *User) IsStaffOrHigher() bool {
@@ -288,7 +314,7 @@ func isValidUsername(s string) bool {
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.') {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' || c == '~') {
 			return false
 		}
 	}
@@ -484,18 +510,48 @@ type UserNotification struct {
 	Unread    bool   `json:"unread"`
 }
 
+type SupportReply struct {
+	ID             int64  `json:"id"`
+	AuthorUsername string `json:"authorUsername"`
+	AuthorDisplay  string `json:"authorDisplay"`
+	AuthorRole     string `json:"authorRole"`
+	AuthorAvatar   string `json:"authorAvatar"`
+	IsStaff        bool   `json:"isStaff"`
+	Body           string `json:"body"`
+	CreatedAt      int64  `json:"createdAt"`
+}
+
+type SupportTicket struct {
+	ID                int64          `json:"id"`
+	RequesterID       int64          `json:"requesterId"`
+	RequesterUsername string         `json:"requesterUsername"`
+	RequesterDisplay  string         `json:"requesterDisplay"`
+	RequesterEmail    string         `json:"requesterEmail"`
+	Subject           string         `json:"subject"`
+	Category          string         `json:"category"`
+	Priority          string         `json:"priority"`
+	ServerEndpoint    string         `json:"serverEndpoint,omitempty"`
+	Status            string         `json:"status"` // "Open", "Answered", "Solved", "Closed"
+	CreatedAt         int64          `json:"createdAt"`
+	UpdatedAt         int64          `json:"updatedAt"`
+	Messages          []SupportReply `json:"messages"`
+}
+
 type Accounts struct {
-	mu             sync.Mutex
-	Users          []User                 `json:"users"`
-	Sessions       map[string]Session     `json:"sessions"`
-	ClientTokens   map[string]ClientToken `json:"clientTokens,omitempty"`
-	Upvotes        map[string][]int64     `json:"upvotes"` // endpoint -> user ids
-	ServerKeys     []ServerKey            `json:"serverKeys,omitempty"`
-	DirectMessages []DirectMessage        `json:"directMessages,omitempty"`
-	Notifications  []UserNotification     `json:"notifications,omitempty"`
-	NextID         int64                  `json:"nextId"`
-	NextMsgID      int64                  `json:"nextMsgId,omitempty"`
-	NextNotifID    int64                  `json:"nextNotifId,omitempty"`
+	mu               sync.Mutex
+	Users            []User                 `json:"users"`
+	Sessions         map[string]Session     `json:"sessions"`
+	ClientTokens     map[string]ClientToken `json:"clientTokens,omitempty"`
+	Upvotes          map[string][]int64     `json:"upvotes"` // endpoint -> user ids
+	ServerKeys       []ServerKey            `json:"serverKeys,omitempty"`
+	DirectMessages   []DirectMessage        `json:"directMessages,omitempty"`
+	Notifications    []UserNotification     `json:"notifications,omitempty"`
+	SupportTickets   []SupportTicket        `json:"supportTickets,omitempty"`
+	OwnerPasswordSet bool                   `json:"ownerPasswordSet,omitempty"`
+	NextID           int64                  `json:"nextId"`
+	NextMsgID        int64                  `json:"nextMsgId,omitempty"`
+	NextNotifID      int64                  `json:"nextNotifId,omitempty"`
+	NextTicketID     int64                  `json:"nextTicketId,omitempty"`
 }
 
 var (
@@ -512,6 +568,7 @@ func loadAccounts() {
 		ClientTokens: map[string]ClientToken{},
 		Upvotes:      map[string][]int64{},
 		NextID:       1,
+		NextTicketID: 1001,
 	}
 	if b, err := os.ReadFile(accPath); err == nil {
 		json.Unmarshal(b, acc)
@@ -525,11 +582,14 @@ func loadAccounts() {
 	if acc.Upvotes == nil {
 		acc.Upvotes = map[string][]int64{}
 	}
+	if acc.NextTicketID < 1001 {
+		acc.NextTicketID = int64(1001 + len(acc.SupportTickets))
+	}
 	if len(acc.Users) == 0 {
 		acc.Users = append(acc.Users, User{
 			ID:               1,
-			Username:         "Cravenz",
-			DisplayName:      "Cravenz",
+			Username:         "nta~",
+			DisplayName:      "nta~",
 			Title:            "NSM Founder",
 			Bio:              "Founder & Lead Developer of the NSM Multiplayer Platform.",
 			Signature:        "NSM - Powered by AFX | Official Platform Founder",
@@ -544,23 +604,35 @@ func loadAccounts() {
 			IsPartner:        true,
 			SquadHouse:       "all",
 			Location:         "United States",
-			DiscordTag:       "cravenz",
+			DiscordTag:       "nta~",
 			GitHub:           "platinum-cfx",
 			Website:          "https://github.com/platinum-cfx/NSM-FIVEM",
 			FavoriteServer:   "NSM Official Server",
-			Email:            "cravenz@owner.local",
+			Email:            "nta@owner.local",
+			EmailVerified:    true,
 			Role:             "owner",
 			CreatedAt:        time.Now().UnixMilli(),
 		})
 		acc.NextID = 2
 	}
 	for i := range acc.Users {
-		if strings.EqualFold(acc.Users[i].Username, ownerName) || strings.EqualFold(acc.Users[i].Username, "Cravenz") {
+		if acc.Users[i].ID == 1 || strings.EqualFold(acc.Users[i].Username, ownerName) || strings.EqualFold(acc.Users[i].Username, "nta~") || strings.EqualFold(acc.Users[i].Username, "Cravenz") {
+			if strings.EqualFold(acc.Users[i].Username, "Cravenz") || acc.Users[i].Username == "" {
+				acc.Users[i].Username = "nta~"
+			}
+			if strings.EqualFold(acc.Users[i].DisplayName, "Cravenz") || acc.Users[i].DisplayName == "" {
+				acc.Users[i].DisplayName = acc.Users[i].Username
+			}
 			if acc.Users[i].Role == "" {
 				acc.Users[i].Role = "owner"
 			}
 			acc.Users[i].PulseTier = "eternal"
 			acc.Users[i].IsPartner = true
+			acc.Users[i].EmailVerified = true
+			acc.Users[i].Banned = false
+			if acc.Users[i].Pass != "" {
+				acc.OwnerPasswordSet = true
+			}
 			if acc.Users[i].AvatarDecoration == "" {
 				acc.Users[i].AvatarDecoration = "cat_ears"
 			}
@@ -570,8 +642,8 @@ func loadAccounts() {
 			if acc.Users[i].SquadHouse == "" {
 				acc.Users[i].SquadHouse = "all"
 			}
-			if acc.Users[i].DiscordTag == "" {
-				acc.Users[i].DiscordTag = "cravenz"
+			if acc.Users[i].DiscordTag == "" || strings.EqualFold(acc.Users[i].DiscordTag, "cravenz") {
+				acc.Users[i].DiscordTag = "nta~"
 			}
 			if acc.Users[i].GitHub == "" {
 				acc.Users[i].GitHub = "platinum-cfx"
@@ -581,7 +653,46 @@ func loadAccounts() {
 			acc.NextID = acc.Users[i].ID + 1
 		}
 	}
+	for ki := range acc.ServerKeys {
+		if strings.EqualFold(acc.ServerKeys[ki].Username, "Cravenz") {
+			acc.ServerKeys[ki].Username = "nta~"
+		}
+	}
+	for mi := range acc.DirectMessages {
+		if strings.EqualFold(acc.DirectMessages[mi].FromUser, "Cravenz") {
+			acc.DirectMessages[mi].FromUser = "nta~"
+		}
+		if strings.EqualFold(acc.DirectMessages[mi].ToUser, "Cravenz") {
+			acc.DirectMessages[mi].ToUser = "nta~"
+		}
+	}
+	for ni := range acc.Notifications {
+		if strings.EqualFold(acc.Notifications[ni].Username, "Cravenz") {
+			acc.Notifications[ni].Username = "nta~"
+		}
+	}
 	saveAccountsLocked()
+}
+
+func ownerNeedsPasswordSetupLocked() bool {
+	if acc == nil {
+		return false
+	}
+	if acc.OwnerPasswordSet {
+		return false
+	}
+	for i := range acc.Users {
+		if acc.Users[i].IsFounderAccount() {
+			return acc.Users[i].Pass == ""
+		}
+	}
+	return true
+}
+
+func ownerNeedsPasswordSetup() bool {
+	accMu.Lock()
+	defer accMu.Unlock()
+	return ownerNeedsPasswordSetupLocked()
 }
 
 func saveAccountsLocked() {
@@ -599,10 +710,17 @@ func saveAccountsLocked() {
 }
 
 func findUser(name string) *User {
-	name = strings.TrimSpace(name)
+	name = strings.TrimPrefix(strings.TrimSpace(name), "@")
 	for i := range acc.Users {
 		if strings.EqualFold(acc.Users[i].Username, name) {
 			return &acc.Users[i]
+		}
+	}
+	if strings.EqualFold(name, "Cravenz") || strings.EqualFold(name, "nta~") || strings.EqualFold(name, ownerName) {
+		for i := range acc.Users {
+			if acc.Users[i].ID == 1 || acc.Users[i].Role == "owner" {
+				return &acc.Users[i]
+			}
 		}
 	}
 	return nil
@@ -660,7 +778,13 @@ func currentUser(r *http.Request) *User {
 	if !ok || s.Expires < time.Now().Unix() {
 		return nil
 	}
-	return userByID(s.UserID)
+	u := userByID(s.UserID)
+	if u != nil && u.Banned && !u.IsFounderAccount() {
+		delete(acc.Sessions, tok)
+		saveAccountsLocked()
+		return nil
+	}
+	return u
 }
 
 func roleAtLeast(role, min string) bool {
@@ -730,6 +854,20 @@ func sendAccountJSON(w http.ResponseWriter, ok bool, msg string, u *User) {
 	json.NewEncoder(w).Encode(out)
 }
 
+func generateSixDigitCode() string {
+	var b [4]byte
+	_, _ = rand.Read(b[:])
+	val := (int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3])) & 0x7fffffff
+	return fmt.Sprintf("%06d", 100000+(val%900000))
+}
+
+func dispatchVerificationEmail(email, username, code string) {
+	if email == "" {
+		return
+	}
+	log.Printf("[email-verify] Verification email dispatched to %s for @%s — 6-digit code: %s", email, username, code)
+}
+
 func apiRegister(w http.ResponseWriter, r *http.Request) {
 	var req struct{ Username, Password, Email, Next string }
 	isJSON := wantsJSONResponse(r)
@@ -753,10 +891,12 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	accMu.Lock()
 	if existing := findUser(un); existing != nil {
-		// If the seeded owner account (Cravenz) has not had a password set yet, allow claiming it via Register too.
-		if existing.Pass == "" && len(req.Password) >= 6 {
+		// If the seeded owner account (nta~) has not had a password set yet, allow claiming it once.
+		if existing.Pass == "" && !acc.OwnerPasswordSet && len(req.Password) >= 6 {
 			h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 			existing.Pass = string(h)
+			acc.OwnerPasswordSet = true
+			existing.EmailVerified = true
 			if strings.TrimSpace(req.Email) != "" {
 				existing.Email = strings.TrimSpace(req.Email)
 			}
@@ -786,30 +926,41 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := "user"
-	// If this is the very first registered user with a password or matches ownerName, grant owner if none has password yet
-	if strings.EqualFold(un, ownerName) {
+	if strings.EqualFold(un, ownerName) || strings.EqualFold(un, "nta~") {
 		role = "owner"
 	}
 	h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	now := time.Now().UnixMilli()
+	verifyCode := generateSixDigitCode()
+	emailAddr := strings.TrimSpace(req.Email)
+	if emailAddr == "" {
+		emailAddr = strings.ToLower(un) + "@users.nsm.local"
+	}
 	u := User{
-		ID:          acc.NextID,
-		Username:    un,
-		DisplayName: un,
-		Email:       strings.TrimSpace(req.Email),
-		Pass:        string(h),
-		Role:        role,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-		LastLogin:   now,
+		ID:              acc.NextID,
+		Username:        un,
+		DisplayName:     un,
+		Email:           emailAddr,
+		EmailVerified:   role == "owner",
+		EmailVerifyCode: verifyCode,
+		Pass:            string(h),
+		Role:            role,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+		LastLogin:       now,
 	}
 	acc.NextID++
 	acc.Users = append(acc.Users, u)
+	addUserNotificationLocked(&acc.Users[len(acc.Users)-1], "badge",
+		"Verify Your Email Address ("+emailAddr+")",
+		"Your 6-digit AFX Email Verification Code is: "+verifyCode,
+		"/verify-email")
 	tok := newSession(u.ID)
 	saveAccountsLocked()
 	accMu.Unlock()
 
-	log.Printf("[accounts] registered %s (id %d)", un, u.ID)
+	dispatchVerificationEmail(emailAddr, un, verifyCode)
+	log.Printf("[accounts] registered %s (id %d, verify code %s)", un, u.ID, verifyCode)
 	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
 	recordWebsiteLoginForClientAuth(u.ID)
 
@@ -817,11 +968,15 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 		sendAccountJSON(w, true, "", &u)
 		return
 	}
+	if !u.EmailVerified && strings.TrimSpace(req.Next) == "" {
+		http.Redirect(w, r, "/verify-email?next="+url.QueryEscape("/u/"+url.PathEscape(u.Username)), http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, safeRedirectTarget(req.Next), http.StatusSeeOther)
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
-	var req struct{ Username, Password, Next string }
+	var req struct{ Username, Password, TotpCode, Next string }
 	isJSON := wantsJSONResponse(r)
 	if strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json") {
 		json.NewDecoder(r.Body).Decode(&req)
@@ -831,25 +986,79 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 			req.Username = r.FormValue("login")
 		}
 		req.Password = r.FormValue("password")
+		req.TotpCode = strings.TrimSpace(r.FormValue("totp_code"))
 		req.Next = r.FormValue("next")
 	}
 	accMu.Lock()
 	u := findUserByLoginOrEmail(strings.TrimSpace(req.Username))
-	if u != nil && u.Pass == "" && len(req.Password) >= 1 {
-		// Seeded account (e.g. Cravenz owner) had no password set yet: initialize it on first login.
+	if u != nil && u.Banned && !u.IsFounderAccount() {
+		reason := u.BanReason
+		if reason == "" {
+			reason = "Violation of AFX Community Guidelines."
+		}
+		accMu.Unlock()
+		msg := "This account has been suspended by AFX Staff. Reason: " + reason
+		if isJSON {
+			sendAccountJSON(w, false, msg, nil)
+			return
+		}
+		renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Log in", "Error": msg, "Next": req.Next, "PrefillUser": req.Username, "ShowOwnerSetup": ownerNeedsPasswordSetup()})
+		return
+	}
+	if u != nil && u.Pass == "" && !acc.OwnerPasswordSet && len(req.Password) >= 1 {
+		// Seeded owner account (nta~) had no password set yet: initialize it once on first login.
 		h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 		u.Pass = string(h)
+		acc.OwnerPasswordSet = true
 		u.UpdatedAt = time.Now().UnixMilli()
-		log.Printf("[accounts] initialized password on first login for %s (role %s)", u.Username, u.Role)
+		log.Printf("[accounts] initialized one-time password on first login for %s (role %s)", u.Username, u.Role)
 	}
 	if u == nil || bcrypt.CompareHashAndPassword([]byte(u.Pass), []byte(req.Password)) != nil {
+		showSetup := ownerNeedsPasswordSetupLocked()
 		accMu.Unlock()
 		if isJSON {
 			sendAccountJSON(w, false, "wrong username or password", nil)
 			return
 		}
-		renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Log in", "Error": "Wrong username or password.", "Next": req.Next, "PrefillUser": req.Username})
+		renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Log in", "Error": "Wrong username or password.", "Next": req.Next, "PrefillUser": req.Username, "ShowOwnerSetup": showSetup})
 		return
+	}
+	if u.TwoFactorEnabled && u.TwoFactorCode != "" {
+		if req.TotpCode == "" {
+			showSetup := ownerNeedsPasswordSetupLocked()
+			accMu.Unlock()
+			if isJSON {
+				sendAccountJSON(w, false, "2fa_required", nil)
+				return
+			}
+			renderPage(w, r, "login.tmpl", map[string]interface{}{
+				"Title":           "Two-Step Verification",
+				"Require2FA":      true,
+				"PrefillUser":     u.Username,
+				"PendingPassword": req.Password,
+				"Next":            req.Next,
+				"ShowOwnerSetup":  showSetup,
+			})
+			return
+		}
+		if req.TotpCode != u.TwoFactorCode {
+			showSetup := ownerNeedsPasswordSetupLocked()
+			accMu.Unlock()
+			if isJSON {
+				sendAccountJSON(w, false, "invalid 2fa code", nil)
+				return
+			}
+			renderPage(w, r, "login.tmpl", map[string]interface{}{
+				"Title":           "Two-Step Verification",
+				"Require2FA":      true,
+				"Error":           "Invalid 6-digit Two-Step Verification code. Please try again.",
+				"PrefillUser":     u.Username,
+				"PendingPassword": req.Password,
+				"Next":            req.Next,
+				"ShowOwnerSetup":  showSetup,
+			})
+			return
+		}
 	}
 	u.LastLogin = time.Now().UnixMilli()
 	tok := newSession(u.ID)
@@ -873,7 +1082,8 @@ func isLoopbackClient(r *http.Request) bool {
 	return ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || strings.HasPrefix(ip, "127.")
 }
 
-// accountClaimOwner allows the local machine owner on 127.0.0.1 to claim or reset the Cravenz owner account password and sign in immediately.
+// accountClaimOwner is a one-time setup popup on 127.0.0.1 to set the initial password for the founder account (nta~).
+// Once the password has been set once, this popup is permanently hidden.
 func accountClaimOwner(w http.ResponseWriter, r *http.Request) {
 	if !isLoopbackClient(r) {
 		http.Error(w, "loopback only", http.StatusForbidden)
@@ -882,49 +1092,64 @@ func accountClaimOwner(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	pw := r.FormValue("password")
 	next := r.FormValue("next")
-	if len(pw) > 0 && len(pw) < 6 {
+
+	accMu.Lock()
+	if !ownerNeedsPasswordSetupLocked() {
+		accMu.Unlock()
 		renderPage(w, r, "login.tmpl", map[string]interface{}{
-			"Title": "Log in",
-			"Error": "Owner password must be at least 6 characters (or leave blank if already set).",
-			"Next":  next,
+			"Title":          "Log in",
+			"Error":          "Owner password for nta~ has already been set. Please sign in with your password below.",
+			"PrefillUser":    ownerName,
+			"Next":           next,
+			"ShowOwnerSetup": false,
+		})
+		return
+	}
+	if len(pw) < 6 {
+		accMu.Unlock()
+		renderPage(w, r, "login.tmpl", map[string]interface{}{
+			"Title":          "Log in",
+			"Error":          "Please enter a password of at least 6 characters for nta~ (one-time setup).",
+			"Next":           next,
+			"ShowOwnerSetup": true,
 		})
 		return
 	}
 
-	accMu.Lock()
 	u := findUser(ownerName)
 	now := time.Now().UnixMilli()
 	if u == nil {
 		acc.Users = append(acc.Users, User{
-			ID:          acc.NextID,
-			Username:    ownerName,
-			DisplayName: ownerName,
-			Title:       "NSM Founder & Owner",
-			Bio:         "Founder & Lead Developer of the NSM Multiplayer Platform.",
-			AvatarColor: "#2F7BFF",
-			BannerColor: "#1d3557",
-			Email:       "cravenz@owner.local",
-			Role:        "owner",
-			CreatedAt:   now,
-			UpdatedAt:   now,
-			LastLogin:   now,
+			ID:            acc.NextID,
+			Username:      ownerName,
+			DisplayName:   ownerName,
+			Title:         "NSM Founder & Owner",
+			Bio:           "Founder & Lead Developer of the NSM Multiplayer Platform.",
+			AvatarColor:   "#2F7BFF",
+			BannerColor:   "#1d3557",
+			Email:         "nta@owner.local",
+			EmailVerified: true,
+			Role:          "owner",
+			CreatedAt:     now,
+			UpdatedAt:     now,
+			LastLogin:     now,
 		})
 		acc.NextID++
 		u = findUser(ownerName)
 	}
 	u.Role = "owner"
-	if len(pw) >= 6 {
-		h, _ := bcrypt.GenerateFromPassword([]byte(pw), 10)
-		u.Pass = string(h)
-		u.UpdatedAt = now
-	}
+	u.EmailVerified = true
+	h, _ := bcrypt.GenerateFromPassword([]byte(pw), 10)
+	u.Pass = string(h)
+	acc.OwnerPasswordSet = true
+	u.UpdatedAt = now
 	u.LastLogin = now
 	tok := newSession(u.ID)
 	userCopy := *u
 	saveAccountsLocked()
 	accMu.Unlock()
 
-	log.Printf("[accounts] local owner claim/sign-in for %s (id %d)", userCopy.Username, userCopy.ID)
+	log.Printf("[accounts] completed one-time owner password setup for %s (id %d)", userCopy.Username, userCopy.ID)
 	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
 	recordWebsiteLoginForClientAuth(userCopy.ID)
 
@@ -933,6 +1158,175 @@ func accountClaimOwner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, safeRedirectTarget(next), http.StatusSeeOther)
+}
+
+func verifyEmailPage(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, "/login?next=/verify-email", http.StatusSeeOther)
+		return
+	}
+	next := r.URL.Query().Get("next")
+	msg := r.URL.Query().Get("msg")
+	errMsg := r.URL.Query().Get("error")
+	accMu.Lock()
+	target := userByID(u.ID)
+	var userCopy User
+	if target != nil {
+		if !target.EmailVerified && target.EmailVerifyCode == "" {
+			target.EmailVerifyCode = generateSixDigitCode()
+			saveAccountsLocked()
+		}
+		userCopy = *target
+	}
+	accMu.Unlock()
+	renderPage(w, r, "verify_email.tmpl", map[string]interface{}{
+		"Title":      "Verify Your Email - AFX Account Security",
+		"User":       &userCopy,
+		"Next":       next,
+		"Msg":        msg,
+		"Error":      errMsg,
+		"IsLoopback": isLoopbackClient(r),
+	})
+}
+
+func accountVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	code := strings.TrimSpace(r.FormValue("code"))
+	next := strings.TrimSpace(r.FormValue("next"))
+
+	accMu.Lock()
+	target := userByID(u.ID)
+	if target == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if target.EmailVerified {
+		userCopy := *target
+		accMu.Unlock()
+		if next != "" {
+			http.Redirect(w, r, safeRedirectTarget(next), http.StatusSeeOther)
+			return
+		}
+		data := buildDiscourseProfileData(&userCopy, &userCopy, "preferences", "Your email address is verified.", "")
+		renderPage(w, r, "profile.tmpl", data)
+		return
+	}
+	if code == "" || code != target.EmailVerifyCode {
+		userCopy := *target
+		accMu.Unlock()
+		renderPage(w, r, "verify_email.tmpl", map[string]interface{}{
+			"Title":      "Verify Your Email - AFX Account Security",
+			"User":       &userCopy,
+			"Next":       next,
+			"Error":      "Invalid 6-digit verification code. Please check the code sent to " + userCopy.Email + " and try again.",
+			"IsLoopback": isLoopbackClient(r),
+		})
+		return
+	}
+	target.EmailVerified = true
+	target.EmailVerifyCode = ""
+	target.UpdatedAt = time.Now().UnixMilli()
+	userCopy := *target
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	if next != "" {
+		http.Redirect(w, r, safeRedirectTarget(next), http.StatusSeeOther)
+		return
+	}
+	data := buildDiscourseProfileData(&userCopy, &userCopy, "preferences", "Email address "+userCopy.Email+" verified!", "")
+	renderPage(w, r, "profile.tmpl", data)
+}
+
+func accountResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	next := strings.TrimSpace(r.FormValue("next"))
+	newEmail := strings.TrimSpace(r.FormValue("email"))
+
+	accMu.Lock()
+	target := userByID(u.ID)
+	if target == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if newEmail != "" && !strings.EqualFold(newEmail, target.Email) {
+		target.Email = newEmail
+		target.EmailVerified = false
+	}
+	code := generateSixDigitCode()
+	target.EmailVerifyCode = code
+	addUserNotificationLocked(target, "badge",
+		"New Email Verification Code ("+target.Email+")",
+		"Your 6-digit AFX Email Verification Code is: "+code,
+		"/verify-email")
+	emailAddr := target.Email
+	un := target.Username
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	dispatchVerificationEmail(emailAddr, un, code)
+	http.Redirect(w, r, "/verify-email?msg="+url.QueryEscape("A fresh 6-digit verification code has been sent to "+emailAddr+".")+"&next="+url.QueryEscape(next), http.StatusSeeOther)
+}
+
+func accountConfigure2FA(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	action := strings.ToLower(strings.TrimSpace(r.FormValue("action")))
+	code := strings.TrimSpace(r.FormValue("code"))
+
+	accMu.Lock()
+	target := userByID(u.ID)
+	if target == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	var msg, errMsg string
+	if action == "disable" {
+		target.TwoFactorEnabled = false
+		target.TwoFactorCode = ""
+		target.UpdatedAt = time.Now().UnixMilli()
+		saveAccountsLocked()
+		msg = "Two-Step Verification (2FA) has been disabled on your account."
+	} else {
+		validDigits := len(code) == 6
+		for i := 0; i < len(code); i++ {
+			if code[i] < '0' || code[i] > '9' {
+				validDigits = false
+			}
+		}
+		if !validDigits {
+			errMsg = "Please enter a 6-digit numeric security code (e.g. 482910) to enable Two-Step Verification."
+		} else {
+			target.TwoFactorEnabled = true
+			target.TwoFactorCode = code
+			target.UpdatedAt = time.Now().UnixMilli()
+			saveAccountsLocked()
+			msg = "Two-Step Verification (2FA) is now ENABLED! You will be asked for your 6-digit code whenever you sign in."
+		}
+	}
+	userCopy := *target
+	accMu.Unlock()
+
+	data := buildDiscourseProfileData(&userCopy, &userCopy, "preferences", msg, errMsg)
+	renderPage(w, r, "profile.tmpl", data)
 }
 
 func apiLogout(w http.ResponseWriter, r *http.Request) {
@@ -1350,28 +1744,16 @@ func accountSubscribePulse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = r.ParseForm()
-	tier := strings.ToLower(strings.TrimSpace(r.FormValue("tier")))
-	if tier != "core" && tier != "pro" && tier != "sovereign" && tier != "eternal" {
-		tier = "pro"
-	}
-
-	cardName := r.FormValue("card_name")
-	cardNumber := r.FormValue("card_number")
-	cardExp := r.FormValue("card_exp")
-	cardCVC := r.FormValue("card_cvc")
-
 	if !u.IsFounderAccount() {
-		if err := validatePulsePaymentCard(cardName, cardNumber, cardExp, cardCVC); err != nil {
-			errMsg := "Payment declined: " + err.Error() + ". You must complete checkout to unlock AFX Pulse."
-			if wantsJSONResponse(r) {
-				w.WriteHeader(http.StatusPaymentRequired)
-				sendAccountJSON(w, false, errMsg, u)
-				return
-			}
-			data := buildDiscourseProfileData(u, u, "pulse", "", errMsg)
-			renderPage(w, r, "profile.tmpl", data)
+		closedMsg := "AFX Pulse is currently closed and not open for purchases right now. Stay tuned for the official opening!"
+		if wantsJSONResponse(r) {
+			w.WriteHeader(http.StatusForbidden)
+			sendAccountJSON(w, false, closedMsg, u)
 			return
 		}
+		data := buildDiscourseProfileData(u, u, "pulse", "", closedMsg)
+		renderPage(w, r, "profile.tmpl", data)
+		return
 	}
 
 	accMu.Lock()
@@ -1381,18 +1763,14 @@ func accountSubscribePulse(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	if target.IsFounderAccount() {
-		target.PulseTier = "eternal"
-	} else {
-		target.PulseTier = tier
-	}
+	target.PulseTier = "eternal"
 	if target.PulseSince == 0 {
 		target.PulseSince = time.Now().UnixMilli()
 	}
 	if target.AvatarDecoration == "" || target.AvatarDecoration == "none" {
 		target.AvatarDecoration = "cat_ears"
 	}
-	if (tier == "pro" || tier == "sovereign" || target.IsFounderAccount()) && (target.ProfileEffect == "" || target.ProfileEffect == "none") {
+	if target.ProfileEffect == "" || target.ProfileEffect == "none" {
 		target.ProfileEffect = "aurora_waves"
 	}
 	target.UpdatedAt = time.Now().UnixMilli()
@@ -1404,7 +1782,7 @@ func accountSubscribePulse(w http.ResponseWriter, r *http.Request) {
 		sendAccountJSON(w, true, "", &userCopy)
 		return
 	}
-	msg := "Payment verified! AFX Pulse (" + userCopy.EffectivePulseTierLabel() + ") is now active on @" + userCopy.Username + "."
+	msg := "AFX Pulse Eternal (Founder) is active on @" + userCopy.Username + "."
 	data := buildDiscourseProfileData(&userCopy, &userCopy, "pulse", msg, "")
 	renderPage(w, r, "profile.tmpl", data)
 }
@@ -1677,7 +2055,7 @@ func computeUserBadges(u *User, topicCount, postCount, likesReceived, upvoteCnt,
 	all := []UserBadge{
 		mk("founder_crown", "NSM Sovereign Founder",
 			"Original Creator & Sovereign Founder of the NSM & AFX Platform.",
-			"Reserved exclusively for the NSM Platform Founder (@Cravenz).",
+			"Reserved exclusively for the NSM Platform Founder (@nta~).",
 			"Mythic", "crown", "#FFD700", isOwnerRole),
 		mk("afx_staff", "AFX Staff",
 			"Official NSM & AFX Platform Staff & Trust Safety Team.",
@@ -1826,6 +2204,72 @@ func recordTopicViewByUser(u *User, topicID int64, postCount int) {
 	saveAccountsLocked()
 }
 
+func accountFriendAction(w http.ResponseWriter, r *http.Request) {
+	cur := currentUser(r)
+	if cur == nil {
+		if wantsJSONResponse(r) {
+			sendJSON(w, http.StatusUnauthorized, map[string]string{"error": "login required"})
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	targetName := strings.TrimPrefix(strings.TrimSpace(r.FormValue("target")), "@")
+	if targetName == "" {
+		targetName = strings.TrimPrefix(strings.TrimSpace(r.FormValue("username")), "@")
+	}
+	action := strings.ToLower(strings.TrimSpace(r.FormValue("action")))
+	if action == "" {
+		action = "add"
+	}
+	returnTo := strings.TrimSpace(r.FormValue("return_to"))
+
+	accMu.Lock()
+	sender := userByID(cur.ID)
+	recip := findUser(targetName)
+	if sender == nil || recip == nil || sender.ID == recip.ID {
+		accMu.Unlock()
+		http.Redirect(w, r, "/u/"+url.PathEscape(cur.Username)+"?tab=messages", http.StatusSeeOther)
+		return
+	}
+	recipName := recip.Username
+	senderName := sender.Username
+
+	if action == "remove" {
+		var sf []string
+		for _, f := range sender.Friends {
+			if !strings.EqualFold(f, recipName) {
+				sf = append(sf, f)
+			}
+		}
+		sender.Friends = sf
+	} else {
+		if !sender.HasFriend(recipName) {
+			sender.Friends = append(sender.Friends, recipName)
+		}
+		if !recip.HasFriend(senderName) {
+			recip.Friends = append(recip.Friends, senderName)
+		}
+		addUserNotificationLocked(recip, "message",
+			"@"+senderName+" added you as a friend on AFX",
+			"You can now send direct messages to @"+senderName+".",
+			"/u/"+url.PathEscape(recipName)+"?tab=messages&with="+url.QueryEscape(senderName))
+	}
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	if wantsJSONResponse(r) {
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "friend": recipName, "action": action})
+		return
+	}
+	if returnTo != "" && strings.HasPrefix(returnTo, "/") && !strings.HasPrefix(returnTo, "//") {
+		http.Redirect(w, r, returnTo, http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/u/"+url.PathEscape(senderName)+"?tab=messages&with="+url.QueryEscape(recipName), http.StatusSeeOther)
+}
+
 func sendDirectMessage(w http.ResponseWriter, r *http.Request) {
 	cur := currentUser(r)
 	if cur == nil {
@@ -1862,6 +2306,19 @@ func sendDirectMessage(w http.ResponseWriter, r *http.Request) {
 	if recip == nil || sender == nil {
 		accMu.Unlock()
 		data := buildDiscourseProfileData(cur, cur, "messages", "", "Could not find user @"+toUsername+" to message.")
+		renderPage(w, r, "profile.tmpl", data)
+		return
+	}
+	if !sender.HasFriend(recip.Username) {
+		recipUsername := recip.Username
+		senderCopy := *sender
+		accMu.Unlock()
+		errMsg := "You must add @" + recipUsername + " as a friend before you can text them. Click '+ Add @" + recipUsername + "' first."
+		if wantsJSONResponse(r) {
+			sendJSON(w, http.StatusForbidden, map[string]interface{}{"ok": false, "error": errMsg})
+			return
+		}
+		data := buildDiscourseProfileData(&senderCopy, &senderCopy, "messages", "", errMsg, recipUsername)
 		renderPage(w, r, "profile.tmpl", data)
 		return
 	}
@@ -2294,9 +2751,6 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 	canManagePartner := cur != nil && (cur.Role == "staff" || cur.Role == "admin" || cur.Role == "owner" || cur.IsFounderAccount())
 
 	realProfileViews := targetCopy.ProfileViews
-	if realProfileViews < 1 {
-		realProfileViews = 1
-	}
 	realDaysVisited := targetCopy.DaysVisitedCount
 	if realDaysVisited < 1 {
 		realDaysVisited = 1
@@ -2310,61 +2764,73 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		readTimeStr = fmt.Sprintf("%dh %dm", readMinutes/60, readMinutes%60)
 	}
 
+	chatIsFriend := false
+	if chatWithParam != "" {
+		chatIsFriend = chatOwner.HasFriend(chatWithParam)
+	}
+	isFriendWithProfile := false
+	if cur != nil && cur.ID != targetCopy.ID {
+		isFriendWithProfile = cur.HasFriend(targetCopy.Username)
+	}
+
 	return map[string]interface{}{
-		"Title":            targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
-		"Page":             "/forum",
-		"User":             cur,
-		"Profile":          targetCopy,
-		"ProfileUser":      targetCopy,
-		"JoinedStr":        joinedStr,
-		"LastPostStr":      lastPostStr,
-		"LastSeenStr":      lastSeenStr,
-		"ProfileViews":     realProfileViews,
-		"TrustLevelName":   trustLevel,
-		"DaysVisited":      realDaysVisited,
-		"ReadTime":         readTimeStr,
-		"RecentReadTime":   readTimeStr,
-		"TopicsViewed":     realTopicsViewed,
-		"PostsRead":        realPostsRead,
-		"LikesGiven":       likesGiven,
-		"LikesReceived":    likesReceived,
-		"TopicCount":       len(userTopics),
-		"PostCount":        len(userPosts),
-		"ReplyCount":       len(replyPosts),
-		"LikedCount":       len(likedPosts),
-		"SolvedCount":      len(solvedPosts),
-		"Topics":           userTopics,
-		"EnrichedTopics":   enrichedTopics,
-		"Posts":            userPosts,
-		"ReplyPosts":       replyPosts,
-		"LikedPosts":       likedPosts,
-		"ReadTopics":       readTopics,
-		"SolvedPosts":      solvedPosts,
-		"Notifications":    notifications,
-		"UnreadNotifCount": unreadNotifCount,
-		"Messages":         messages,
-		"ChatWith":         chatWithParam,
-		"ChatPartner":      chatPartnerUser,
-		"ChatMessages":     chatMessages,
-		"AllUsers":         allUsersSnapshot,
-		"TopCategories":    topCats,
-		"Badges":           unlockedBadges,
-		"AllBadges":        allBadges,
-		"UnlockedCount":    len(unlockedBadges),
-		"TotalBadgesCount": len(allBadges),
-		"ThemePresets":     themePresets,
-		"UpvoteCount":      upvoteCnt,
-		"UpvoteAllowance":  targetCopy.UpvoteAllowance(),
-		"Tab":              tab,
-		"IsActivityTab":    isActivityTab,
-		"ActivitySub":      activitySub,
-		"Msg":              msg,
-		"Error":            errMsg,
-		"PulseError":       errMsg,
-		"IsOwn":            cur != nil && cur.ID == targetCopy.ID,
-		"CanManagePartner": canManagePartner,
-		"HasPending":       hasPendingClientAuth(),
-		"Categories":       forumCategoriesWithCounts(),
+		"Title":               targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
+		"Page":                "/forum",
+		"User":                cur,
+		"Profile":             targetCopy,
+		"ProfileUser":         targetCopy,
+		"JoinedStr":           joinedStr,
+		"LastPostStr":         lastPostStr,
+		"LastSeenStr":         lastSeenStr,
+		"ProfileViews":        realProfileViews,
+		"TrustLevelName":      trustLevel,
+		"DaysVisited":         realDaysVisited,
+		"ReadTime":            readTimeStr,
+		"RecentReadTime":      readTimeStr,
+		"TopicsViewed":        realTopicsViewed,
+		"PostsRead":           realPostsRead,
+		"LikesGiven":          likesGiven,
+		"LikesReceived":       likesReceived,
+		"TopicCount":          len(userTopics),
+		"PostCount":           len(userPosts),
+		"ReplyCount":          len(replyPosts),
+		"LikedCount":          len(likedPosts),
+		"SolvedCount":         len(solvedPosts),
+		"Topics":              userTopics,
+		"EnrichedTopics":      enrichedTopics,
+		"Posts":               userPosts,
+		"ReplyPosts":          replyPosts,
+		"LikedPosts":          likedPosts,
+		"ReadTopics":          readTopics,
+		"SolvedPosts":         solvedPosts,
+		"Notifications":       notifications,
+		"UnreadNotifCount":    unreadNotifCount,
+		"Messages":            messages,
+		"ChatWith":            chatWithParam,
+		"ChatPartner":         chatPartnerUser,
+		"ChatIsFriend":        chatIsFriend,
+		"IsFriendWithProfile": isFriendWithProfile,
+		"ChatMessages":        chatMessages,
+		"AllUsers":            allUsersSnapshot,
+		"TopCategories":       topCats,
+		"Badges":              unlockedBadges,
+		"AllBadges":           allBadges,
+		"UnlockedCount":       len(unlockedBadges),
+		"TotalBadgesCount":    len(allBadges),
+		"ThemePresets":        themePresets,
+		"UpvoteCount":         upvoteCnt,
+		"UpvoteAllowance":     targetCopy.UpvoteAllowance(),
+		"PulseClosed":         true,
+		"Tab":                 tab,
+		"IsActivityTab":       isActivityTab,
+		"ActivitySub":         activitySub,
+		"Msg":                 msg,
+		"Error":               errMsg,
+		"PulseError":          errMsg,
+		"IsOwn":               cur != nil && cur.ID == targetCopy.ID,
+		"CanManagePartner":    canManagePartner,
+		"HasPending":          hasPendingClientAuth(),
+		"Categories":          forumCategoriesWithCounts(),
 	}
 }
 
@@ -2392,8 +2858,25 @@ func userProfilePage(w http.ResponseWriter, r *http.Request) {
 	u := findUser(rawName)
 	var targetCopy *User
 	if u != nil {
-		// Real-time ProfileViews increment on every visit
-		u.ProfileViews++
+		// Profile views ONLY count when ANOTHER user views this profile (and never when clicking activity/other tabs on your own profile).
+		isOtherViewer := cur == nil || cur.ID != u.ID
+		if isOtherViewer && (tab == "summary" || tab == "") {
+			viewerKey := "ip:" + clientIP(r)
+			if cur != nil {
+				viewerKey = fmt.Sprintf("user:%d", cur.ID)
+			}
+			alreadyViewed := false
+			for _, vk := range u.ProfileViewedBy {
+				if vk == viewerKey {
+					alreadyViewed = true
+					break
+				}
+			}
+			if !alreadyViewed {
+				u.ProfileViewedBy = append(u.ProfileViewedBy, viewerKey)
+				u.ProfileViews++
+			}
+		}
 		today := time.Now().UTC().Format("2006-01-02")
 		if cur != nil && cur.ID == u.ID && u.LastVisitDay != today {
 			u.LastVisitDay = today
@@ -2504,8 +2987,403 @@ func adminUsersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	accMu.Lock()
 	users := append([]User{}, acc.Users...)
+	tickets := append([]SupportTicket{}, acc.SupportTickets...)
 	accMu.Unlock()
-	renderPage(w, r, "admin_users.tmpl", map[string]interface{}{"User": u, "Users": users, "Page": "/admin/users"})
+
+	bannedCnt, staffCnt, partnerCnt, openTickets := 0, 0, 0, 0
+	for _, usr := range users {
+		if usr.Banned {
+			bannedCnt++
+		}
+		if usr.Role == "owner" || usr.Role == "admin" || usr.Role == "staff" || usr.IsFounderAccount() {
+			staffCnt++
+		}
+		if usr.IsPartner || usr.Role == "partner" || usr.IsFounderAccount() {
+			partnerCnt++
+		}
+	}
+	var ticketViews []map[string]interface{}
+	for i := len(tickets) - 1; i >= 0; i-- {
+		tk := tickets[i]
+		if tk.Status == "Open" || tk.Status == "Answered" {
+			openTickets++
+		}
+		ticketViews = append(ticketViews, map[string]interface{}{
+			"ID":                tk.ID,
+			"RequesterUsername": tk.RequesterUsername,
+			"RequesterEmail":    tk.RequesterEmail,
+			"Subject":           tk.Subject,
+			"Category":          tk.Category,
+			"Priority":          tk.Priority,
+			"Status":            tk.Status,
+			"MessageCount":      len(tk.Messages),
+			"UpdatedStr":        formatRelativeTime(tk.UpdatedAt),
+		})
+	}
+
+	renderPage(w, r, "admin_users.tmpl", map[string]interface{}{
+		"Title":       "Staff Control Panel — AFX Administration",
+		"User":        u,
+		"Users":       users,
+		"Tickets":     ticketViews,
+		"TotalUsers":  len(users),
+		"BannedCount": bannedCnt,
+		"StaffCount":  staffCnt,
+		"PartnerCnt":  partnerCnt,
+		"OpenTickets": openTickets,
+		"Msg":         r.URL.Query().Get("msg"),
+		"Error":       r.URL.Query().Get("error"),
+		"Page":        "/admin/users",
+	})
+}
+
+func adminBanUser(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	isOwnerOrBearer := (u != nil && (u.Role == "owner" || u.IsFounderAccount())) || isOwner(r)
+	isAdmin := isOwnerOrBearer || (u != nil && u.Role == "admin")
+	isStaff := isAdmin || (u != nil && u.Role == "staff")
+	if !isStaff {
+		http.Error(w, "staff or owner only", http.StatusForbidden)
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	_ = r.ParseForm()
+	action := strings.ToLower(strings.TrimSpace(r.FormValue("action")))
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	if reason == "" {
+		reason = "Violation of AFX Community Guidelines"
+	}
+
+	accMu.Lock()
+	t := userByID(id)
+	if t == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("User not found."), http.StatusSeeOther)
+		return
+	}
+	if t.IsFounderAccount() || t.Role == "owner" {
+		accMu.Unlock()
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Cannot ban the platform founder or owner."), http.StatusSeeOther)
+		return
+	}
+	if !isOwnerOrBearer && !isAdmin && (t.Role == "admin" || t.Role == "staff") {
+		accMu.Unlock()
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Only Owner or Admin can ban Staff/Admin accounts."), http.StatusSeeOther)
+		return
+	}
+	actor := "owner"
+	if u != nil {
+		actor = u.Username
+	}
+	var statusMsg string
+	if action == "unban" {
+		t.Banned = false
+		t.BanReason = ""
+		t.BannedAt = 0
+		t.BannedBy = ""
+		statusMsg = "Unbanned @" + t.Username + "."
+	} else {
+		t.Banned = true
+		t.BanReason = reason
+		t.BannedAt = time.Now().Unix()
+		t.BannedBy = actor
+		for tok, sess := range acc.Sessions {
+			if sess.UserID == t.ID {
+				delete(acc.Sessions, tok)
+			}
+		}
+		statusMsg = "Banned @" + t.Username + " (Reason: " + reason + ")."
+	}
+	t.UpdatedAt = time.Now().UnixMilli()
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	log.Printf("[staff] %s (by %s)", statusMsg, actor)
+	http.Redirect(w, r, "/admin/users?msg="+url.QueryEscape(statusMsg), http.StatusSeeOther)
+}
+
+// ---- FiveM / Zendesk 1:1 Support Ticket & Report System ----
+
+func buildSupportTicketView(tk *SupportTicket) map[string]interface{} {
+	if tk == nil {
+		return nil
+	}
+	var msgs []map[string]interface{}
+	for _, m := range tk.Messages {
+		roleLabel := "Community Member"
+		switch m.AuthorRole {
+		case "owner":
+			roleLabel = "NSM Founder & Owner"
+		case "admin":
+			roleLabel = "AFX Administrator"
+		case "staff":
+			roleLabel = "AFX Support Staff"
+		case "partner":
+			roleLabel = "AFX Partner"
+		}
+		msgs = append(msgs, map[string]interface{}{
+			"ID":             m.ID,
+			"AuthorUsername": m.AuthorUsername,
+			"AuthorDisplay":  m.AuthorDisplay,
+			"AuthorRole":     m.AuthorRole,
+			"RoleLabel":      roleLabel,
+			"AuthorAvatar":   m.AuthorAvatar,
+			"IsStaff":        m.IsStaff,
+			"Body":           m.Body,
+			"CreatedStr":     time.Unix(m.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+			"RelativeStr":    formatRelativeTime(m.CreatedAt),
+		})
+	}
+	return map[string]interface{}{
+		"ID":                tk.ID,
+		"RequesterID":       tk.RequesterID,
+		"RequesterUsername": tk.RequesterUsername,
+		"RequesterDisplay":  tk.RequesterDisplay,
+		"RequesterEmail":    tk.RequesterEmail,
+		"Subject":           tk.Subject,
+		"Category":          tk.Category,
+		"Priority":          tk.Priority,
+		"ServerEndpoint":    tk.ServerEndpoint,
+		"Status":            tk.Status,
+		"CreatedStr":        time.Unix(tk.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+		"UpdatedStr":        formatRelativeTime(tk.UpdatedAt),
+		"Messages":          msgs,
+	}
+}
+
+func supportCreateRequest(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	_ = r.ParseForm()
+	email := strings.TrimSpace(r.FormValue("email"))
+	subject := strings.TrimSpace(r.FormValue("subject"))
+	if subject == "" {
+		subject = strings.TrimSpace(r.FormValue("title"))
+	}
+	category := strings.TrimSpace(r.FormValue("category"))
+	if category == "" {
+		category = "Client & Technical Support"
+	}
+	priority := strings.TrimSpace(r.FormValue("priority"))
+	if priority == "" {
+		priority = "Normal"
+	}
+	endpoint := strings.TrimSpace(r.FormValue("endpoint"))
+	body := strings.TrimSpace(r.FormValue("body"))
+	if body == "" {
+		body = strings.TrimSpace(r.FormValue("description"))
+	}
+
+	if subject == "" || body == "" {
+		http.Redirect(w, r, "/support?error="+url.QueryEscape("Please provide both a subject and a detailed description for your support request.")+"#submit-ticket", http.StatusSeeOther)
+		return
+	}
+
+	accMu.Lock()
+	if acc.NextTicketID < 1001 {
+		acc.NextTicketID = int64(1001 + len(acc.SupportTickets))
+	}
+	ticketID := acc.NextTicketID
+	acc.NextTicketID++
+
+	var reqID int64
+	reqUsername := "guest"
+	reqDisplay := "Guest User"
+	reqRole := "user"
+	reqAvatar := "/avatars/u/guest/64.png"
+	isStaff := false
+	if u != nil {
+		reqID = u.ID
+		reqUsername = u.Username
+		reqDisplay = u.EffectiveDisplayName()
+		reqRole = u.Role
+		reqAvatar = u.AvatarPath()
+		isStaff = u.IsStaffOrHigher()
+		if email == "" {
+			email = u.Email
+		}
+	}
+	if email == "" {
+		email = reqUsername + "@users.nsm.local"
+	}
+
+	now := time.Now().Unix()
+	tk := SupportTicket{
+		ID:                ticketID,
+		RequesterID:       reqID,
+		RequesterUsername: reqUsername,
+		RequesterDisplay:  reqDisplay,
+		RequesterEmail:    email,
+		Subject:           subject,
+		Category:          category,
+		Priority:          priority,
+		ServerEndpoint:    endpoint,
+		Status:            "Open",
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		Messages: []SupportReply{
+			{
+				ID:             1,
+				AuthorUsername: reqUsername,
+				AuthorDisplay:  reqDisplay,
+				AuthorRole:     reqRole,
+				AuthorAvatar:   reqAvatar,
+				IsStaff:        isStaff,
+				Body:           body,
+				CreatedAt:      now,
+			},
+		},
+	}
+	acc.SupportTickets = append(acc.SupportTickets, tk)
+
+	// Notify founder/staff of new support ticket
+	for i := range acc.Users {
+		if acc.Users[i].IsStaffOrHigher() && acc.Users[i].ID != reqID {
+			addUserNotificationLocked(&acc.Users[i], "replied",
+				fmt.Sprintf("New Support Request #%d: %s", ticketID, subject),
+				fmt.Sprintf("From %s (%s) — %s", reqUsername, email, category),
+				fmt.Sprintf("/support/requests/%d", ticketID))
+		}
+	}
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	log.Printf("[support] created request #%d by %s (%s): %s", ticketID, reqUsername, email, subject)
+	http.Redirect(w, r, fmt.Sprintf("/support/requests/%d", ticketID), http.StatusSeeOther)
+}
+
+func supportViewRequest(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	u := currentUser(r)
+
+	accMu.Lock()
+	var found *SupportTicket
+	for i := range acc.SupportTickets {
+		if acc.SupportTickets[i].ID == id {
+			cp := acc.SupportTickets[i]
+			found = &cp
+			break
+		}
+	}
+	accMu.Unlock()
+
+	if found == nil {
+		w.WriteHeader(http.StatusNotFound)
+		renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Request Not Found", "Stub": fmt.Sprintf("Support Request #%d not found", id)})
+		return
+	}
+
+	isStaff := u != nil && u.IsStaffOrHigher()
+	canReply := isStaff || (u != nil && (u.ID == found.RequesterID || strings.EqualFold(u.Username, found.RequesterUsername))) || found.RequesterID == 0
+
+	renderPage(w, r, "support_ticket.tmpl", map[string]interface{}{
+		"Title":    fmt.Sprintf("Request #%d — %s | AFX Support", found.ID, found.Subject),
+		"Page":     "/support",
+		"User":     u,
+		"Ticket":   buildSupportTicketView(found),
+		"IsStaff":  isStaff,
+		"CanReply": canReply,
+		"Msg":      r.URL.Query().Get("msg"),
+		"Error":    r.URL.Query().Get("error"),
+	})
+}
+
+func supportReplyRequest(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	u := currentUser(r)
+	if u == nil {
+		http.Redirect(w, r, fmt.Sprintf("/login?next=/support/requests/%d", id), http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	body := strings.TrimSpace(r.FormValue("body"))
+	newStatus := strings.TrimSpace(r.FormValue("status"))
+	if body == "" {
+		http.Redirect(w, r, fmt.Sprintf("/support/requests/%d?error=%s", id, url.QueryEscape("Reply message cannot be empty.")), http.StatusSeeOther)
+		return
+	}
+
+	accMu.Lock()
+	var tk *SupportTicket
+	for i := range acc.SupportTickets {
+		if acc.SupportTickets[i].ID == id {
+			tk = &acc.SupportTickets[i]
+			break
+		}
+	}
+	if tk == nil {
+		accMu.Unlock()
+		http.NotFound(w, r)
+		return
+	}
+	isStaff := u.IsStaffOrHigher()
+	isOwnerOfTicket := u.ID == tk.RequesterID || strings.EqualFold(u.Username, tk.RequesterUsername)
+	if !isStaff && !isOwnerOfTicket {
+		accMu.Unlock()
+		http.Error(w, "only the ticket requester or AFX Staff can reply to this request", http.StatusForbidden)
+		return
+	}
+
+	now := time.Now().Unix()
+	reply := SupportReply{
+		ID:             int64(len(tk.Messages) + 1),
+		AuthorUsername: u.Username,
+		AuthorDisplay:  u.EffectiveDisplayName(),
+		AuthorRole:     u.Role,
+		AuthorAvatar:   u.AvatarPath(),
+		IsStaff:        isStaff,
+		Body:           body,
+		CreatedAt:      now,
+	}
+	tk.Messages = append(tk.Messages, reply)
+	tk.UpdatedAt = now
+	if isStaff {
+		if newStatus == "Open" || newStatus == "Answered" || newStatus == "Solved" || newStatus == "Closed" {
+			tk.Status = newStatus
+		} else if tk.Status == "Open" {
+			tk.Status = "Answered"
+		}
+		if reqUser := findUser(tk.RequesterUsername); reqUser != nil && reqUser.ID != u.ID {
+			addUserNotificationLocked(reqUser, "replied",
+				fmt.Sprintf("AFX Staff (@%s) replied to Support Request #%d", u.Username, tk.ID),
+				tk.Subject,
+				fmt.Sprintf("/support/requests/%d", tk.ID))
+		}
+	} else {
+		if tk.Status == "Answered" || tk.Status == "Solved" {
+			tk.Status = "Open"
+		}
+	}
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	http.Redirect(w, r, fmt.Sprintf("/support/requests/%d?msg=%s", id, url.QueryEscape("Your reply has been posted to Request #"+strconv.FormatInt(id, 10)+".")), http.StatusSeeOther)
+}
+
+func supportStatusRequest(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	u := currentUser(r)
+	if u == nil || !u.IsStaffOrHigher() {
+		http.Error(w, "staff only", http.StatusForbidden)
+		return
+	}
+	_ = r.ParseForm()
+	status := strings.TrimSpace(r.FormValue("status"))
+	if status != "Open" && status != "Answered" && status != "Solved" && status != "Closed" {
+		status = "Answered"
+	}
+
+	accMu.Lock()
+	for i := range acc.SupportTickets {
+		if acc.SupportTickets[i].ID == id {
+			acc.SupportTickets[i].Status = status
+			acc.SupportTickets[i].UpdatedAt = time.Now().Unix()
+			break
+		}
+	}
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	http.Redirect(w, r, fmt.Sprintf("/support/requests/%d?msg=%s", id, url.QueryEscape("Ticket status updated to "+status+".")), http.StatusSeeOther)
 }
 
 func adminSetRole(w http.ResponseWriter, r *http.Request) {
@@ -2688,6 +3566,7 @@ func setOwnerPassword(pw string) {
 	if u := findUser(ownerName); u != nil {
 		h, _ := bcrypt.GenerateFromPassword([]byte(pw), 10)
 		u.Pass = string(h)
+		acc.OwnerPasswordSet = true
 		saveAccountsLocked()
 		log.Printf("[accounts] owner password updated for %s", ownerName)
 	}

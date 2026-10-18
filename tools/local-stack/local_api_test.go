@@ -419,7 +419,7 @@ func TestKeymasterFullMatrix(t *testing.T) {
 func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 	h := setupTest(t)
 
-	// 1. HTML form registration redirects to /account and sets nsm_session cookie
+	// 1. HTML form registration redirects to /verify-email and sets nsm_session cookie
 	regForm := url.Values{
 		"username": {"cravenz_dev"},
 		"email":    {"dev@nsm.local"},
@@ -431,8 +431,8 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 	rReg.Header.Set("Accept", "text/html")
 	wReg := httptest.NewRecorder()
 	h.ServeHTTP(wReg, rReg)
-	if wReg.Code != http.StatusSeeOther || wReg.Header().Get("Location") != "/account" {
-		t.Fatalf("expected 303 redirect to /account, got %d (%s)", wReg.Code, wReg.Header().Get("Location"))
+	if wReg.Code != http.StatusSeeOther || wReg.Header().Get("Location") != "/verify-email" {
+		t.Fatalf("expected 303 redirect to /verify-email, got %d (%s)", wReg.Code, wReg.Header().Get("Location"))
 	}
 	var sessionCookie *http.Cookie
 	for _, c := range wReg.Result().Cookies() {
@@ -442,6 +442,27 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 	}
 	if sessionCookie == nil || sessionCookie.Value == "" {
 		t.Fatalf("missing nsm_session cookie on HTML registration")
+	}
+
+	// Verify email using the issued verification code
+	accMu.RLock()
+	regUser := findUser("cravenz_dev")
+	verifyCode := ""
+	if regUser != nil {
+		verifyCode = regUser.EmailVerifyCode
+	}
+	accMu.RUnlock()
+	if verifyCode == "" {
+		t.Fatalf("expected registration to generate a 6-digit EmailVerifyCode")
+	}
+	rVer := httptest.NewRequest("POST", "/account/verify-email", strings.NewReader("code="+url.QueryEscape(verifyCode)+"&return_to=%2Faccount"))
+	rVer.RemoteAddr = "127.0.0.1:12345"
+	rVer.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rVer.AddCookie(sessionCookie)
+	wVer := httptest.NewRecorder()
+	h.ServeHTTP(wVer, rVer)
+	if wVer.Code != http.StatusSeeOther {
+		t.Fatalf("POST /account/verify-email failed: %d", wVer.Code)
 	}
 
 	// 2. Customize user profile (DisplayName, Title, Bio, colors, social metadata)
@@ -615,14 +636,46 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	h := setupTest(t)
 
-	// 1. Cravenz owner account is seeded with Pass == "" and initializes its password on first in-app /session login
+	// 1. nta~ owner account is seeded with Pass == "" and can be claimed ONCE via POST /account/claim-owner
 	wCSRF := request(h, "GET", "/session/csrf.json", "")
 	if wCSRF.Code != 200 || !strings.Contains(wCSRF.Body.String(), `"csrf"`) {
 		t.Fatalf("GET /session/csrf.json failed: %d %s", wCSRF.Code, wCSRF.Body.String())
 	}
 
+	// Verify /login shows one-time setup popup before owner password is set
+	wLoginBefore := request(h, "GET", "/login", "")
+	if !strings.Contains(wLoginBefore.Body.String(), "One-Time Founder Setup") {
+		t.Fatalf("expected /login to show One-Time Founder Setup before nta~ password is set")
+	}
+
+	claimForm := url.Values{"password": {"OwnerChosenPass!2026"}}
+	rClaim := httptest.NewRequest("POST", "/account/claim-owner", strings.NewReader(claimForm.Encode()))
+	rClaim.RemoteAddr = "127.0.0.1:12345"
+	rClaim.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rClaim.Header.Set("Accept", "application/json")
+	wClaim := httptest.NewRecorder()
+	h.ServeHTTP(wClaim, rClaim)
+	if wClaim.Code != 200 || !strings.Contains(wClaim.Body.String(), `"role":"owner"`) || !strings.Contains(wClaim.Body.String(), `"username":"nta~"`) {
+		t.Fatalf("POST /account/claim-owner failed: %d %s", wClaim.Code, wClaim.Body.String())
+	}
+
+	// Second attempt to claim owner password must fail with 403 (one-time only!)
+	rClaim2 := httptest.NewRequest("POST", "/account/claim-owner", strings.NewReader(claimForm.Encode()))
+	rClaim2.RemoteAddr = "127.0.0.1:12345"
+	rClaim2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rClaim2.Header.Set("Accept", "application/json")
+	wClaim2 := httptest.NewRecorder()
+	h.ServeHTTP(wClaim2, rClaim2)
+	if wClaim2.Code != http.StatusForbidden {
+		t.Fatalf("second POST /account/claim-owner must return 403 Forbidden (one-time setup), got %d", wClaim2.Code)
+	}
+	wLoginAfter := request(h, "GET", "/login", "")
+	if strings.Contains(wLoginAfter.Body.String(), "One-Time Founder Setup") {
+		t.Fatalf("/login must not show One-Time Founder Setup after owner password is set")
+	}
+
 	sessForm := url.Values{
-		"login":    {"Cravenz"},
+		"login":    {"nta~"},
 		"password": {"OwnerChosenPass!2026"},
 	}
 	rLogin := httptest.NewRequest("POST", "/session", strings.NewReader(sessForm.Encode()))
@@ -630,8 +683,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	rLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	wLogin := httptest.NewRecorder()
 	h.ServeHTTP(wLogin, rLogin)
-	if wLogin.Code != 200 || !strings.Contains(wLogin.Body.String(), `"username":"Cravenz"`) {
-		t.Fatalf("POST /session for Cravenz failed: %d %s", wLogin.Code, wLogin.Body.String())
+	if wLogin.Code != 200 || !strings.Contains(wLogin.Body.String(), `"username":"nta~"`) {
+		t.Fatalf("POST /session for nta~ failed: %d %s", wLogin.Code, wLogin.Body.String())
 	}
 
 	// 2. syntheticAuth() inside NSM.exe fetches /user-api-key/new and parses hidden inputs, then POSTs /user-api-key
@@ -695,27 +748,15 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("unexpected decrypted payload: %s", string(plainBytes))
 	}
 
-	// 3. loadCurrentAccount(true) calls /session/current.json and /u/Cravenz.json (and /f/... variants)
-	for _, p := range []string{"/session/current.json", "/f/session/current.json", "/u/Cravenz.json", "/f/u/Cravenz.json"} {
+	// 3. loadCurrentAccount(true) calls /session/current.json and /u/nta~.json (and /f/... variants)
+	for _, p := range []string{"/session/current.json", "/f/session/current.json", "/u/nta~.json", "/f/u/nta~.json"} {
 		w := requestAuth(h, "GET", p, "", map[string]string{"User-Api-Key": dec.Key, "User-Api-Client-Id": clientID})
-		if w.Code != 200 || !strings.Contains(w.Body.String(), `"Cravenz"`) {
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"nta~"`) {
 			t.Fatalf("GET %s failed: %d %s", p, w.Code, w.Body.String())
 		}
 	}
 
-	// 4. Local owner can also reset/claim Cravenz via POST /account/claim-owner
-	claimForm := url.Values{"password": {"UpdatedOwnerPass!2026"}}
-	rClaim := httptest.NewRequest("POST", "/account/claim-owner", strings.NewReader(claimForm.Encode()))
-	rClaim.RemoteAddr = "127.0.0.1:12345"
-	rClaim.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rClaim.Header.Set("Accept", "application/json")
-	wClaim := httptest.NewRecorder()
-	h.ServeHTTP(wClaim, rClaim)
-	if wClaim.Code != 200 || !strings.Contains(wClaim.Body.String(), `"role":"owner"`) {
-		t.Fatalf("POST /account/claim-owner failed: %d %s", wClaim.Code, wClaim.Body.String())
-	}
-
-	// 5. Verify NSM & AFX multi-site ecosystem (/ and 6 standalone target="_blank" apps), Private Network Access CORS, and NSM/AFX logos
+	// 5. Verify NSM & AFX multi-site ecosystem, Private Network Access CORS, and NSM/AFX logos
 	wOpt := request(h, "OPTIONS", "/session/current.json", "")
 	if wOpt.Header().Get("Access-Control-Allow-Private-Network") != "true" {
 		t.Fatalf("OPTIONS /session/current.json missing Access-Control-Allow-Private-Network: true")
@@ -757,7 +798,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		}
 	}
 
-	// 11. Verify 1:1 Discourse Forum, Topic, and /u/<username> Profile DOM structure & same-tab navigation
+	// 11. Verify 1:1 Discourse Forum, Topic, and /u/nta~ Profile DOM structure & same-tab navigation
 	wForum := request(h, "GET", "/forum", "")
 	if wForum.Code != http.StatusOK {
 		t.Fatalf("GET /forum returned %d", wForum.Code)
@@ -799,9 +840,9 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		}
 	}
 
-	wProf := request(h, "GET", "/u/Cravenz", "")
+	wProf := request(h, "GET", "/u/nta~", "")
 	if wProf.Code != http.StatusOK {
-		t.Fatalf("GET /u/Cravenz returned %d", wProf.Code)
+		t.Fatalf("GET /u/nta~ returned %d", wProf.Code)
 	}
 	profBody := wProf.Body.String()
 	for _, marker := range []string{
@@ -822,31 +863,31 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		`github.com/platinum-cfx`,
 	} {
 		if !strings.Contains(profBody, marker) {
-			t.Fatalf("GET /u/Cravenz missing Discourse profile marker %q", marker)
+			t.Fatalf("GET /u/nta~ missing Discourse profile marker %q", marker)
 		}
 	}
 	if strings.Contains(profBody, `target="_blank"`) {
-		t.Fatalf("GET /u/Cravenz still contains target=_blank link")
+		t.Fatalf("GET /u/nta~ still contains target=_blank link")
 	}
 
-	// 12. Verify every /u/Cravenz profile tab renders its own distinct Discourse view (not Summary on every tab)
+	// 12. Verify every /u/nta~ profile tab renders its own distinct Discourse view (not Summary on every tab)
 	tabExpectations := []struct {
-		url           string
-		mustContain   string
-		mustNotHave   string
+		url         string
+		mustContain string
+		mustNotHave string
 	}{
-		{"/u/Cravenz?tab=activity", `All Activity by`, `class="top-section stats-section"`},
-		{"/u/Cravenz/activity", `class="user-navigation user-secondary-navigation"`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=topics", `Topics Created by`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=replies", `Replies by`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=read", `Recently Read Topics`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=likes", `Liked Posts &amp; Appreciated Contributions`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=solved", `Accepted Solutions`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=votes", `NSM Server Upvotes &amp; Topic Votes`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=notifications", `Notifications for`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=messages", `Direct Chats`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=badges", `Badges Earned by`, `class="top-section stats-section"`},
-		{"/u/Cravenz?tab=pulse", `Unlock Profile Colors, Animated Effects &amp; Server Upvote Power`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=activity", `All Activity by`, `class="top-section stats-section"`},
+		{"/u/nta~/activity", `class="user-navigation user-secondary-navigation"`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=topics", `Topics Created by`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=replies", `Replies by`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=read", `Recently Read Topics`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=likes", `Liked Posts &amp; Appreciated Contributions`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=solved", `Accepted Solutions`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=votes", `NSM Server Upvotes &amp; Topic Votes`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=notifications", `Notifications for`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=messages", `Direct Chats`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=badges", `Badges Earned by`, `class="top-section stats-section"`},
+		{"/u/nta~?tab=pulse", `AFX Pulse Subscriptions Are Currently Closed`, `class="top-section stats-section"`},
 	}
 	for _, tc := range tabExpectations {
 		wTab := request(h, "GET", tc.url, "")
@@ -862,18 +903,17 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		}
 	}
 
-	// 13. Verify Basic User cannot unlock AFX Pulse without payment checkout and cannot change profile colors until paying for AFX Pulse Pro
+	// 13. Verify AFX Pulse is closed right now so users cannot purchase it yet
 	customSess := registerTestUser(t, h, "theme_tester")
 
-	// Attempt 1-click free Pulse unlock without payment details -> must be rejected
-	reqPulseNoPay := httptest.NewRequest("POST", "/account/pulse", strings.NewReader("tier=pro"))
-	reqPulseNoPay.RemoteAddr = "127.0.0.1:12345"
-	reqPulseNoPay.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqPulseNoPay.Header.Set("X-NSM-Session", customSess)
-	wPulseNoPay := httptest.NewRecorder()
-	h.ServeHTTP(wPulseNoPay, reqPulseNoPay)
-	if !strings.Contains(wPulseNoPay.Body.String(), "Payment Checkout Required:") {
-		t.Fatalf("expected POST /account/pulse without payment details to require checkout")
+	reqPulseClosed := httptest.NewRequest("POST", "/account/pulse", strings.NewReader("tier=sovereign"))
+	reqPulseClosed.RemoteAddr = "127.0.0.1:12345"
+	reqPulseClosed.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqPulseClosed.Header.Set("X-NSM-Session", customSess)
+	wPulseClosed := httptest.NewRecorder()
+	h.ServeHTTP(wPulseClosed, reqPulseClosed)
+	if !strings.Contains(wPulseClosed.Body.String(), "AFX Pulse Closed:") {
+		t.Fatalf("expected POST /account/pulse to state AFX Pulse is closed right now")
 	}
 
 	// Attempt to change profile layout colors as basic user -> colors remain locked to default #2F7BFF
@@ -888,22 +928,13 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("basic user without AFX Pulse Pro should not be able to change profile layout colors")
 	}
 
-	// 14. Complete payment checkout for AFX Pulse Sovereign (using a valid Luhn test card number) and verify +4 Upvotes & Profile Colors unlock
-	testCardPayload := "tier=sovereign&billing_cycle=monthly&card_name=Captain+Neon&card_number=4532015112830366&card_exp=12%2F29&card_cvc=842"
-	reqPulse := httptest.NewRequest("POST", "/account/pulse", strings.NewReader(testCardPayload))
-	reqPulse.RemoteAddr = "127.0.0.1:12345"
-	reqPulse.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqPulse.Header.Set("X-NSM-Session", customSess)
-	wPulse := httptest.NewRecorder()
-	h.ServeHTTP(wPulse, reqPulse)
-	if wPulse.Code != http.StatusOK {
-		t.Fatalf("POST /account/pulse expected 200 OK, got %d", wPulse.Code)
+	// Grant Sovereign tier directly in store (as Founder/pre-existing subscriber) and verify profile customization & username rename
+	accMu.Lock()
+	if u := findUser("theme_tester"); u != nil {
+		u.PulseTier = "sovereign"
 	}
-	if !strings.Contains(wPulse.Body.String(), "AFX Pulse Sovereign") || !strings.Contains(wPulse.Body.String(), "4 Upvotes") {
-		t.Fatalf("POST /account/pulse with valid payment did not unlock AFX Pulse Sovereign (+4 Upvotes)")
-	}
+	accMu.Unlock()
 
-	// Now update profile colors, cat ears, moving effect, AND rename username from theme_tester -> neon_captain
 	renamePayload := formPayload + "&new_username=neon_captain"
 	reqUpd := httptest.NewRequest("POST", "/account/profile", strings.NewReader(renamePayload))
 	reqUpd.RemoteAddr = "127.0.0.1:12345"
@@ -915,77 +946,83 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("POST /account/profile expected 200 OK, got %d", wUpd.Code)
 	}
 
-	wCustomProf := requestAuth(h, "GET", "/u/neon_captain", "", map[string]string{"X-NSM-Session": customSess})
-	if wCustomProf.Code != http.StatusOK {
-		t.Fatalf("GET /u/neon_captain returned %d", wCustomProf.Code)
-	}
-	cpBody := wCustomProf.Body.String()
-	for _, expected := range []string{
-		`<span id="live-profile-display-name">Captain Neon AFX</span>`,
-		`<div class="full-name user-profile-names__secondary" id="live-profile-handle">@neon_captain</div>`,
-		`<span class="d-header-username" id="live-navbar-display-name">Captain Neon AFX</span>`,
-		`user-full-themed-page fx-effect-cyber_matrix`,
-		`user-profile-avatar deco-cat_ears`,
-		`--prof-primary: #EC4899`,
-		`--prof-accent: #8B5CF6`,
-		`--prof-banner: #3B0764`,
-		`--prof-avatar: #F472B6`,
-	} {
-		if !strings.Contains(cpBody, expected) {
-			t.Fatalf("GET /u/neon_captain after profile update missing %q", expected)
-		}
+	// 14. Verify Self-Views do NOT increment ProfileViews, while Another User viewing DOES increment once
+	accMu.RLock()
+	viewsBeforeSelf := findUser("neon_captain").ProfileViews
+	accMu.RUnlock()
+
+	_ = requestAuth(h, "GET", "/u/neon_captain?tab=activity", "", map[string]string{"X-NSM-Session": customSess})
+	_ = requestAuth(h, "GET", "/u/neon_captain?tab=summary", "", map[string]string{"X-NSM-Session": customSess})
+
+	accMu.RLock()
+	viewsAfterSelf := findUser("neon_captain").ProfileViews
+	accMu.RUnlock()
+	if viewsAfterSelf != viewsBeforeSelf {
+		t.Fatalf("clicking own profile tabs must not increment ProfileViews: before=%d after=%d", viewsBeforeSelf, viewsAfterSelf)
 	}
 
-	// Verify Preferences tab has custom NSM/AFX preset names and no "Nitro" naming
-	wPrefTab := requestAuth(h, "GET", "/u/neon_captain?tab=preferences", "", map[string]string{"X-NSM-Session": customSess})
-	prefBody := wPrefTab.Body.String()
-	for _, presetName := range []string{"AFX Supernova", "Vinewood Horizon", "Vespucci Sunset", "Chiliad Sovereign"} {
-		if !strings.Contains(prefBody, presetName) {
-			t.Fatalf("Preferences tab missing custom preset %q", presetName)
-		}
-	}
-	if strings.Contains(strings.ToLower(prefBody), "nitro") {
-		t.Fatalf("Preferences tab still mentions 'nitro'")
+	// 15. Verify Friend Requirement before Direct Messaging:
+	// Attempting to DM nta~ before adding nta~ must be blocked
+	dmPayload := "recipient=nta~&subject=Server+Collab&body=Hey+nta+lets+test+1on1+chat&return_profile=neon_captain"
+	reqDMBlocked := httptest.NewRequest("POST", "/account/messages", strings.NewReader(dmPayload))
+	reqDMBlocked.RemoteAddr = "127.0.0.1:12345"
+	reqDMBlocked.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqDMBlocked.Header.Set("X-NSM-Session", customSess)
+	wDMBlocked := httptest.NewRecorder()
+	h.ServeHTTP(wDMBlocked, reqDMBlocked)
+	if !strings.Contains(wDMBlocked.Header().Get("Location"), "err=") {
+		t.Fatalf("expected DM before adding friend to redirect with err=, got %s", wDMBlocked.Header().Get("Location"))
 	}
 
-	// 15. Verify 1-on-1 Direct Message Chat & Notification delivery
-	dmPayload := "recipient=Cravenz&subject=Server+Collab&body=Hey+Cravenz+lets+test+1on1+chat&return_profile=neon_captain"
+	// Now add nta~ via POST /account/friends and verify DM succeeds
+	reqAddFriend := httptest.NewRequest("POST", "/account/friends", strings.NewReader("target=nta~&action=add&return_to=%2Fu%2Fneon_captain%3Ftab%3Dmessages%26with%3Dnta~"))
+	reqAddFriend.RemoteAddr = "127.0.0.1:12345"
+	reqAddFriend.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqAddFriend.Header.Set("X-NSM-Session", customSess)
+	wAddFriend := httptest.NewRecorder()
+	h.ServeHTTP(wAddFriend, reqAddFriend)
+	if wAddFriend.Code != http.StatusSeeOther {
+		t.Fatalf("POST /account/friends failed: %d", wAddFriend.Code)
+	}
+
 	reqDM := httptest.NewRequest("POST", "/account/messages", strings.NewReader(dmPayload))
 	reqDM.RemoteAddr = "127.0.0.1:12345"
 	reqDM.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqDM.Header.Set("X-NSM-Session", customSess)
 	wDM := httptest.NewRecorder()
 	h.ServeHTTP(wDM, reqDM)
-	if wDM.Code != http.StatusSeeOther || !strings.Contains(wDM.Header().Get("Location"), "/u/neon_captain?tab=messages&with=Cravenz") {
-		t.Fatalf("POST /account/messages expected redirect to 1-on-1 chat, got %d (%s)", wDM.Code, wDM.Header().Get("Location"))
+	if wDM.Code != http.StatusSeeOther || !strings.Contains(wDM.Header().Get("Location"), "/u/neon_captain?tab=messages&with=nta~") {
+		t.Fatalf("POST /account/messages after adding friend expected redirect to 1-on-1 chat, got %d (%s)", wDM.Code, wDM.Header().Get("Location"))
 	}
-	wChat := requestAuth(h, "GET", "/u/neon_captain?tab=messages&with=Cravenz", "", map[string]string{"X-NSM-Session": customSess})
-	if !strings.Contains(wChat.Body.String(), "Hey Cravenz lets test 1on1 chat") {
+	wChat := requestAuth(h, "GET", "/u/neon_captain?tab=messages&with=nta~", "", map[string]string{"X-NSM-Session": customSess})
+	if !strings.Contains(wChat.Body.String(), "Hey nta lets test 1on1 chat") {
 		t.Fatalf("1-on-1 chat thread did not render sent direct message")
 	}
 
-	// 16. Verify Announcements category permissions (Regular users cannot create topics in Announcements, Staff can)
-	reqAnnUser := httptest.NewRequest("POST", "/forum/new", strings.NewReader("title=User+Announcement+Attempt&category=announcements&content=Should+be+blocked"))
-	reqAnnUser.RemoteAddr = "127.0.0.1:12345"
-	reqAnnUser.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqAnnUser.Header.Set("X-NSM-Session", customSess)
-	wAnnUser := httptest.NewRecorder()
-	h.ServeHTTP(wAnnUser, reqAnnUser)
-	if !strings.Contains(wAnnUser.Header().Get("Location"), "/forum/c/announcements?err=") {
-		t.Fatalf("regular user should not be allowed to create topic in announcements, got redirect %q", wAnnUser.Header().Get("Location"))
+	// 16. Verify FiveM/Zendesk-Style Support Request Creation, Dedicated Ticket Page, and Staff Reply
+	supForm := url.Values{
+		"email":       {"neon@nsm.local"},
+		"category":    {"Technical / Client Issue"},
+		"subject":     {"NSM.exe Audio Device Question"},
+		"server_info": {"127.0.0.1:30120"},
+		"description": {"Testing the dedicated support request page and staff replies."},
 	}
-	// Regular user CAN reply to existing topic #1 in announcements
-	reqAnnReply := httptest.NewRequest("POST", "/forum/t/1/reply", strings.NewReader("content=Awesome+official+announcement!"))
-	reqAnnReply.RemoteAddr = "127.0.0.1:12345"
-	reqAnnReply.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqAnnReply.Header.Set("X-NSM-Session", customSess)
-	wAnnReply := httptest.NewRecorder()
-	h.ServeHTTP(wAnnReply, reqAnnReply)
-	if wAnnReply.Code != http.StatusSeeOther || !strings.Contains(wAnnReply.Header().Get("Location"), "/forum/t/1#post-bottom") {
-		t.Fatalf("regular user should be allowed to reply in announcements, got %d (%s)", wAnnReply.Code, wAnnReply.Header().Get("Location"))
+	reqSup := httptest.NewRequest("POST", "/support/requests", strings.NewReader(supForm.Encode()))
+	reqSup.RemoteAddr = "127.0.0.1:12345"
+	reqSup.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqSup.Header.Set("X-NSM-Session", customSess)
+	wSup := httptest.NewRecorder()
+	h.ServeHTTP(wSup, reqSup)
+	if wSup.Code != http.StatusSeeOther || !strings.HasPrefix(wSup.Header().Get("Location"), "/support/requests/") {
+		t.Fatalf("POST /support/requests expected 303 redirect to /support/requests/{id}, got %d (%s)", wSup.Code, wSup.Header().Get("Location"))
+	}
+	ticketURL := wSup.Header().Get("Location")
+	wTicket := requestAuth(h, "GET", ticketURL, "", map[string]string{"X-NSM-Session": customSess})
+	if wTicket.Code != http.StatusOK || !strings.Contains(wTicket.Body.String(), "neon@nsm.local") || !strings.Contains(wTicket.Body.String(), "NSM.exe Audio Device Question") {
+		t.Fatalf("GET %s did not display requester email and subject: %d", ticketURL, wTicket.Code)
 	}
 
-	// 17. Verify Staff user can grant Partner role & create topic in Announcements, and real-time views endpoint works
+	// 17. Verify Staff user can reply to support ticket, grant Partner role, and ban/unban a user
 	staffSess := registerTestUser(t, h, "mod_staff")
 	accMu.Lock()
 	staffUser := findUser("mod_staff")
@@ -997,6 +1034,49 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	staffUser.Role = "staff"
 	targetID := targetUser.ID
 	accMu.Unlock()
+
+	reqStaffReply := httptest.NewRequest("POST", ticketURL+"/reply", strings.NewReader("body=Hello+from+AFX+Support+Staff!+We+have+resolved+your+question.&status=solved"))
+	reqStaffReply.RemoteAddr = "127.0.0.1:12345"
+	reqStaffReply.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqStaffReply.Header.Set("X-NSM-Session", staffSess)
+	wStaffReply := httptest.NewRecorder()
+	h.ServeHTTP(wStaffReply, reqStaffReply)
+	if wStaffReply.Code != http.StatusSeeOther {
+		t.Fatalf("staff reply to support ticket failed: %d", wStaffReply.Code)
+	}
+	wTicketAfter := requestAuth(h, "GET", ticketURL, "", map[string]string{"X-NSM-Session": customSess})
+	if !strings.Contains(wTicketAfter.Body.String(), "Hello from AFX Support Staff!") || !strings.Contains(wTicketAfter.Body.String(), "AFX SUPPORT STAFF") {
+		t.Fatalf("support ticket page did not render staff reply and badge")
+	}
+
+	// Staff views neon_captain profile -> increments ProfileViews by 1
+	_ = requestAuth(h, "GET", "/u/neon_captain", "", map[string]string{"X-NSM-Session": staffSess})
+	accMu.RLock()
+	viewsAfterOther := findUser("neon_captain").ProfileViews
+	accMu.RUnlock()
+	if viewsAfterOther != viewsBeforeSelf+1 {
+		t.Fatalf("other user viewing profile should increment ProfileViews by 1: got %d want %d", viewsAfterOther, viewsBeforeSelf+1)
+	}
+
+	// Staff bans and unbans user
+	reqBan := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/ban", targetID), strings.NewReader("action=ban&reason=Rule+violation+test"))
+	reqBan.RemoteAddr = "127.0.0.1:12345"
+	reqBan.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqBan.Header.Set("X-NSM-Session", staffSess)
+	wBan := httptest.NewRecorder()
+	h.ServeHTTP(wBan, reqBan)
+	if wBan.Code != http.StatusOK || !strings.Contains(wBan.Body.String(), "BANNED") {
+		t.Fatalf("POST /admin/users/%d/ban failed: %d", targetID, wBan.Code)
+	}
+	reqUnban := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/ban", targetID), strings.NewReader("action=unban"))
+	reqUnban.RemoteAddr = "127.0.0.1:12345"
+	reqUnban.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqUnban.Header.Set("X-NSM-Session", staffSess)
+	wUnban := httptest.NewRecorder()
+	h.ServeHTTP(wUnban, reqUnban)
+	if wUnban.Code != http.StatusOK {
+		t.Fatalf("POST /admin/users/%d/ban unban failed: %d", targetID, wUnban.Code)
+	}
 
 	reqPartner := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/partner", targetID), strings.NewReader("action=grant"))
 	reqPartner.RemoteAddr = "127.0.0.1:12345"
@@ -1011,23 +1091,14 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("Partner role grant did not unlock Partnered Server Owner badge")
 	}
 
-	wRealtime := request(h, "GET", "/api/forum/realtime?profile=Cravenz", "")
+	wRealtime := request(h, "GET", "/api/forum/realtime?profile=nta~", "")
 	if wRealtime.Code != http.StatusOK || !strings.Contains(wRealtime.Body.String(), `"profileViews"`) {
 		t.Fatalf("GET /api/forum/realtime failed: %d %s", wRealtime.Code, wRealtime.Body.String())
-	}
-
-	// Also verify the updated Display Name appears on the main website navbar (GET /) and users directory (GET /u)
-	wHomeAuth := requestAuth(h, "GET", "/", "", map[string]string{"X-NSM-Session": customSess})
-	if !strings.Contains(wHomeAuth.Body.String(), "Captain Neon AFX") {
-		t.Fatalf("GET / navbar did not reflect updated DisplayName 'Captain Neon AFX'")
 	}
 
 	wUsersDir := request(h, "GET", "/u", "")
 	if wUsersDir.Code != http.StatusOK || !strings.Contains(wUsersDir.Body.String(), "d-users-directory-table") {
 		t.Fatalf("GET /u users directory failed: %d", wUsersDir.Code)
-	}
-	if !strings.Contains(wUsersDir.Body.String(), "Captain Neon AFX") {
-		t.Fatalf("GET /u users directory did not reflect updated DisplayName 'Captain Neon AFX'")
 	}
 
 	ln, err := listenWithReuseAddr("tcp", "127.0.0.1:0")

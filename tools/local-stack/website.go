@@ -300,7 +300,11 @@ func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 
 func loginPage(w http.ResponseWriter, r *http.Request) {
 	next := r.URL.Query().Get("next")
-	renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Login - AFX Portal", "Next": next})
+	renderPage(w, r, "login.tmpl", map[string]interface{}{
+		"Title":          "Login - AFX Portal",
+		"Next":           next,
+		"ShowOwnerSetup": ownerNeedsPasswordSetup(),
+	})
 }
 
 func registerPage(w http.ResponseWriter, r *http.Request) {
@@ -318,9 +322,25 @@ func accountPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func supportPage(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	var myTickets []map[string]interface{}
+	accMu.Lock()
+	if acc != nil {
+		for i := len(acc.SupportTickets) - 1; i >= 0; i-- {
+			tk := acc.SupportTickets[i]
+			if u != nil && (u.IsStaffOrHigher() || tk.RequesterID == u.ID || strings.EqualFold(tk.RequesterUsername, u.Username)) {
+				myTickets = append(myTickets, buildSupportTicketView(&tk))
+			}
+		}
+	}
+	accMu.Unlock()
 	renderPage(w, r, "support.tmpl", map[string]interface{}{
-		"Title":  "AFX Support",
-		"Invite": "https://discord.gg/UXj5QfCX88",
+		"Title":   "AFX Support",
+		"Page":    "/support",
+		"Invite":  "https://discord.gg/UXj5QfCX88",
+		"Tickets": myTickets,
+		"Error":   r.URL.Query().Get("error"),
+		"Msg":     r.URL.Query().Get("msg"),
 	})
 }
 
@@ -376,6 +396,11 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("/f/signup", registerPage)
 	mux.HandleFunc("GET /logout", logoutPage)
 	mux.HandleFunc("GET /account", accountPage)
+	mux.HandleFunc("GET /verify-email", verifyEmailPage)
+	mux.HandleFunc("POST /account/verify-email", accountVerifyEmail)
+	mux.HandleFunc("POST /account/resend-verify", accountResendVerifyEmail)
+	mux.HandleFunc("POST /account/2fa", accountConfigure2FA)
+	mux.HandleFunc("POST /account/friends", accountFriendAction)
 	mux.HandleFunc("POST /account/password", accountChangePassword)
 	mux.HandleFunc("POST /account/profile", accountUpdateProfile)
 	mux.HandleFunc("POST /account/pulse", accountSubscribePulse)
@@ -401,6 +426,11 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /docs", docsPage)
 	mux.HandleFunc("GET /support", supportPage)
 	mux.HandleFunc("GET /hc/en-us", supportPage)
+	mux.HandleFunc("POST /support/requests", supportCreateRequest)
+	mux.HandleFunc("GET /support/requests/{id}", supportViewRequest)
+	mux.HandleFunc("GET /hc/en-us/requests/{id}", supportViewRequest)
+	mux.HandleFunc("POST /support/requests/{id}/reply", supportReplyRequest)
+	mux.HandleFunc("POST /support/requests/{id}/status", supportStatusRequest)
 	mux.HandleFunc("GET /marketplace", marketplacePage)
 	mux.HandleFunc("GET /portal", keymasterPage)
 
@@ -458,6 +488,7 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /admin/users", adminUsersPage)
 	mux.HandleFunc("POST /admin/users/{id}/role", adminSetRole)
 	mux.HandleFunc("POST /admin/users/{id}/partner", adminTogglePartner)
+	mux.HandleFunc("POST /admin/users/{id}/ban", adminBanUser)
 
 	// JSON API (client + site + keymaster)
 	mux.HandleFunc("GET /api/auth/me", apiMe)

@@ -971,7 +971,7 @@ func (h *handler) serveAdmin(w http.ResponseWriter, r *http.Request, path string
 
 var stateFile = flag.String("state", "state.json", "path to persistent state file")
 
-var ownerName = "Cravenz"
+var ownerName = "nta~"
 
 var (
 	activeSrvMu    sync.Mutex
@@ -1193,13 +1193,13 @@ func main() {
 	activeSrvMu.Unlock()
 
 	log.Printf("================================================================")
-	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-h)")
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-m)")
 	log.Printf("Listening on: http://%s", addr)
 	log.Printf("  Homepage:    http://%s/", addr)
 	log.Printf("  Server List: http://%s/servers", addr)
 	log.Printf("  AFX Forum:   http://%s/forum", addr)
-	log.Printf("  Your Profile:http://%s/u/Cravenz", addr)
-	log.Printf("  Edit Socials:http://%s/u/Cravenz?tab=preferences", addr)
+	log.Printf("  Your Profile:http://%s/u/nta~", addr)
+	log.Printf("  Edit Socials:http://%s/u/nta~?tab=preferences", addr)
 	log.Printf("================================================================")
 	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("listen error: %v", err)

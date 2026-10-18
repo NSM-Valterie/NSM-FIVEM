@@ -389,8 +389,20 @@
                       </a>
                     </li>
                     {{else}}
+                    {{if .User}}
                     <li>
-                      <a href="{{if .User}}/u/{{.User.Username}}?tab=messages&amp;with={{.Profile.Username}}{{else}}/login?next=/u/{{.Profile.Username}}?tab=messages{{end}}" class="d-btn d-btn-primary d-btn-theme">
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="{{if .IsFriendWithProfile}}remove{{else}}add{{end}}">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn {{if .IsFriendWithProfile}}d-btn-default{{else}}d-btn-primary d-btn-theme{{end}}" style="width:100%">
+                          {{if .IsFriendWithProfile}}&#10004; Added (@{{.Profile.Username}}){{else}}+ Add @{{.Profile.Username}} to Text{{end}}
+                        </button>
+                      </form>
+                    </li>
+                    {{end}}
+                    <li>
+                      <a href="{{if .User}}/u/{{.User.Username}}?tab=messages&amp;with={{.Profile.Username}}{{else}}/login?next=/u/{{.Profile.Username}}?tab=messages{{end}}" class="d-btn d-btn-default">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                         <span>Message @{{.Profile.Username}}</span>
                       </a>
@@ -505,12 +517,20 @@
 
               {{if eq .Tab "pulse"}}
               <!-- ==============================================================
-                   TAB: AFX PULSE MEMBERSHIP TIERS & PAYMENT CHECKOUT
+                   TAB: AFX PULSE MEMBERSHIP TIERS (CURRENTLY CLOSED FOR PURCHASES)
                    ============================================================== -->
               <div class="top-section d-pulse-showcase">
                 {{if .PulseError}}
-                <div class="d-alert d-alert-error" style="margin-bottom:16px"><strong>Payment Checkout Required:</strong> {{.PulseError}}</div>
+                <div class="d-alert d-alert-error" style="margin-bottom:16px"><strong>Notice:</strong> {{.PulseError}}</div>
                 {{end}}
+
+                <div style="margin-bottom:18px;padding:16px 20px;border-radius:12px;background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(239,68,68,0.14));border:1px solid rgba(245,158,11,0.55);color:#fde68a;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+                  <div>
+                    <div style="font-size:15px;font-weight:800;color:#fff">&#128274; AFX Pulse Subscriptions Are Currently Closed</div>
+                    <div style="font-size:13px;color:#fef3c7;margin-top:3px">AFX Pulse is not open for public purchase right now. Stay tuned for the official launch announcement!</div>
+                  </div>
+                  <span style="padding:5px 12px;border-radius:999px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.5);color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Closed — Coming Soon</span>
+                </div>
 
                 <div class="d-pulse-hero">
                   <div>
@@ -523,7 +543,7 @@
                   <div class="d-pulse-current-status">
                     <span class="d-muted" style="font-size:12px;text-transform:uppercase">Active Tier for @{{.Profile.Username}}</span>
                     <strong style="font-size:18px;color:#fff;display:block;margin-top:3px">{{.Profile.EffectivePulseTierLabel}}</strong>
-                    <span class="d-muted" style="font-size:12.5px;display:block;margin-top:4px">Server Upvote Allowance: <strong style="color:#38bdf8">{{.UpvoteCount}} Upvotes</strong></span>
+                    <span class="d-muted" style="font-size:12.5px;display:block;margin-top:4px">Server Upvote Allowance: <strong style="color:#38bdf8">{{.UpvoteAllowance}} Upvotes</strong></span>
                     {{if .Profile.IsFounderAccount}}
                     <span class="d-theme-live-pill" style="margin-top:6px;display:inline-block">Permanent Founder Access — Active Forever</span>
                     {{end}}
@@ -544,13 +564,9 @@
                       <li>&#10008; <strong>0 Server Upvotes</strong> (Upgrade to Pro for +1 Upvote or Sovereign for +4 Upvotes)</li>
                       <li>&#10008; Basic Default Profile Theme (Upgrade to Pro to change Profile Colors)</li>
                     </ul>
-                    {{if .User}}
-                    <button type="button" class="d-btn d-btn-default" style="width:100%" onclick="selectPulseCheckoutPlan('core','$4.99/mo — AFX Pulse Core (0 Server Upvotes)')">
-                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "core"}}Current Active Tier{{else}}Checkout AFX Pulse Core ($4.99){{end}}
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else}}&#128274; AFX Pulse Closed — Coming Soon{{end}}
                     </button>
-                    {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-default" style="width:100%;text-align:center">Log In to Subscribe</a>
-                    {{end}}
                   </div>
 
                   <!-- Tier 2: AFX Pulse Pro -->
@@ -567,13 +583,9 @@
                       <li>&#10004; All <strong>Moving Profile Effects</strong> (Aurora Waves, Cyber Grid, Starlight Warp, Volt Storm)</li>
                       <li>&#10004; All 7 <strong>Avatar Decorations</strong> (Cat Ears, Sovereign Crown, Cyber Visor, Plasma Aura)</li>
                     </ul>
-                    {{if .User}}
-                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" onclick="selectPulseCheckoutPlan('pro','$9.99/mo — AFX Pulse Pro (+1 Server Upvote &amp; Full-Page Profile Colors)')">
-                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "pro"}}Current Active Tier{{else}}Checkout AFX Pulse Pro ($9.99){{end}}
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else}}&#128274; AFX Pulse Closed — Coming Soon{{end}}
                     </button>
-                    {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Subscribe</a>
-                    {{end}}
                   </div>
 
                   <!-- Tier 3: AFX Pulse Sovereign -->
@@ -588,86 +600,17 @@
                       <li>&#10004; <strong>+4 NSM Server Upvotes Power</strong> on the NSM Server List + <strong>AFX Server Upvoter Badge</strong></li>
                       <li>&#10004; Mythic <strong>Sovereign Pulse Badge</strong> &amp; Holographic Prism Profile Shimmer</li>
                       <li>&#10004; Priority Server Upvote Weight on the NSM Masterlist</li>
-                      <li>&#10004; <strong>@Cravenz Founder Account has Sovereign Eternal Unlocked Forever!</strong></li>
+                      <li>&#10004; <strong>@nta~ Founder Account has Sovereign Eternal Unlocked Forever!</strong></li>
                     </ul>
-                    {{if .User}}
-                    {{if .User.IsFounderAccount}}
-                    <form method="post" action="/account/pulse">
-                      <input type="hidden" name="tier" value="sovereign">
-                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">&#9813; Founder Eternal Active Forever</button>
-                    </form>
+                    {{if and .User .User.IsFounderAccount}}
+                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" disabled>&#9813; Founder Eternal Active Forever</button>
                     {{else}}
-                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" onclick="selectPulseCheckoutPlan('sovereign','$19.99/mo — AFX Pulse Sovereign (+4 Server Upvotes &amp; Full-Page Profile Colors)')">
-                      {{if eq .User.EffectivePulseTier "sovereign"}}Current Active Tier{{else}}Checkout AFX Pulse Sovereign ($19.99){{end}}
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      &#128274; AFX Pulse Closed — Coming Soon
                     </button>
                     {{end}}
-                    {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Subscribe</a>
-                    {{end}}
                   </div>
                 </div>
-
-                {{if and .User (not .User.IsFounderAccount)}}
-                <!-- Payment Checkout Box (Required to Activate AFX Pulse) -->
-                <div class="d-pulse-checkout-box" id="pulse-checkout-box">
-                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-                    <div>
-                      <h3 class="stats-title" style="margin:0">&#128179; AFX Pulse Secure Payment Checkout</h3>
-                      <p class="d-muted" style="font-size:13px;margin:4px 0 0" id="pulse-checkout-plan-label">
-                        Selected Plan: <strong>$9.99/mo — AFX Pulse Pro (+1 Server Upvote &amp; Full-Page Profile Colors)</strong>
-                      </p>
-                    </div>
-                    <span class="d-theme-live-pill">256-Bit Encrypted Checkout</span>
-                  </div>
-
-                  <form method="post" action="/account/pulse" class="d-pref-form">
-                    <div class="d-form-row-2">
-                      <label class="d-label">
-                        <span>AFX Pulse Plan</span>
-                        <select name="tier" id="pulse-checkout-tier" class="d-input" onchange="updatePulseCheckoutLabel(this.value)">
-                          <option value="pro" selected>AFX Pulse Pro — $9.99/mo (+1 Server Upvote &amp; Profile Colors)</option>
-                          <option value="sovereign">AFX Pulse Sovereign — $19.99/mo (+4 Server Upvotes &amp; All Perks)</option>
-                          <option value="core">AFX Pulse Core — $4.99/mo (0 Server Upvotes, Basic Colors)</option>
-                        </select>
-                      </label>
-                      <label class="d-label">
-                        <span>Billing Cycle</span>
-                        <select name="billing_cycle" class="d-input">
-                          <option value="monthly" selected>Monthly Billing</option>
-                          <option value="yearly">Annual Billing (Save 16%)</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    <div class="d-form-row-2">
-                      <label class="d-label">
-                        <span>Cardholder Name</span>
-                        <input type="text" name="card_name" class="d-input" placeholder="Full Name on Card" required minlength="2">
-                      </label>
-                      <label class="d-label">
-                        <span>Card Number (16-Digit Visa / Mastercard / Amex)</span>
-                        <input type="text" name="card_number" class="d-input" placeholder="•••• •••• •••• ••••" inputmode="numeric" maxlength="23" required>
-                      </label>
-                    </div>
-
-                    <div class="d-form-row-2">
-                      <label class="d-label">
-                        <span>Expiration Date (MM/YY)</span>
-                        <input type="text" name="card_exp" class="d-input" placeholder="MM/YY" maxlength="7" required>
-                      </label>
-                      <label class="d-label">
-                        <span>Security Code (CVC / CVV)</span>
-                        <input type="password" name="card_cvc" class="d-input" placeholder="3 or 4 digits" inputmode="numeric" maxlength="4" required>
-                      </label>
-                    </div>
-
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:8px">
-                      <span class="d-muted" style="font-size:12.5px">Your AFX Pulse membership, profile color studio, and server upvotes activate immediately upon payment verification.</span>
-                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">Complete Payment &amp; Activate AFX Pulse</button>
-                    </div>
-                  </form>
-                </div>
-                {{end}}
               </div>
 
               {{else if eq .Tab "preferences"}}
@@ -1001,6 +944,48 @@
                       <a href="/user-api-key/new" class="d-btn d-btn-default">Open Client Auth Page</a>
                       <a href="/keymaster" class="d-btn d-btn-default">Manage Server Keys (AFX Portal)</a>
                     </div>
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">&#9993; Email Verification</h3>
+                    <p class="d-muted" style="margin-bottom:10px">
+                      Email: <strong style="color:#fff">{{.Profile.Email}}</strong>
+                    </p>
+                    {{if .Profile.EmailVerified}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.45);color:#6ee7b7;font-size:13px;font-weight:700">
+                        &#10004; Verified Email Address
+                      </div>
+                    {{else}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.45);color:#fcd34d;font-size:13px;margin-bottom:10px">
+                        Your email is not verified yet.
+                      </div>
+                      <a href="/verify-email?next=/u/{{.Profile.Username}}?tab=preferences" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center;display:block">Verify Email Address</a>
+                    {{end}}
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">&#128274; Two-Step Verification (2FA)</h3>
+                    <p class="d-muted" style="margin-bottom:10px">
+                      Require a 6-digit security code when signing in to your AFX account.
+                    </p>
+                    {{if .Profile.TwoFactorEnabled}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(56,189,248,0.16);border:1px solid rgba(56,189,248,0.45);color:#7dd3fc;font-size:13px;font-weight:700;margin-bottom:10px">
+                        &#128274; Two-Step Verification (2FA) is ENABLED
+                      </div>
+                      <form method="post" action="/account/2fa" class="d-pref-form">
+                        <input type="hidden" name="action" value="disable">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%">Disable Two-Step Verification</button>
+                      </form>
+                    {{else}}
+                      <form method="post" action="/account/2fa" class="d-pref-form">
+                        <input type="hidden" name="action" value="enable">
+                        <label class="d-label">
+                          <span>Set 6-Digit Security Code (Numeric)</span>
+                          <input type="text" name="code" class="d-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="e.g. 482910" required style="letter-spacing:0.2em;font-weight:700">
+                        </label>
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%;margin-top:8px">Enable Two-Step Verification</button>
+                      </form>
+                    {{end}}
                   </div>
 
                   <div class="d-pref-card" style="margin-top:18px">
@@ -1493,6 +1478,7 @@
                   </div>
 
                   {{if .User}}
+                  {{if .ChatIsFriend}}
                   <form method="post" action="/account/messages" class="d-dm-compose-form">
                     <input type="hidden" name="return_profile" value="{{.Profile.Username}}">
                     <div class="d-form-row-2">
@@ -1510,6 +1496,19 @@
                       <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="height:54px;padding:0 18px !important">Send Message</button>
                     </div>
                   </form>
+                  {{else}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(47,123,255,0.12);border-top:1px solid rgba(47,123,255,0.4)">
+                    <div>
+                      <strong style="color:#fff;font-size:14px">Add @{{.ChatWith}} as a Friend to Text Them</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">You must add a user as a friend/contact before sending direct messages.</div>
+                    </div>
+                    <form method="post" action="/account/friends" style="margin:0;display:flex;gap:8px;align-items:center">
+                      <input type="hidden" name="action" value="add">
+                      <input type="text" name="target" value="{{.ChatWith}}" class="d-input" placeholder="@username" style="width:150px;margin:0" required>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">+ Add Friend to Text</button>
+                    </form>
+                  </div>
+                  {{end}}
                   {{else}}
                   <div class="d-dm-compose-form" style="text-align:center">
                     <a href="/login?next=/u/{{.Profile.Username}}?tab=messages" class="d-btn d-btn-primary d-btn-theme">Log In to Send a Direct Message</a>
@@ -1736,9 +1735,9 @@
                     </li>
                     {{end}}
                     <li class="d-summary-user-row">
-                      <img src="/avatars/u/Cravenz/48.png" alt="Cravenz" width="36" height="36" class="avatar">
+                      <img src="/avatars/u/nta~/48.png" alt="nta~" width="36" height="36" class="avatar">
                       <div>
-                        <a href="/u/Cravenz"><strong>Cravenz</strong> <span class="d-muted">NSM Founder</span></a>
+                        <a href="/u/nta~"><strong>nta~</strong> <span class="d-muted">NSM Founder</span></a>
                         <div class="d-muted"><span class="d-icon-heart">&#10084;</span> {{.LikesReceived}}</div>
                       </div>
                     </li>

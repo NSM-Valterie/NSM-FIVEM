@@ -1,36 +1,219 @@
 {{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>Staff, Partner &amp; User Management</h1>
-    <p class="lead">Assign roles and grant the official <strong>Partnered Server Owner</strong> badge: <strong>user</strong>, <strong>partner</strong> (Partnered Server Owner), <strong>staff</strong> (can grant Partner &amp; moderate), <strong>admin</strong>, <strong>owner</strong>.</p>
-    <div class="fx">
-      {{range .Users}}
-      <div class="c-lg-4 c-md-6 c-xs-12">
-        <article class="a1">
-          <h2>{{.EffectiveDisplayName}} <span class="muted">(@{{.Username}} &middot; #{{.ID}})</span></h2>
-          <span class="txt">
-            Role: <strong>{{.Role}}</strong>
-            {{if .HasPartnerBadge}} &middot; <strong style="color:#a855f7">Partnered</strong>{{end}}
-            {{if .HasPulse}} &middot; <strong style="color:#ec4899">{{.EffectivePulseTierLabel}}</strong>{{end}}
-          </span>
-          <form method="POST" action="/admin/users/{{.ID}}/role" class="btnpadder" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select name="role" style="width:auto;display:inline-block">
-              <option value="user" {{if eq .Role "user"}}selected{{end}}>user</option>
-              <option value="partner" {{if eq .Role "partner"}}selected{{end}}>partner</option>
-              <option value="staff" {{if eq .Role "staff"}}selected{{end}}>staff</option>
-              <option value="admin" {{if eq .Role "admin"}}selected{{end}}>admin</option>
-              <option value="owner" {{if eq .Role "owner"}}selected{{end}}>owner</option>
-            </select>
-            <button class="btn btn-accent" style="width:auto;display:inline-block">SET ROLE</button>
-          </form>
-          <form method="POST" action="/admin/users/{{.ID}}/partner" style="margin-top:8px">
-            <input type="hidden" name="return_to" value="/admin/users">
-            <button class="btn" style="width:100%">{{if .IsPartner}}Revoke Partner Badge{{else}}Grant Partner Role &amp; Badge{{end}}</button>
-          </form>
-        </article>
+<section class="staff-panel-section" style="max-width:1440px;margin:0 auto;padding:2.5rem 2rem 4rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:1.75rem">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:999px;background:rgba(47,123,255,0.16);border:1px solid rgba(47,123,255,0.42);color:#60a5fa;font-size:0.76rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">
+        🛡️ AFX Trust &amp; Safety Administration
       </div>
-      {{end}}
+      <h1 style="margin:0;font-size:2rem;font-weight:800;letter-spacing:-0.02em">Staff Control Panel</h1>
+      <p class="muted" style="margin:4px 0 0;font-size:0.94rem">Manage community accounts, assign Staff &amp; Partner roles, enforce account bans, and respond to Support Requests.</p>
     </div>
-  </div></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a class="btn ghost sm" href="/support">Support Center</a>
+      <a class="btn ghost sm" href="/forum">AFX Forum</a>
+      <a class="btn ghost sm" href="/u">Users Directory</a>
+      {{if .User}}<a class="btn primary sm" href="/u/{{.User.Username}}">My Profile (@{{.User.Username}})</a>{{end}}
+    </div>
+  </div>
+
+  {{if .Msg}}
+  <div style="margin-bottom:1.25rem;padding:12px 16px;border-radius:10px;background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.45);color:#a7f3d0;font-weight:600">
+    ✓ {{.Msg}}
+  </div>
+  {{end}}
+  {{if .Error}}
+  <div style="margin-bottom:1.25rem;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.16);border:1px solid rgba(239,68,68,0.45);color:#fecaca;font-weight:600">
+    ⚠️ {{.Error}}
+  </div>
+  {{end}}
+
+  <!-- Staff Overview KPI Cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:2rem">
+    <div class="fcard" style="padding:1.25rem 1.5rem;border-left:4px solid #2F7BFF">
+      <div class="muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Total Accounts</div>
+      <div style="font-size:2rem;font-weight:800;color:#fff;margin-top:4px">{{.TotalUsers}}</div>
+    </div>
+    <div class="fcard" style="padding:1.25rem 1.5rem;border-left:4px solid #38bdf8">
+      <div class="muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Staff &amp; Admins</div>
+      <div style="font-size:2rem;font-weight:800;color:#38bdf8;margin-top:4px">{{.StaffCount}}</div>
+    </div>
+    <div class="fcard" style="padding:1.25rem 1.5rem;border-left:4px solid #a855f7">
+      <div class="muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Partnered Creators</div>
+      <div style="font-size:2rem;font-weight:800;color:#c084fc;margin-top:4px">{{.PartnerCnt}}</div>
+    </div>
+    <div class="fcard" style="padding:1.25rem 1.5rem;border-left:4px solid #ef4444">
+      <div class="muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Banned Accounts</div>
+      <div style="font-size:2rem;font-weight:800;color:#f87171;margin-top:4px">{{.BannedCount}}</div>
+    </div>
+    <div class="fcard" style="padding:1.25rem 1.5rem;border-left:4px solid #10b981">
+      <div class="muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Open Support Tickets</div>
+      <div style="font-size:2rem;font-weight:800;color:#34d399;margin-top:4px">{{.OpenTickets}}</div>
+    </div>
+  </div>
+
+  <!-- Accounts & Moderation Table -->
+  <div class="fcard" style="padding:1.5rem;margin-bottom:2rem;overflow-x:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0;font-size:1.25rem">User Accounts, Roles &amp; Ban Management</h2>
+        <p class="muted" style="margin:3px 0 0;font-size:0.85rem">Assign roles, grant Partner badges, and ban or unban accounts across the NSM platform.</p>
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;min-width:960px">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em">
+          <th style="padding:10px 12px">ID</th>
+          <th style="padding:10px 12px">User</th>
+          <th style="padding:10px 12px">Email &amp; Security</th>
+          <th style="padding:10px 12px">Role &amp; Badges</th>
+          <th style="padding:10px 12px">Account Status</th>
+          <th style="padding:10px 12px">Assign Role</th>
+          <th style="padding:10px 12px">Moderation / Ban</th>
+        </tr>
+      </thead>
+      <tbody>
+      {{range .Users}}
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.06);{{if .Banned}}background:rgba(239,68,68,0.06){{end}}">
+          <td style="padding:14px 12px;font-family:var(--mono);color:#94a3b8">#{{.ID}}</td>
+          <td style="padding:14px 12px">
+            <a href="/u/{{.Username}}" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#fff;font-weight:700">
+              <img src="{{.AvatarPath}}" alt="{{.Username}}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid rgba(47,123,255,0.45)">
+              <div>
+                <div>{{.EffectiveDisplayName}} <span class="muted" style="font-weight:400">@{{.Username}}</span></div>
+                <div class="muted" style="font-size:0.76rem;font-weight:500">{{.EffectiveTitle}}</div>
+              </div>
+            </a>
+          </td>
+          <td style="padding:14px 12px;font-size:0.84rem">
+            <div style="color:#e2e8f0">{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</div>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+              {{if .EmailVerified}}
+                <span style="padding:2px 7px;border-radius:4px;background:rgba(16,185,129,0.16);color:#6ee7b7;font-size:0.7rem;font-weight:700">✓ Email Verified</span>
+              {{else}}
+                <span style="padding:2px 7px;border-radius:4px;background:rgba(245,158,11,0.16);color:#fcd34d;font-size:0.7rem;font-weight:700">Unverified Email</span>
+              {{end}}
+              {{if .TwoFactorEnabled}}
+                <span style="padding:2px 7px;border-radius:4px;background:rgba(56,189,248,0.16);color:#7dd3fc;font-size:0.7rem;font-weight:700">🔒 2FA On</span>
+              {{end}}
+            </div>
+          </td>
+          <td style="padding:14px 12px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span class="role-badge role-{{.Role}}">{{.Role}}</span>
+              {{if .HasPartnerBadge}}
+                <span style="padding:2px 8px;border-radius:999px;background:rgba(168,85,247,0.2);border:1px solid rgba(168,85,247,0.5);color:#d8b4fe;font-size:0.72rem;font-weight:700">∞ Partner</span>
+              {{end}}
+            </div>
+          </td>
+          <td style="padding:14px 12px">
+            {{if .Banned}}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;font-size:0.76rem;font-weight:700">🚫 BANNED</span>
+              {{if .BanReason}}<div class="muted" style="font-size:0.75rem;margin-top:4px;max-width:220px">Reason: {{.BanReason}}</div>{{end}}
+            {{else}}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#6ee7b7;font-size:0.76rem;font-weight:700">● Active</span>
+            {{end}}
+          </td>
+          <td style="padding:14px 12px">
+            {{if eq .Role "owner"}}
+              <span class="muted" style="font-size:.82rem;font-weight:600">Founder / Owner (locked)</span>
+            {{else}}
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <form method="post" action="/admin/users/{{.ID}}/role" style="display:inline-flex;gap:.35rem;align-items:center">
+                  <select class="finput" name="role" style="width:auto;padding:.32rem .55rem;font-size:0.82rem;margin:0">
+                    <option value="user" {{if eq .Role "user"}}selected{{end}}>user</option>
+                    <option value="partner" {{if eq .Role "partner"}}selected{{end}}>partner</option>
+                    <option value="staff" {{if eq .Role "staff"}}selected{{end}}>staff</option>
+                    <option value="admin" {{if eq .Role "admin"}}selected{{end}}>admin</option>
+                  </select>
+                  <button class="btn sm primary" type="submit">Save Role</button>
+                </form>
+                <form method="post" action="/admin/users/{{.ID}}/partner" style="display:inline">
+                  <input type="hidden" name="return_to" value="/admin/users">
+                  <button class="btn sm ghost" type="submit" title="Toggle Partnered Server Owner Badge">
+                    {{if .IsPartner}}Revoke Partner{{else}}+ Partner{{end}}
+                  </button>
+                </form>
+              </div>
+            {{end}}
+          </td>
+          <td style="padding:14px 12px">
+            {{if eq .Role "owner"}}
+              <span class="muted" style="font-size:0.8rem">Protected</span>
+            {{else if .Banned}}
+              <form method="post" action="/admin/users/{{.ID}}/ban" style="display:inline-flex;gap:6px;align-items:center">
+                <input type="hidden" name="action" value="unban">
+                <button class="btn sm" type="submit" style="background:rgba(16,185,129,0.22);border:1px solid rgba(16,185,129,0.55);color:#a7f3d0;font-weight:700">Unban Account</button>
+              </form>
+            {{else}}
+              <form method="post" action="/admin/users/{{.ID}}/ban" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input type="hidden" name="action" value="ban">
+                <input class="finput" name="reason" placeholder="Ban reason..." style="width:155px;padding:.32rem .55rem;font-size:0.8rem;margin:0">
+                <button class="btn sm" type="submit" style="background:rgba(239,68,68,0.22);border:1px solid rgba(239,68,68,0.55);color:#fca5a5;font-weight:700">Ban User</button>
+              </form>
+            {{end}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Support Requests Queue in Staff Panel -->
+  <div class="fcard" style="padding:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0;font-size:1.25rem">Support Requests &amp; Player Reports Queue</h2>
+        <p class="muted" style="margin:3px 0 0;font-size:0.85rem">Click any ticket to inspect the requester's email, details, and post an official Staff / Owner reply.</p>
+      </div>
+      <a class="btn ghost sm" href="/support#submit-ticket">+ New Support Ticket</a>
+    </div>
+
+    {{if .Tickets}}
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em">
+          <th style="padding:10px 12px">Ticket ID</th>
+          <th style="padding:10px 12px">Subject</th>
+          <th style="padding:10px 12px">Requester &amp; Email</th>
+          <th style="padding:10px 12px">Category / Priority</th>
+          <th style="padding:10px 12px">Status</th>
+          <th style="padding:10px 12px">Updated</th>
+          <th style="padding:10px 12px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Tickets}}
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+          <td style="padding:12px;font-family:var(--mono);color:#60a5fa;font-weight:700">#{{.ID}}</td>
+          <td style="padding:12px">
+            <a href="/support/requests/{{.ID}}" style="color:#fff;font-weight:700;text-decoration:none">{{.Subject}}</a>
+            <div class="muted" style="font-size:0.76rem">{{.MessageCount}} message(s)</div>
+          </td>
+          <td style="padding:12px;font-size:0.85rem">
+            <div><strong>@{{.RequesterUsername}}</strong></div>
+            <div class="muted" style="font-size:0.78rem">{{.RequesterEmail}}</div>
+          </td>
+          <td style="padding:12px;font-size:0.82rem">
+            <div>{{.Category}}</div>
+            <span class="muted" style="font-size:0.75rem">Priority: {{.Priority}}</span>
+          </td>
+          <td style="padding:12px">
+            <span style="padding:3px 9px;border-radius:999px;font-size:0.74rem;font-weight:700;{{if eq .Status "Open"}}background:rgba(245,158,11,0.18);color:#fcd34d{{else if eq .Status "Answered"}}background:rgba(56,189,248,0.18);color:#7dd3fc{{else}}background:rgba(16,185,129,0.18);color:#6ee7b7{{end}}">
+              {{.Status}}
+            </span>
+          </td>
+          <td style="padding:12px;font-size:0.82rem;color:#94a3b8">{{.UpdatedStr}}</td>
+          <td style="padding:12px">
+            <a class="btn sm primary" href="/support/requests/{{.ID}}">Open &amp; Reply &rarr;</a>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="muted" style="margin:0;padding:1rem 0">No support requests have been submitted yet.</p>
+    {{end}}
+  </div>
 </section>
 {{template "foot" .}}
