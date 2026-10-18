@@ -1593,7 +1593,7 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 			}
 		}
 		for _, sk := range acc.ServerKeys {
-			if sk.OwnerUserID == targetCopy.ID && !sk.Revoked {
+			if sk.UserID == targetCopy.ID && !sk.Revoked {
 				serverKeyCount++
 			}
 		}
