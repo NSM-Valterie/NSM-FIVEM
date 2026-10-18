@@ -127,6 +127,14 @@ jobs:
               zsrc.write("/tmp/go-tests.txt", arcname="test-results/go-tests.txt")
               zsrc.write("/tmp/race-tests.txt", arcname="test-results/race-tests.txt")
 
+          with zipfile.ZipFile("/tmp/patched-ui.zip", "r") as zui:
+              assert zui.testzip() is None
+              ui_blob = b"".join(zui.read(n) for n in zui.namelist() if n.lower().endswith((".js", ".html")))
+              assert b"discord.gg/UXj5QfCX88" not in ui_blob
+              assert b'id="nsm-client-auth-poll"' in ui_blob
+              assert b"127.0.0.1/api/servers/streamRedir/" in ui_blob
+              assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
+
           dist_sums = []
           for asset in sorted(Path("/tmp/v078-dist").glob("*")):
               if asset.name != "SHA256SUMS.txt":
@@ -134,7 +142,6 @@ jobs:
           Path("/tmp/v078-dist/SHA256SUMS.txt").write_text("".join(dist_sums), encoding="utf-8")
           print("".join(dist_sums))
           EOF
-          node tools/local-stack/tests/ui-contract-check.js /tmp/patched-ui.zip
 
       - name: Upload release assets to nsm-v0.7.8-candidate
         env:
