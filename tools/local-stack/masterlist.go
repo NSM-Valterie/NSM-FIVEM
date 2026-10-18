@@ -818,7 +818,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			ip = override
-		} else if isPublicMode && configuredPublicIP != "" {
+		}
+		if isPublicMode && configuredPublicIP != "" {
 			if parsed := net.ParseIP(ip); parsed != nil && parsed.IsLoopback() {
 				ip = configuredPublicIP
 			}
@@ -1162,9 +1163,13 @@ func main() {
 		}
 	}
 
-	bind := flag.String("bind", "127.0.0.1", "bind IP address (127.0.0.1 for local-only, 0.0.0.0 for VPS/LAN/Cloudflare)")
+	defaultPubURL := os.Getenv("NSM_PUBLIC_URL")
+	if defaultPubURL == "" {
+		defaultPubURL = "https://nsmultiplayer.com"
+	}
+	bind := flag.String("bind", "0.0.0.0", "bind IP address (0.0.0.0 for VPS/Cloudflare/LAN, 127.0.0.1 for local-only)")
 	port := flag.Int("port", 80, "port to listen on")
-	pubURL := flag.String("public-url", os.Getenv("NSM_PUBLIC_URL"), "optional public base URL (e.g. https://nsmultiplayer.com)")
+	pubURL := flag.String("public-url", defaultPubURL, "optional public base URL (e.g. https://nsmultiplayer.com)")
 	pubIP := flag.String("public-ip", os.Getenv("NSM_PUBLIC_IP"), "optional public IPv4 for local server heartbeats")
 	owner := flag.String("owner-token", os.Getenv("OWNER_TOKEN"), "owner admin API bearer token")
 	oname := flag.String("owner-name", os.Getenv("OWNER_NAME"), "username that holds the owner role")

@@ -64,11 +64,13 @@ func recordWebsiteLoginForClientAuth(userID int64) {
 	lastWebLoginUserID = userID
 	lastWebLoginTime = time.Now()
 	var toAuthorize []*pendingAuthReq
-	for _, req := range pendingAuthByNonce {
-		if time.Since(req.CreatedAt) < 30*time.Minute {
-			req.AuthorizedBy = userID
-			req.PayloadB64 = "" // regenerate for this user
-			toAuthorize = append(toAuthorize, req)
+	if !isPublicMode {
+		for _, req := range pendingAuthByNonce {
+			if time.Since(req.CreatedAt) < 30*time.Minute {
+				req.AuthorizedBy = userID
+				req.PayloadB64 = "" // regenerate for this user
+				toAuthorize = append(toAuthorize, req)
+			}
 		}
 	}
 	clientAuthMu.Unlock()
@@ -221,6 +223,10 @@ func userFromClientRequest(r *http.Request) *User {
 		cp := *u
 		accMu.Unlock()
 		return &cp
+	}
+
+	if isPublicMode && !isLoopbackClient(r) {
+		return nil
 	}
 
 	// Loopback fallback: if a user recently signed in on the website or in-app session,
@@ -854,7 +860,7 @@ func apiClientAuthPoll(w http.ResponseWriter, r *http.Request) {
 			req.PublicKeyPEM = pubKey
 		}
 	}
-	if req.AuthorizedBy == 0 && lastWebLoginUserID != 0 && time.Since(lastWebLoginTime) < 15*time.Minute {
+	if !isPublicMode && req.AuthorizedBy == 0 && lastWebLoginUserID != 0 && time.Since(lastWebLoginTime) < 15*time.Minute {
 		req.AuthorizedBy = lastWebLoginUserID
 	}
 	authUserID := req.AuthorizedBy
@@ -1157,6 +1163,13 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	zw := zip.NewWriter(&out)
 	changed := false
 
+	targetBase := "http://127.0.0.1"
+	if configuredPublicURL != "" {
+		targetBase = configuredPublicURL
+	}
+	pollSnippet := strings.ReplaceAll(uiClientAuthPollSnippet, "http://127.0.0.1", targetBase)
+	headInterceptor := strings.ReplaceAll(uiDiscourseHeadInterceptor, "http://127.0.0.1", targetBase)
+
 	emailRegexVariants := [][]byte{
 		[]byte(`/^[a-zA-Z0-9!#\$%&'*+\/=?\^_` + "`" + `{|}~\-]+(?:\.[a-zA-Z0-9!#\$%&'\*+\/=?\^_` + "`" + `{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/`),
 		[]byte(`/^[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~\-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/`),
@@ -1182,12 +1195,16 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			body = bytes.ReplaceAll(body,
 				[]byte("init({dsn:`http://127.0.0.1/sentry-ingest`,tracesSampleRate:.05"),
 				[]byte("init({enabled:!1,dsn:void 0,tracesSampleRate:0"))
-			// Point all Discord invite & forum replacements inside the UI bundle to the local NSM website
-			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88/terms"), []byte("http://127.0.0.1/docs"))
-			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88"), []byte("http://127.0.0.1"))
-			body = bytes.ReplaceAll(body, []byte("https://forum.cfx.re"), []byte("http://127.0.0.1"))
-			body = bytes.ReplaceAll(body, []byte("https://portal.cfx.re"), []byte("http://127.0.0.1/keymaster"))
-			// Allow typing a username (e.g. "Cravenz") as well as an email in NSM.exe's in-app login input
+			// Point all Discord invite & forum replacements inside the UI bundle to the NSM website
+			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88/terms"), []byte(targetBase+"/docs"))
+			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88"), []byte(targetBase))
+			body = bytes.ReplaceAll(body, []byte("https://forum.cfx.re"), []byte(targetBase))
+			body = bytes.ReplaceAll(body, []byte("https://portal.cfx.re"), []byte(targetBase+"/keymaster"))
+			if targetBase != "http://127.0.0.1" {
+				body = bytes.ReplaceAll(body, []byte("http://127.0.0.1:80"), []byte(targetBase))
+				body = bytes.ReplaceAll(body, []byte("http://127.0.0.1"), []byte(targetBase))
+			}
+			// Allow typing a username (e.g. "nta~") as well as an email in NSM.exe's in-app login input
 			for _, pat := range emailRegexVariants {
 				body = bytes.ReplaceAll(body, pat, []byte(`/^[^\s]{2,}$/`))
 			}
@@ -1203,15 +1220,15 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 
 				if lower == "app/index.html" || lower == "index.html" {
 					if bytes.Contains(body, []byte("<head>")) {
-						body = bytes.Replace(body, []byte("<head>"), []byte("<head>"+uiDiscourseHeadInterceptor), 1)
+						body = bytes.Replace(body, []byte("<head>"), []byte("<head>"+headInterceptor), 1)
 					} else {
-						body = append([]byte(uiDiscourseHeadInterceptor), body...)
+						body = append([]byte(headInterceptor), body...)
 					}
 
 					if bytes.Contains(body, []byte("</body>")) {
-						body = bytes.Replace(body, []byte("</body>"), []byte(uiClientAuthPollSnippet+"</body>"), 1)
+						body = bytes.Replace(body, []byte("</body>"), []byte(pollSnippet+"</body>"), 1)
 					} else {
-						body = append(body, []byte(uiClientAuthPollSnippet)...)
+						body = append(body, []byte(pollSnippet)...)
 					}
 				}
 			}
