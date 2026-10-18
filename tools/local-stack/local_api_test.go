@@ -925,8 +925,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	// 15. Verify Staff user can grant Partner role & Partnered Server Owner badge to any user
 	staffSess := registerTestUser(t, h, "mod_staff")
 	accMu.Lock()
-	staffUser := userByUsername("mod_staff")
-	targetUser := userByUsername("theme_tester")
+	staffUser := findUser("mod_staff")
+	targetUser := findUser("theme_tester")
 	if staffUser == nil || targetUser == nil {
 		accMu.Unlock()
 		t.Fatalf("expected mod_staff and theme_tester users to exist")
