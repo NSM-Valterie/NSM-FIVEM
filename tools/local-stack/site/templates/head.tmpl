@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&family=Rubik:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Material+Icons+Outlined&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078h">
 </head>
 <body>
 
@@ -17,12 +17,12 @@
   <div class="wrap client-auth-banner-inner">
     <div style="display:flex;align-items:center;gap:10px">
       <span class="pulse-dot"></span>
-      <span><strong>NSM.exe Desktop Client is waiting to sign in!</strong> {{if .User}}Click Authorize to connect your <strong>@{{.User.Username}}</strong> account inside NSM.exe.{{else}}Sign in to connect your account inside NSM.exe.{{end}}</span>
+      <span><strong>NSM.exe Desktop Client is waiting to sign in!</strong> {{if .User}}Click Authorize to connect your <strong>{{.User.EffectiveDisplayName}} (@{{.User.Username}})</strong> account inside NSM.exe.{{else}}Sign in to connect your account inside NSM.exe.{{end}}</span>
     </div>
     <div>
       {{if .User}}
       <form method="post" action="/account/connect-client" style="display:inline">
-        <button type="submit" class="btn primary">Authorize NSM.exe as @{{.User.Username}}</button>
+        <button type="submit" class="btn primary">Authorize NSM.exe as {{.User.EffectiveDisplayName}}</button>
       </form>
       {{else}}
       <a href="/user-api-key/new" class="btn primary">Sign In for NSM.exe</a>
@@ -52,7 +52,7 @@
       <li><a href="/admin/users" class="{{if eq .Page "/admin/users"}}active{{end}}">Staff</a></li>
       {{end}}
       {{if .User}}
-      <li><a href="/u/{{.User.Username}}" class="{{if eq .Page "/u"}}active{{end}}">@{{.User.Username}}</a></li>
+      <li><a href="/u/{{.User.Username}}" class="{{if eq .Page "/u"}}active{{end}}">{{.User.EffectiveDisplayName}}</a></li>
       <li><a href="/account" class="{{if eq .Page "/account"}}active{{end}}">Account</a></li>
       <li><a href="/logout">Log out</a></li>
       {{else}}

@@ -452,19 +452,83 @@ func postsByUser(username string) []map[string]interface{} {
 	}
 	var out []map[string]interface{}
 	for _, t := range forum.Topics {
+		cat := categoryBySlug(t.CategorySlug)
 		for _, p := range t.Posts {
 			if strings.EqualFold(p.AuthorUsername, username) {
 				excerpt := p.Content
-				if len(excerpt) > 180 {
-					excerpt = excerpt[:180] + "..."
+				if len(excerpt) > 220 {
+					excerpt = excerpt[:220] + "..."
 				}
 				out = append(out, map[string]interface{}{
-					"TopicID":    t.ID,
-					"TopicTitle": t.Title,
-					"PostNumber": p.PostNumber,
-					"Excerpt":    excerpt,
-					"CreatedAt":  time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
-					"Likes":      len(p.Likes),
+					"TopicID":       t.ID,
+					"TopicTitle":    t.Title,
+					"TopicSlug":     t.Slug,
+					"CategoryName":  cat.Name,
+					"CategorySlug":  cat.Slug,
+					"CategoryColor": cat.Color,
+					"Tags":          t.Tags,
+					"PostID":        p.ID,
+					"PostNumber":    p.PostNumber,
+					"IsReply":       p.PostNumber > 1,
+					"Content":       p.Content,
+					"Paragraphs":    strings.Split(p.Content, "\n"),
+					"Excerpt":       excerpt,
+					"CreatedAt":     time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+					"RelativeStr":   formatRelativeTime(p.CreatedAt),
+					"CreatedAtUnix": p.CreatedAt,
+					"Likes":         len(p.Likes),
+				})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ti, _ := out[i]["CreatedAtUnix"].(int64)
+		tj, _ := out[j]["CreatedAtUnix"].(int64)
+		return ti > tj
+	})
+	return out
+}
+
+func likedPostsForProfile(username string) []map[string]interface{} {
+	forumMu.Lock()
+	defer forumMu.Unlock()
+	if forum == nil {
+		return nil
+	}
+	var out []map[string]interface{}
+	for _, t := range forum.Topics {
+		cat := categoryBySlug(t.CategorySlug)
+		for _, p := range t.Posts {
+			likedByTarget := false
+			for _, lu := range p.Likes {
+				if strings.EqualFold(lu, username) {
+					likedByTarget = true
+					break
+				}
+			}
+			isAuthorWithLikes := strings.EqualFold(p.AuthorUsername, username) && len(p.Likes) > 0
+			if likedByTarget || isAuthorWithLikes {
+				excerpt := p.Content
+				if len(excerpt) > 200 {
+					excerpt = excerpt[:200] + "..."
+				}
+				actionLabel := "Liked by @" + username
+				if isAuthorWithLikes && !likedByTarget {
+					actionLabel = "Liked by " + strings.Join(p.Likes, ", ")
+				}
+				out = append(out, map[string]interface{}{
+					"TopicID":        t.ID,
+					"TopicTitle":     t.Title,
+					"CategoryName":   cat.Name,
+					"CategorySlug":   cat.Slug,
+					"CategoryColor":  cat.Color,
+					"PostNumber":     p.PostNumber,
+					"AuthorUsername": p.AuthorUsername,
+					"Excerpt":        excerpt,
+					"CreatedAt":      time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+					"RelativeStr":    formatRelativeTime(p.CreatedAt),
+					"Likes":          len(p.Likes),
+					"ActionLabel":    actionLabel,
 				})
 			}
 		}

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078h">
 </head>
 <body class="dc-ember-body users-page">
   <header class="d-header">
@@ -38,9 +38,9 @@
         </form>
 
         {{if .User}}
-        <a href="/u/{{.User.Username}}" class="d-header-user" title="@{{.User.Username}}">
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
-          <span class="d-header-username">{{.User.Username}}</span>
+          <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
         </a>
         {{else}}
         <a href="/register?next=/u" class="d-btn d-btn-primary">Sign Up</a>
@@ -138,12 +138,12 @@
               <td class="topic-list-data">
                 <div class="d-user-dir-cell">
                   <a href="/u/{{.User.Username}}">
-                    <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" width="45" height="45" class="avatar" style="border-radius:50%">
+                    <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" width="45" height="45" class="avatar" style="{{.User.AvatarRingStyleAttr}}">
                   </a>
                   <div class="d-user-dir-info">
                     <div class="d-user-dir-name">
-                      <a href="/u/{{.User.Username}}"><strong>{{.User.Username}}</strong></a>
-                      <span class="d-muted">{{.User.EffectiveDisplayName}}</span>
+                      <a href="/u/{{.User.Username}}"><strong>{{.User.EffectiveDisplayName}}</strong></a>
+                      <span class="d-muted">@{{.User.Username}}</span>
                       <span class="d-role-tag role-{{.User.Role}}">{{.User.Role}}</span>
                     </div>
                     <div class="d-user-dir-title">{{.User.EffectiveTitle}}</div>

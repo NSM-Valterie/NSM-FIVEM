@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078h">
 </head>
 <body class="dc-ember-body navigation-categories">
   <!-- Discourse d-header (1:1 forum.cfx.re header) -->
@@ -40,9 +40,9 @@
         </form>
 
         {{if .User}}
-        <a href="/u/{{.User.Username}}" class="d-header-user" title="Profile: @{{.User.Username}}">
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="Profile: {{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
-          <span class="d-header-username">{{.User.Username}}</span>
+          <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
         </a>
         <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat" title="Edit Profile, Discord & GitHub">Preferences</a>
         <a href="/logout" class="d-btn d-btn-flat" title="Sign Out">Log Out</a>

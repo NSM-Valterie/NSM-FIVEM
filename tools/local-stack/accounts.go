@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"image"
 	"image/color"
 	"image/draw"
@@ -37,6 +39,8 @@ type User struct {
 	AvatarColor    string `json:"avatarColor,omitempty"`
 	BannerColor    string `json:"bannerColor,omitempty"`
 	BannerURL      string `json:"bannerUrl,omitempty"`
+	ThemePrimary   string `json:"themePrimary,omitempty"`
+	ThemeAccent    string `json:"themeAccent,omitempty"`
 	Location       string `json:"location,omitempty"`
 	Website        string `json:"website,omitempty"`
 	DiscordTag     string `json:"discordTag,omitempty"`
@@ -150,8 +154,35 @@ func (u *User) EffectiveTitle() string {
 	}
 }
 
+func isValidHexColor(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for i := 1; i < 7; i++ {
+		c := s[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+func hexToRGBString(hexStr string, defR, defG, defB int) string {
+	defaultStr := strconv.Itoa(defR) + ", " + strconv.Itoa(defG) + ", " + strconv.Itoa(defB)
+	if !isValidHexColor(hexStr) {
+		return defaultStr
+	}
+	r, err1 := strconv.ParseInt(hexStr[1:3], 16, 32)
+	g, err2 := strconv.ParseInt(hexStr[3:5], 16, 32)
+	b, err3 := strconv.ParseInt(hexStr[5:7], 16, 32)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return defaultStr
+	}
+	return strconv.FormatInt(r, 10) + ", " + strconv.FormatInt(g, 10) + ", " + strconv.FormatInt(b, 10)
+}
+
 func (u *User) EffectiveAvatarColor() string {
-	if u != nil && strings.HasPrefix(u.AvatarColor, "#") && len(u.AvatarColor) == 7 {
+	if u != nil && isValidHexColor(u.AvatarColor) {
 		return u.AvatarColor
 	}
 	palette := []string{"#2F7BFF", "#07baae", "#e7064f", "#8b5cf6", "#f59e0b", "#10b981"}
@@ -162,10 +193,72 @@ func (u *User) EffectiveAvatarColor() string {
 }
 
 func (u *User) EffectiveBannerColor() string {
-	if u != nil && strings.HasPrefix(u.BannerColor, "#") && len(u.BannerColor) == 7 {
+	if u != nil && isValidHexColor(u.BannerColor) {
 		return u.BannerColor
 	}
+	if u != nil && isValidHexColor(u.ThemePrimary) {
+		return u.ThemePrimary
+	}
 	return "#1e293b"
+}
+
+func (u *User) EffectiveThemePrimary() string {
+	if u != nil && isValidHexColor(u.ThemePrimary) {
+		return u.ThemePrimary
+	}
+	if u != nil && isValidHexColor(u.BannerColor) {
+		return u.BannerColor
+	}
+	return "#1d3557"
+}
+
+func (u *User) EffectiveThemeAccent() string {
+	if u != nil && isValidHexColor(u.ThemeAccent) {
+		return u.ThemeAccent
+	}
+	if u != nil && isValidHexColor(u.AvatarColor) {
+		return u.AvatarColor
+	}
+	return "#2F7BFF"
+}
+
+func (u *User) ThemePrimaryRGB() string {
+	return hexToRGBString(u.EffectiveThemePrimary(), 29, 53, 87)
+}
+
+func (u *User) ThemeAccentRGB() string {
+	return hexToRGBString(u.EffectiveThemeAccent(), 47, 123, 255)
+}
+
+func (u *User) BannerColorRGB() string {
+	return hexToRGBString(u.EffectiveBannerColor(), 30, 41, 59)
+}
+
+func (u *User) AvatarColorRGB() string {
+	return hexToRGBString(u.EffectiveAvatarColor(), 47, 123, 255)
+}
+
+func (u *User) ThemeStyleAttr() template.CSS {
+	return template.CSS(
+		"--prof-primary: " + u.EffectiveThemePrimary() +
+			"; --prof-accent: " + u.EffectiveThemeAccent() +
+			"; --prof-primary-rgb: " + u.ThemePrimaryRGB() +
+			"; --prof-accent-rgb: " + u.ThemeAccentRGB() +
+			"; --prof-banner: " + u.EffectiveBannerColor() +
+			"; --prof-avatar: " + u.EffectiveAvatarColor() + ";",
+	)
+}
+
+func (u *User) BannerStyleAttr() template.CSS {
+	base := "background: linear-gradient(135deg, var(--prof-banner) 0%, var(--prof-primary) 52%, var(--prof-accent) 100%), url('/img/nsm-backdrop.png') center/256px repeat;"
+	if u != nil && u.BannerURL != "" && !strings.ContainsAny(u.BannerURL, `"'<>()\`) {
+		base += "background-image: linear-gradient(180deg, rgba(17,19,23,0.20), rgba(17,19,23,0.88)), url('" + u.BannerURL + "');background-size:cover;"
+	}
+	return template.CSS(base)
+}
+
+func (u *User) AvatarRingStyleAttr() template.CSS {
+	return template.CSS("border-radius:50%;border:2px solid " + u.EffectiveThemePrimary() + ";")
 }
 
 func (u *User) AvatarPath() string {
@@ -286,9 +379,13 @@ func saveAccountsLocked() {
 	tmp := accPath + ".tmp"
 	if err := os.WriteFile(tmp, b, 0600); err != nil {
 		log.Printf("accounts save error: %v", err)
+		_ = os.WriteFile(accPath, b, 0600)
 		return
 	}
-	os.Rename(tmp, accPath)
+	if err := os.Rename(tmp, accPath); err != nil {
+		_ = os.WriteFile(accPath, b, 0600)
+		_ = os.Remove(tmp)
+	}
 }
 
 func findUser(name string) *User {
@@ -694,6 +791,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		return ""
 	}
+	newUsername := firstNonEmpty("new_username", "username")
 	displayName := firstNonEmpty("display_name", "displayName")
 	title := firstNonEmpty("title")
 	bio := firstNonEmpty("bio")
@@ -702,6 +800,8 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	avatarColor := firstNonEmpty("avatar_color", "avatarColor")
 	bannerColor := firstNonEmpty("banner_color", "bannerColor")
 	bannerURL := firstNonEmpty("banner_url", "bannerUrl")
+	themePrimary := firstNonEmpty("theme_primary", "themePrimary")
+	themeAccent := firstNonEmpty("theme_accent", "themeAccent")
 	location := firstNonEmpty("location")
 	website := firstNonEmpty("website")
 	discordTag := firstNonEmpty("discord_tag", "discordTag", "discord")
@@ -755,6 +855,18 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+	var oldUsername, updatedUsername string
+	if newUsername != "" && newUsername != target.Username && usernameRe.MatchString(newUsername) {
+		existing := findUser(newUsername)
+		if existing == nil || existing.ID == target.ID {
+			oldUsername = target.Username
+			updatedUsername = newUsername
+			if strings.EqualFold(target.Username, ownerName) {
+				ownerName = newUsername
+			}
+			target.Username = newUsername
+		}
+	}
 	target.DisplayName = displayName
 	target.Title = title
 	target.Bio = bio
@@ -772,11 +884,26 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			target.AvatarURL = avatarURL
 		}
 	}
-	if strings.HasPrefix(avatarColor, "#") && len(avatarColor) == 7 {
+	if isValidHexColor(avatarColor) {
 		target.AvatarColor = avatarColor
+		if !isValidHexColor(themeAccent) && target.ThemeAccent == "" {
+			target.ThemeAccent = avatarColor
+		}
 	}
-	if strings.HasPrefix(bannerColor, "#") && len(bannerColor) == 7 {
+	if isValidHexColor(bannerColor) {
 		target.BannerColor = bannerColor
+		if !isValidHexColor(themePrimary) && target.ThemePrimary == "" {
+			target.ThemePrimary = bannerColor
+		}
+	}
+	if isValidHexColor(themePrimary) {
+		target.ThemePrimary = themePrimary
+		if !isValidHexColor(bannerColor) {
+			target.BannerColor = themePrimary
+		}
+	}
+	if isValidHexColor(themeAccent) {
+		target.ThemeAccent = themeAccent
 	}
 	target.BannerURL = bannerURL
 	target.Location = location
@@ -806,11 +933,44 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	saveAccountsLocked()
 	accMu.Unlock()
 
+	if oldUsername != "" && updatedUsername != "" {
+		forumMu.Lock()
+		if forum != nil {
+			changedForum := false
+			for ti := range forum.Topics {
+				if strings.EqualFold(forum.Topics[ti].AuthorUsername, oldUsername) {
+					forum.Topics[ti].AuthorUsername = updatedUsername
+					changedForum = true
+				}
+				for pi := range forum.Topics[ti].Posts {
+					if strings.EqualFold(forum.Topics[ti].Posts[pi].AuthorUsername, oldUsername) {
+						forum.Topics[ti].Posts[pi].AuthorUsername = updatedUsername
+						changedForum = true
+					}
+					for li := range forum.Topics[ti].Posts[pi].Likes {
+						if strings.EqualFold(forum.Topics[ti].Posts[pi].Likes[li], oldUsername) {
+							forum.Topics[ti].Posts[pi].Likes[li] = updatedUsername
+							changedForum = true
+						}
+					}
+				}
+			}
+			if changedForum {
+				saveForumLocked()
+			}
+		}
+		forumMu.Unlock()
+	}
+
 	if wantsJSONResponse(r) {
 		sendAccountJSON(w, true, "", &userCopy)
 		return
 	}
-	renderAccountPageWithMsg(w, r, &userCopy, "Your profile, social links (Discord, GitHub, Steam), and preferences have been saved and synced with NSM.", "")
+	returnTab := strings.ToLower(strings.TrimSpace(r.FormValue("return_tab")))
+	if returnTab == "" {
+		returnTab = "summary"
+	}
+	http.Redirect(w, r, "/u/"+url.PathEscape(userCopy.Username)+"?tab="+url.QueryEscape(returnTab)+"&saved=1", http.StatusSeeOther)
 }
 
 func renderAccountPageWithMsg(w http.ResponseWriter, r *http.Request, u *User, msg, errMsg string) {
@@ -1102,6 +1262,143 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		})
 	}
 
+	var enrichedTopics []map[string]interface{}
+	for _, t := range userTopics {
+		enrichedTopics = append(enrichedTopics, enrichTopicView(t))
+	}
+
+	var replyPosts []map[string]interface{}
+	var solvedPosts []map[string]interface{}
+	for _, p := range userPosts {
+		if isRep, ok := p["IsReply"].(bool); ok && isRep {
+			replyPosts = append(replyPosts, p)
+		}
+		catSlug, _ := p["CategorySlug"].(string)
+		if catSlug == "support" || catSlug == "server-dev" || catSlug == "releases" {
+			solvedPosts = append(solvedPosts, p)
+		}
+	}
+	if len(replyPosts) == 0 {
+		replyPosts = userPosts
+	}
+	if len(solvedPosts) == 0 {
+		solvedPosts = userPosts
+	}
+
+	likedPosts := likedPostsForProfile(targetCopy.Username)
+	readTopics := recentForumTopics(10)
+
+	var notifications []map[string]interface{}
+	for _, lp := range likedPosts {
+		if len(notifications) >= 4 {
+			break
+		}
+		notifications = append(notifications, map[string]interface{}{
+			"Kind":        "liked",
+			"Type":        "liked",
+			"Unread":      true,
+			"Icon":        "heart",
+			"Color":       "#fa6c8d",
+			"Title":       fmt.Sprintf("%v", lp["TopicTitle"]),
+			"Excerpt":     fmt.Sprintf("%v", lp["ActionLabel"]),
+			"Subtitle":    fmt.Sprintf("%v", lp["ActionLabel"]),
+			"URL":         fmt.Sprintf("/forum/t/%v#post-%v", lp["TopicID"], lp["PostNumber"]),
+			"RelativeStr": fmt.Sprintf("%v", lp["RelativeStr"]),
+			"TimeStr":     fmt.Sprintf("%v", lp["RelativeStr"]),
+		})
+	}
+	for _, b := range badges {
+		if len(notifications) >= 8 {
+			break
+		}
+		notifications = append(notifications, map[string]interface{}{
+			"Kind":        "badge",
+			"Type":        "badge",
+			"Unread":      false,
+			"Icon":        "award",
+			"Color":       b["Color"],
+			"Title":       "Earned '" + b["Name"] + "' Badge",
+			"Excerpt":     b["Desc"],
+			"Subtitle":    b["Desc"],
+			"URL":         "/u/" + url.PathEscape(targetCopy.Username) + "?tab=badges",
+			"RelativeStr": joinedStr,
+			"TimeStr":     joinedStr,
+		})
+	}
+	notifications = append(notifications, map[string]interface{}{
+		"Kind":        "system",
+		"Type":        "system",
+		"Unread":      false,
+		"Icon":        "shield",
+		"Color":       targetCopy.EffectiveThemeAccent(),
+		"Title":       "Welcome to AFX Forum & NSM Platform",
+		"Excerpt":     "Your NSM account, custom Discord-style profile layout, and social connections are active.",
+		"Subtitle":    "Your NSM account, custom Discord-style profile layout, and social connections are active.",
+		"URL":         "/forum/t/1",
+		"RelativeStr": joinedStr,
+		"TimeStr":     joinedStr,
+	})
+
+	messages := []map[string]interface{}{
+		{
+			"ID":           1,
+			"Title":        "Welcome to AFX Forum & NSM Account Sync",
+			"Subject":      "Welcome to AFX Forum & NSM Account Sync",
+			"Sender":       "AFX System",
+			"SenderAvatar": "/img/nsm-icon.png",
+			"Excerpt":      "Greetings @" + targetCopy.Username + "! Your profile is synced with NSM.exe, AFX Portal (/keymaster), and the AFX Forum. You can customize your Discord-style profile theme colors and social links anytime in Preferences.",
+			"RelativeStr":  joinedStr,
+			"TimeStr":      joinedStr,
+			"URL":          "/forum/t/1",
+		},
+		{
+			"ID":           2,
+			"Title":        "AFX Portal Server Key & OneSync Setup Guide",
+			"Subject":      "AFX Portal Server Key & OneSync Setup Guide",
+			"Sender":       "Cravenz",
+			"SenderAvatar": "/avatars/u/Cravenz/64.png",
+			"Excerpt":      "Need a dedicated server license key? Head over to AFX Portal (/keymaster) to generate unlimited nsmk_ server keys for your FXServer instances.",
+			"RelativeStr":  lastPostStr,
+			"TimeStr":      lastPostStr,
+			"URL":          "/keymaster",
+		},
+	}
+
+	isActivityTab := tab == "activity" || tab == "topics" || tab == "replies" || tab == "read" || tab == "likes" || tab == "solved" || tab == "votes"
+	activitySub := "all"
+	if isActivityTab && tab != "activity" {
+		activitySub = tab
+	}
+
+	type profileThemePreset struct {
+		Name        string
+		Primary     string
+		Accent      string
+		Banner      string
+		Avatar      string
+		SwatchStyle template.CSS
+	}
+	makePreset := func(name, primary, accent, banner, avatar string) profileThemePreset {
+		return profileThemePreset{
+			Name:        name,
+			Primary:     primary,
+			Accent:      accent,
+			Banner:      banner,
+			Avatar:      avatar,
+			SwatchStyle: template.CSS("background: linear-gradient(135deg, " + primary + " 0%, " + accent + " 100%)"),
+		}
+	}
+	themePresets := []profileThemePreset{
+		makePreset("AFX Sapphire", "#2F7BFF", "#1d3557", "#1d3557", "#2F7BFF"),
+		makePreset("Nitro Midnight", "#5865F2", "#EB459E", "#1e1f3b", "#5865F2"),
+		makePreset("Cyber Sunset", "#a855f7", "#ec4899", "#2e1065", "#a855f7"),
+		makePreset("Crimson Eclipse", "#f43f5e", "#9f1239", "#4c0519", "#f43f5e"),
+		makePreset("Emerald Matrix", "#10b981", "#065f46", "#064e3b", "#10b981"),
+		makePreset("Oceanic Cyan", "#06b6d4", "#1d4ed8", "#083344", "#06b6d4"),
+		makePreset("Solar Gold", "#f59e0b", "#b45309", "#451a03", "#f59e0b"),
+		makePreset("Obsidian Slate", "#6366f1", "#111827", "#111827", "#6366f1"),
+	}
+
 	return map[string]interface{}{
 		"Title":          targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
 		"Page":           "/forum",
@@ -1122,12 +1419,25 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		"LikesReceived":  likesReceived + len(userTopics),
 		"TopicCount":     len(userTopics),
 		"PostCount":      len(userPosts),
+		"ReplyCount":     len(replyPosts),
+		"LikedCount":     len(likedPosts),
+		"SolvedCount":    len(solvedPosts),
 		"Topics":         userTopics,
+		"EnrichedTopics": enrichedTopics,
 		"Posts":          userPosts,
+		"ReplyPosts":     replyPosts,
+		"LikedPosts":     likedPosts,
+		"ReadTopics":     readTopics,
+		"SolvedPosts":    solvedPosts,
+		"Notifications":  notifications,
+		"Messages":       messages,
 		"TopCategories":  topCats,
 		"Badges":         badges,
+		"ThemePresets":   themePresets,
 		"UpvoteCount":    upvoteCnt,
 		"Tab":            tab,
+		"IsActivityTab":  isActivityTab,
+		"ActivitySub":    activitySub,
 		"Msg":            msg,
 		"Error":          errMsg,
 		"IsOwn":          cur != nil && cur.ID == targetCopy.ID,

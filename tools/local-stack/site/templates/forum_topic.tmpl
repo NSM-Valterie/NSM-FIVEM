@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078h">
 </head>
 <body class="dc-ember-body archetype-regular">
   <!-- Discourse d-header -->
@@ -39,9 +39,9 @@
         </form>
 
         {{if .User}}
-        <a href="/u/{{.User.Username}}" class="d-header-user" title="@{{.User.Username}}">
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
-          <span class="d-header-username">{{.User.Username}}</span>
+          <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
         </a>
         <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat">Preferences</a>
         {{else}}
@@ -180,7 +180,7 @@
                       <div class="topic-meta-data">
                         <div class="names trigger-user-card">
                           <span class="first username {{if or (eq $p.AuthorRole "owner") (eq $p.AuthorRole "admin") (eq $p.AuthorRole "staff")}}staff{{end}}">
-                            <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorUsername}}</a>
+                            <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorDisplay}}</a>
                             {{if or (eq $p.AuthorRole "owner") (eq $p.AuthorRole "admin") (eq $p.AuthorRole "staff")}}
                             <span class="svg-icon-title" title="AFX Moderator / Owner">
                               <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px;color:#2F7BFF"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
@@ -188,7 +188,7 @@
                             {{end}}
                           </span>
                           <span class="second full-name">
-                            <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorDisplay}}</a>
+                            <a href="/u/{{$p.AuthorUsername}}">@{{$p.AuthorUsername}}</a>
                           </span>
                           <span class="user-title">{{$p.AuthorTitle}}</span>
                           {{if $p.AuthorDiscord}}

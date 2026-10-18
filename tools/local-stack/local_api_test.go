@@ -804,7 +804,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	}
 	profBody := wProf.Body.String()
 	for _, marker := range []string{
-		`class="user-main"`,
+		`user-main user-themed-profile`,
 		`class="about has-background"`,
 		`class="user-profile-avatar"`,
 		`id="collapsed-info-panel"`,
@@ -825,9 +825,80 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("GET /u/Cravenz still contains target=_blank link")
 	}
 
+	// 12. Verify every /u/Cravenz profile tab renders its own distinct Discourse view (not Summary on every tab)
+	tabExpectations := []struct {
+		url           string
+		mustContain   string
+		mustNotHave   string
+	}{
+		{"/u/Cravenz?tab=activity", `All Activity by`, `class="top-section stats-section"`},
+		{"/u/Cravenz/activity", `class="user-navigation user-secondary-navigation"`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=topics", `Topics Created by`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=replies", `Replies by`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=read", `Recently Read Topics`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=likes", `Liked Posts &amp; Appreciated Contributions`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=solved", `Accepted Solutions`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=votes", `Server Boosts &amp; Topic Votes`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=notifications", `Notifications for`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=messages", `Personal Messages`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=badges", `Badges Earned by`, `class="top-section stats-section"`},
+	}
+	for _, tc := range tabExpectations {
+		wTab := request(h, "GET", tc.url, "")
+		if wTab.Code != http.StatusOK {
+			t.Fatalf("GET %s returned %d", tc.url, wTab.Code)
+		}
+		tb := wTab.Body.String()
+		if !strings.Contains(tb, tc.mustContain) {
+			t.Fatalf("GET %s missing expected tab marker %q", tc.url, tc.mustContain)
+		}
+		if tc.mustNotHave != "" && strings.Contains(tb, tc.mustNotHave) {
+			t.Fatalf("GET %s unexpectedly rendered Summary marker %q", tc.url, tc.mustNotHave)
+		}
+	}
+
+	// 13. Verify Display Name & Discord-style Profile Layout Theme Colors update immediately
+	customSess := registerTestUser(t, h, "theme_tester")
+	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&return_tab=summary"
+	reqUpd := httptest.NewRequest("POST", "/account/profile", strings.NewReader(formPayload))
+	reqUpd.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqUpd.Header.Set("X-NSM-Session", customSess)
+	wUpd := httptest.NewRecorder()
+	h.ServeHTTP(wUpd, reqUpd)
+	if wUpd.Code != http.StatusSeeOther {
+		t.Fatalf("POST /account/profile expected 303 redirect, got %d", wUpd.Code)
+	}
+
+	wCustomProf := requestAuth(h, "GET", "/u/theme_tester", "", map[string]string{"X-NSM-Session": customSess})
+	if wCustomProf.Code != http.StatusOK {
+		t.Fatalf("GET /u/theme_tester returned %d", wCustomProf.Code)
+	}
+	cpBody := wCustomProf.Body.String()
+	for _, expected := range []string{
+		`<span id="live-profile-display-name">Captain Neon AFX</span>`,
+		`<span class="d-header-username" id="live-navbar-display-name">Captain Neon AFX</span>`,
+		`--prof-primary: #EC4899`,
+		`--prof-accent: #8B5CF6`,
+		`--prof-banner: #3B0764`,
+		`--prof-avatar: #F472B6`,
+	} {
+		if !strings.Contains(cpBody, expected) {
+			t.Fatalf("GET /u/theme_tester after profile update missing %q", expected)
+		}
+	}
+
+	// Also verify the updated Display Name appears on the main website navbar (GET /) and users directory (GET /u)
+	wHomeAuth := requestAuth(h, "GET", "/", "", map[string]string{"X-NSM-Session": customSess})
+	if !strings.Contains(wHomeAuth.Body.String(), "Captain Neon AFX") {
+		t.Fatalf("GET / navbar did not reflect updated DisplayName 'Captain Neon AFX'")
+	}
+
 	wUsersDir := request(h, "GET", "/u", "")
 	if wUsersDir.Code != http.StatusOK || !strings.Contains(wUsersDir.Body.String(), "d-users-directory-table") {
 		t.Fatalf("GET /u users directory failed: %d", wUsersDir.Code)
+	}
+	if !strings.Contains(wUsersDir.Body.String(), "Captain Neon AFX") {
+		t.Fatalf("GET /u users directory did not reflect updated DisplayName 'Captain Neon AFX'")
 	}
 
 	ln, err := listenWithReuseAddr("tcp", "127.0.0.1:0")
