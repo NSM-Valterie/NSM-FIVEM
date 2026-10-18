@@ -1115,6 +1115,9 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func isLoopbackClient(r *http.Request) bool {
+	if r.Header.Get("X-NSM-Forwarded") == "1" {
+		return false
+	}
 	ip := clientIP(r)
 	return ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || strings.HasPrefix(ip, "127.")
 }

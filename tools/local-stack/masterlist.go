@@ -553,7 +553,60 @@ func sendJSON(w http.ResponseWriter, code int, v interface{}) {
 	w.Write(body)
 }
 
+var (
+	isPublicMode        bool
+	configuredPublicURL string
+	configuredPublicIP  string
+)
+
+func detectOutboundIPv4() string {
+	conn, err := net.DialTimeout("udp4", "1.1.1.1:80", 500*time.Millisecond)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	if ua, ok := conn.LocalAddr().(*net.UDPAddr); ok && ua.IP != nil && !ua.IP.IsLoopback() {
+		return ua.IP.String()
+	}
+	return ""
+}
+
+func publicAwareHandler(inner http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isPublicMode {
+			host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				host = r.RemoteAddr
+				portStr = "0"
+			}
+			realIP := strings.TrimSpace(host)
+			isForwarded := false
+			if cfIP := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cfIP != "" {
+				realIP = cfIP
+				isForwarded = true
+			} else if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+				parts := strings.Split(xff, ",")
+				if first := strings.TrimSpace(parts[0]); first != "" {
+					realIP = first
+					isForwarded = true
+				}
+			}
+			r.Header.Set("X-NSM-Real-IP", realIP)
+			if isForwarded {
+				r.Header.Set("X-NSM-Forwarded", "1")
+			} else {
+				r.Header.Del("X-NSM-Forwarded")
+			}
+			r.RemoteAddr = net.JoinHostPort("127.0.0.1", portStr)
+		}
+		inner.ServeHTTP(w, r)
+	})
+}
+
 func clientIP(r *http.Request) string {
+	if realIP := strings.TrimSpace(r.Header.Get("X-NSM-Real-IP")); realIP != "" {
+		return realIP
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -760,12 +813,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ip := clientIP(r)
 		if override := strings.TrimSpace(hb.IPOverride); override != "" {
-			// A loopback-only deployment may advertise another loopback address, not spoof a remote server.
-			if net.ParseIP(override) == nil || !net.ParseIP(override).IsLoopback() {
+			if net.ParseIP(override) == nil || (!isPublicMode && !net.ParseIP(override).IsLoopback()) {
 				sendJSON(w, 400, map[string]string{"lastError": "ipOverride must be a loopback IP"})
 				return
 			}
 			ip = override
+		} else if isPublicMode && configuredPublicIP != "" {
+			if parsed := net.ParseIP(ip); parsed != nil && parsed.IsLoopback() {
+				ip = configuredPublicIP
+			}
 		}
 		port := hb.Port
 		if port == 0 {
@@ -1106,8 +1162,10 @@ func main() {
 		}
 	}
 
-	bind := flag.String("bind", "127.0.0.1", "loopback address for local-only service")
+	bind := flag.String("bind", "127.0.0.1", "bind IP address (127.0.0.1 for local-only, 0.0.0.0 for VPS/LAN/Cloudflare)")
 	port := flag.Int("port", 80, "port to listen on")
+	pubURL := flag.String("public-url", os.Getenv("NSM_PUBLIC_URL"), "optional public base URL (e.g. https://nsmultiplayer.com)")
+	pubIP := flag.String("public-ip", os.Getenv("NSM_PUBLIC_IP"), "optional public IPv4 for local server heartbeats")
 	owner := flag.String("owner-token", os.Getenv("OWNER_TOKEN"), "owner admin API bearer token")
 	oname := flag.String("owner-name", os.Getenv("OWNER_NAME"), "username that holds the owner role")
 	opass := flag.String("owner-pass", os.Getenv("OWNER_PASS"), "set a new password for the owner account at startup")
@@ -1115,8 +1173,15 @@ func main() {
 	reqKeys := flag.Bool("require-keys", os.Getenv("NSM_REQUIRE_KEYS") == "1", "require a valid NSM keymaster server key on /api/serverlist/ingress")
 	flag.Parse()
 	requireKeys = *reqKeys
-	if ip := net.ParseIP(*bind); ip == nil || !ip.IsLoopback() {
-		log.Fatal("local-first backend requires a loopback bind address")
+	parsedBind := net.ParseIP(*bind)
+	if parsedBind == nil {
+		log.Fatalf("invalid -bind IP address: %q", *bind)
+	}
+	configuredPublicURL = strings.TrimRight(strings.TrimSpace(*pubURL), "/")
+	configuredPublicIP = strings.TrimSpace(*pubIP)
+	isPublicMode = !parsedBind.IsLoopback() || configuredPublicURL != "" || configuredPublicIP != ""
+	if isPublicMode && configuredPublicIP == "" {
+		configuredPublicIP = detectOutboundIPv4()
 	}
 	if *port < 1 || *port > 65535 {
 		log.Fatal("invalid HTTP port")
@@ -1139,7 +1204,12 @@ func main() {
 	}
 
 	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
-	if c, dialErr := net.DialTimeout("tcp", addr, 120*time.Millisecond); dialErr == nil {
+	probeHost := *bind
+	if parsedBind.IsUnspecified() {
+		probeHost = "127.0.0.1"
+	}
+	probeAddr := net.JoinHostPort(probeHost, strconv.Itoa(*port))
+	if c, dialErr := net.DialTimeout("tcp", probeAddr, 120*time.Millisecond); dialErr == nil {
 		_ = c.Close()
 		log.Printf("Existing service detected on %s — stopping previous NSM-Masterlist instance...", addr)
 		stopPreviousMasterlistInstances(addr, *port)
@@ -1182,7 +1252,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           localHandler(),
+		Handler:           publicAwareHandler(localHandler()),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
@@ -1192,14 +1262,21 @@ func main() {
 	activeServer = srv
 	activeSrvMu.Unlock()
 
+	displayBase := "http://" + addr
+	if configuredPublicURL != "" {
+		displayBase = configuredPublicURL
+	}
 	log.Printf("================================================================")
-	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-m)")
-	log.Printf("Listening on: http://%s", addr)
-	log.Printf("  Homepage:    http://%s/", addr)
-	log.Printf("  Server List: http://%s/servers", addr)
-	log.Printf("  AFX Forum:   http://%s/forum", addr)
-	log.Printf("  Your Profile:http://%s/u/nta~", addr)
-	log.Printf("  Edit Socials:http://%s/u/nta~?tab=preferences", addr)
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-n)")
+	log.Printf("Listening on: http://%s (Public Mode: %v)", addr, isPublicMode)
+	if configuredPublicIP != "" {
+		log.Printf("Public Server IP: %s", configuredPublicIP)
+	}
+	log.Printf("  Homepage:    %s/", displayBase)
+	log.Printf("  Server List: %s/servers", displayBase)
+	log.Printf("  AFX Forum:   %s/forum", displayBase)
+	log.Printf("  Your Profile:%s/u/nta~", displayBase)
+	log.Printf("  Owner Setup: http://127.0.0.1:%d/login (from VPS desktop)", *port)
 	log.Printf("================================================================")
 	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("listen error: %v", err)
