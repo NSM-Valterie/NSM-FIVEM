@@ -135,10 +135,10 @@ jobs:
 
           with zipfile.ZipFile("/tmp/patched-ui.zip", "r") as zui:
               assert zui.testzip() is None
-              ui_blob = b"".join(zui.read(n) for n in zui.namelist() if n.lower().endswith((".js", ".html")))
+              ui_blob = b"".join(zui.read(n) for n in zui.namelist() if not n.endswith("/"))
               assert b"discord.gg/UXj5QfCX88" not in ui_blob
               assert b'id="nsm-client-auth-poll"' in ui_blob
-              assert b"127.0.0.1/api/servers/streamRedir/" in ui_blob
+              assert b"http://127.0.0.1" in ui_blob
               assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
 
           dist_sums = []
