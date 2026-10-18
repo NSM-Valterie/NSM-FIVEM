@@ -816,7 +816,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		`class="top-section top-categories-section"`,
 		`class="top-section badges-section"`,
 		`Badges (18/18)`,
-		`AFX Pulse Eternal (Founder Lifetime)`,
+		`AFX Pulse Eternal (Founder Forever)`,
 		`d-social-community`,
 		`d-social-github`,
 		`github.com/platinum-cfx`,
