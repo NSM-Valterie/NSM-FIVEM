@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078h">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body class="dc-ember-body archetype-regular">
   <!-- Discourse d-header -->
@@ -29,6 +29,9 @@
           <a href="/marketplace">Marketplace</a>
           <a href="/docs">Docs</a>
           <a href="/support">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" style="color:#6ea8ff !important;font-weight:700">Staff</a>
+          {{end}}
         </nav>
       </div>
 
@@ -39,10 +42,14 @@
         </form>
 
         {{if .User}}
+        {{if .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="d-btn d-btn-default">Staff</a>
+        {{end}}
         <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
           <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
         </a>
+        <a href="/u/{{.User.Username}}?tab=pulse" class="d-btn d-btn-flat d-btn-pulse-pill">&#9889; AFX Pulse</a>
         <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat">Preferences</a>
         {{else}}
         <a href="/register?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-primary">Sign Up</a>
@@ -82,6 +89,16 @@
                 <span class="sidebar-section-link-content-text">Users</span>
               </a>
             </li>
+            {{if and .User .User.IsStaffOrHigher}}
+            <li>
+              <a href="/admin/users" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Staff Panel</span>
+              </a>
+            </li>
+            {{end}}
           </ul>
         </div>
 
@@ -261,19 +278,19 @@
                               </div>
                             </li>
                             <li class="replies">
-                              <span class="number">{{$.ReplyCount}}</span>
+                              <span class="number" data-topic-replies="{{$.Topic.ID}}">{{$.ReplyCount}}</span>
                               <h4 role="presentation">replies</h4>
                             </li>
                             <li class="secondary views">
-                              <span class="number">{{$.Topic.Views}}</span>
-                              <h4 role="presentation">views</h4>
+                              <span class="number" data-topic-views="{{$.Topic.ID}}">{{$.Topic.Views}}</span>
+                              <h4 role="presentation"><span class="d-realtime-live-dot" title="Real-time views"></span>views</h4>
                             </li>
                             <li class="secondary users">
                               <span class="number">{{$.ParticipantCnt}}</span>
                               <h4 role="presentation">users</h4>
                             </li>
                             <li class="secondary likes">
-                              <span class="number">{{$.TotalLikes}}</span>
+                              <span class="number" data-topic-likes="{{$.Topic.ID}}">{{$.TotalLikes}}</span>
                               <h4 role="presentation">likes</h4>
                             </li>
                             <li class="avatars">
@@ -369,17 +386,17 @@
                       </td>
                       <td class="posters topic-list-data">
                         {{range $i, $p := .Posters}}
-                        <a href="/u/{{$p.Username}}" title="{{$p.Display}} (@{{$p.Username}})">
+                        <a href="/u/{{$p.Username}}" title="{{$p.DisplayName}} (@{{$p.Username}})">
                           <img alt="{{$p.Username}}" width="25" height="25" src="{{$p.Avatar}}" class="avatar {{if eq $i 0}}latest{{end}}">
                         </a>
                         {{end}}
                       </td>
                       <td class="num posts-map posts topic-list-data">
-                        <a class="badge-posts" href="/forum/t/{{.ID}}"><span class="number">{{.ReplyCount}}</span></a>
+                        <a class="badge-posts" href="/forum/t/{{.ID}}"><span class="number" data-topic-replies="{{.ID}}">{{.Replies}}</span></a>
                       </td>
-                      <td class="num views topic-list-data"><span class="number">{{.Views}}</span></td>
+                      <td class="num views topic-list-data"><span class="number" data-topic-views="{{.ID}}">{{.Views}}</span></td>
                       <td class="num topic-list-data age activity">
-                        <a class="post-activity" href="/forum/t/{{.ID}}"><span class="relative-date">{{.UpdatedAtStr}}</span></a>
+                        <a class="post-activity" href="/forum/t/{{.ID}}"><span class="relative-date" data-topic-activity="{{.ID}}">{{.UpdatedAtStr}}</span></a>
                       </td>
                     </tr>
                     {{end}}
@@ -427,6 +444,28 @@
     </main>
   </div>
 
-  <script src="/js/main.js?v=078f"></script>
+  <script>
+    function pollTopicRealtime() {
+      fetch('/api/forum/realtime', { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (!d || !Array.isArray(d.topics)) return;
+          for (var i = 0; i < d.topics.length; i++) {
+            var t = d.topics[i];
+            var vEls = document.querySelectorAll('[data-topic-views="' + t.id + '"]');
+            for (var j = 0; j < vEls.length; j++) vEls[j].textContent = t.views;
+            var rEls = document.querySelectorAll('[data-topic-replies="' + t.id + '"]');
+            for (var k = 0; k < rEls.length; k++) rEls[k].textContent = t.replies;
+            var lEls = document.querySelectorAll('[data-topic-likes="' + t.id + '"]');
+            for (var n = 0; n < lEls.length; n++) lEls[n].textContent = t.likes;
+            var aEls = document.querySelectorAll('[data-topic-activity="' + t.id + '"]');
+            for (var m = 0; m < aEls.length; m++) aEls[m].textContent = t.updated;
+          }
+        })
+        .catch(function() {});
+    }
+    setInterval(pollTopicRealtime, 2500);
+  </script>
+  <script src="/js/main.js?v=078k"></script>
 </body>
 </html>

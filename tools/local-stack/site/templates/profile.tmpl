@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078i">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body
   class="dc-ember-body user-summary-page user-full-themed-page fx-effect-{{.Profile.EffectiveProfileEffect}}"
@@ -44,6 +44,9 @@
           <a href="/marketplace">Marketplace</a>
           <a href="/docs">Docs</a>
           <a href="/support">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" style="color:#6ea8ff !important;font-weight:700">Staff</a>
+          {{end}}
         </nav>
       </div>
 
@@ -54,6 +57,9 @@
         </form>
 
         {{if .User}}
+        {{if .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="d-btn d-btn-default">Staff</a>
+        {{end}}
         <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
           <span class="d-header-username" id="live-navbar-display-name">{{.User.EffectiveDisplayName}}</span>
@@ -384,9 +390,9 @@
                     </li>
                     {{else}}
                     <li>
-                      <a href="/u/{{.Profile.Username}}?tab=messages" class="d-btn d-btn-primary d-btn-theme">
+                      <a href="{{if .User}}/u/{{.User.Username}}?tab=messages&amp;with={{.Profile.Username}}{{else}}/login?next=/u/{{.Profile.Username}}?tab=messages{{end}}" class="d-btn d-btn-primary d-btn-theme">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        <span>Message</span>
+                        <span>Message @{{.Profile.Username}}</span>
                       </a>
                     </li>
                     {{end}}
@@ -425,7 +431,7 @@
                   </div>
                   <div>
                     <dt class="profile-view-count">Views</dt>
-                    <dd class="profile-view-count">{{.ProfileViews}}</dd>
+                    <dd class="profile-view-count"><span class="d-realtime-live-dot" title="Real-time view counter"></span><span id="profile-realtime-views">{{.ProfileViews}}</span></dd>
                   </div>
                   <div>
                     <dt class="trust-level">Trust Level</dt>
@@ -499,21 +505,25 @@
 
               {{if eq .Tab "pulse"}}
               <!-- ==============================================================
-                   TAB: AFX PULSE MEMBERSHIP TIERS (Unlocks Badges, Animated GIFs,
-                   Full-Page Layout Color Changing, Cat Ears & Moving Effects)
+                   TAB: AFX PULSE MEMBERSHIP TIERS & PAYMENT CHECKOUT
                    ============================================================== -->
               <div class="top-section d-pulse-showcase">
+                {{if .PulseError}}
+                <div class="d-alert d-alert-error" style="margin-bottom:16px"><strong>Payment Checkout Required:</strong> {{.PulseError}}</div>
+                {{end}}
+
                 <div class="d-pulse-hero">
                   <div>
-                    <span class="d-theme-live-pill">&#9889; AFX PULSE MEMBERSHIP</span>
-                    <h2 style="margin:8px 0 6px;font-size:26px;color:#fff">Supercharge Your NSM &amp; AFX Profile</h2>
+                    <span class="d-theme-live-pill">&#9889; AFX PULSE MEMBERSHIP &amp; SERVER UPVOTES</span>
+                    <h2 style="margin:8px 0 6px;font-size:26px;color:#fff">Unlock Profile Colors, Animated Effects &amp; Server Upvote Power</h2>
                     <p class="d-muted" style="max-width:680px;margin:0">
-                      Unlock full-page color-transforming profiles, animated GIF avatars &amp; banners, Neon Cyber Cat Ears, moving profile effects, evolving Server Booster gems, and exclusive AFX Pulse badges.
+                      AFX Pulse Pro &amp; Sovereign unlock full-page Style Profile Layout Colors, animated GIF avatars &amp; banners, Neon Cyber Cat Ears, moving profile effects, and NSM Server Upvotes (+1 Upvote with Pro, +4 Upvotes with Sovereign; Core gets 0 Upvotes).
                     </p>
                   </div>
                   <div class="d-pulse-current-status">
                     <span class="d-muted" style="font-size:12px;text-transform:uppercase">Active Tier for @{{.Profile.Username}}</span>
                     <strong style="font-size:18px;color:#fff;display:block;margin-top:3px">{{.Profile.EffectivePulseTierLabel}}</strong>
+                    <span class="d-muted" style="font-size:12.5px;display:block;margin-top:4px">Server Upvote Allowance: <strong style="color:#38bdf8">{{.UpvoteCount}} Upvotes</strong></span>
                     {{if .Profile.IsFounderAccount}}
                     <span class="d-theme-live-pill" style="margin-top:6px;display:inline-block">Permanent Founder Access — Active Forever</span>
                     {{end}}
@@ -531,17 +541,15 @@
                       <li>&#10004; Exclusive <strong>AFX Pulse Subscriber</strong> Badge on Profile &amp; Posts</li>
                       <li>&#10004; Animated <strong>GIF Avatar</strong> Uploads &amp; External GIF Links</li>
                       <li>&#10004; Custom <strong>Avatar Decorations</strong> including <strong>Neon Cyber Cat Ears</strong></li>
-                      <li>&#10004; Early Platform Supporter Badge Unlock</li>
+                      <li>&#10008; <strong>0 Server Upvotes</strong> (Upgrade to Pro for +1 Upvote or Sovereign for +4 Upvotes)</li>
+                      <li>&#10008; Basic Default Profile Theme (Upgrade to Pro to change Profile Colors)</li>
                     </ul>
                     {{if .User}}
-                    <form method="post" action="/account/pulse">
-                      <input type="hidden" name="tier" value="core">
-                      <button type="submit" class="d-btn d-btn-default" style="width:100%">
-                        {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "core"}}Current Active Tier{{else}}Unlock AFX Pulse Core{{end}}
-                      </button>
-                    </form>
+                    <button type="button" class="d-btn d-btn-default" style="width:100%" onclick="selectPulseCheckoutPlan('core','$4.99/mo — AFX Pulse Core (0 Server Upvotes)')">
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "core"}}Current Active Tier{{else}}Checkout AFX Pulse Core ($4.99){{end}}
+                    </button>
                     {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-default" style="width:100%;text-align:center">Log In to Unlock</a>
+                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-default" style="width:100%;text-align:center">Log In to Subscribe</a>
                     {{end}}
                   </div>
 
@@ -553,50 +561,113 @@
                       <div class="d-pulse-price">$9.99<span>/mo</span></div>
                     </div>
                     <ul class="d-pulse-perks">
-                      <li>&#10004; <strong>Full-Page Style Profile Layout Colors</strong> (Transforms your entire <code>/u/</code> tab!)</li>
+                      <li>&#10004; <strong>Unlocks Full-Page Style Profile Layout Colors</strong> (Transforms your entire <code>/u/</code> tab!)</li>
+                      <li>&#10004; <strong>+1 NSM Server Upvote Power</strong> on the Masterlist</li>
                       <li>&#10004; Animated <strong>GIF Avatars &amp; Animated GIF Profile Banners</strong></li>
                       <li>&#10004; All <strong>Moving Profile Effects</strong> (Aurora Waves, Cyber Grid, Starlight Warp, Volt Storm)</li>
                       <li>&#10004; All 7 <strong>Avatar Decorations</strong> (Cat Ears, Sovereign Crown, Cyber Visor, Plasma Aura)</li>
-                      <li>&#10004; <strong>2x Server Boosts (BOOST&trade;)</strong> + Evolving Server Booster Gem Badge</li>
                     </ul>
                     {{if .User}}
-                    <form method="post" action="/account/pulse">
-                      <input type="hidden" name="tier" value="pro">
-                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
-                        {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "pro"}}Current Active Tier{{else}}Unlock AFX Pulse Pro{{end}}
-                      </button>
-                    </form>
+                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" onclick="selectPulseCheckoutPlan('pro','$9.99/mo — AFX Pulse Pro (+1 Server Upvote &amp; Full-Page Profile Colors)')">
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else if eq .User.EffectivePulseTier "pro"}}Current Active Tier{{else}}Checkout AFX Pulse Pro ($9.99){{end}}
+                    </button>
                     {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Unlock</a>
+                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Subscribe</a>
                     {{end}}
                   </div>
 
                   <!-- Tier 3: AFX Pulse Sovereign -->
                   <div class="d-pulse-tier-card sovereign-tier {{if or (eq .Profile.EffectivePulseTier "sovereign") (eq .Profile.EffectivePulseTier "eternal")}}active-tier{{end}}">
-                    <div class="d-pulse-popular-tag" style="background:linear-gradient(135deg,#f59e0b,#ec4899)">MAX OVERDRIVE</div>
+                    <div class="d-pulse-popular-tag" style="background:linear-gradient(135deg,#f59e0b,#ec4899)">MAX OVERDRIVE (+4 UPVOTES)</div>
                     <div class="d-pulse-tier-head">
                       <h3>AFX Pulse Sovereign</h3>
                       <div class="d-pulse-price">{{if .Profile.IsFounderAccount}}FREE FOREVER{{else}}$19.99<span>/mo</span>{{end}}</div>
                     </div>
                     <ul class="d-pulse-perks">
-                      <li>&#10004; Everything in <strong>AFX Pulse Pro</strong></li>
+                      <li>&#10004; Everything in <strong>AFX Pulse Pro</strong> (Full-Page Profile Color Themes &amp; Moving FX)</li>
+                      <li>&#10004; <strong>+4 NSM Server Upvotes Power</strong> on the NSM Server List + <strong>AFX Server Upvoter Badge</strong></li>
                       <li>&#10004; Mythic <strong>Sovereign Pulse Badge</strong> &amp; Holographic Prism Profile Shimmer</li>
-                      <li>&#10004; <strong>5x Server Boosts (BOOST&trade;)</strong> + Tier IX Transcendent Booster Gem</li>
-                      <li>&#10004; Priority Server Highlight on the NSM Masterlist</li>
+                      <li>&#10004; Priority Server Upvote Weight on the NSM Masterlist</li>
                       <li>&#10004; <strong>@Cravenz Founder Account has Sovereign Eternal Unlocked Forever!</strong></li>
                     </ul>
                     {{if .User}}
+                    {{if .User.IsFounderAccount}}
                     <form method="post" action="/account/pulse">
                       <input type="hidden" name="tier" value="sovereign">
-                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
-                        {{if .Profile.IsFounderAccount}}&#9813; Founder Eternal Active Forever{{else if eq .User.EffectivePulseTier "sovereign"}}Current Active Tier{{else}}Unlock AFX Pulse Sovereign{{end}}
-                      </button>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">&#9813; Founder Eternal Active Forever</button>
                     </form>
                     {{else}}
-                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Unlock</a>
+                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" onclick="selectPulseCheckoutPlan('sovereign','$19.99/mo — AFX Pulse Sovereign (+4 Server Upvotes &amp; Full-Page Profile Colors)')">
+                      {{if eq .User.EffectivePulseTier "sovereign"}}Current Active Tier{{else}}Checkout AFX Pulse Sovereign ($19.99){{end}}
+                    </button>
+                    {{end}}
+                    {{else}}
+                    <a href="/login?next=/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center">Log In to Subscribe</a>
                     {{end}}
                   </div>
                 </div>
+
+                {{if and .User (not .User.IsFounderAccount)}}
+                <!-- Payment Checkout Box (Required to Activate AFX Pulse) -->
+                <div class="d-pulse-checkout-box" id="pulse-checkout-box">
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+                    <div>
+                      <h3 class="stats-title" style="margin:0">&#128179; AFX Pulse Secure Payment Checkout</h3>
+                      <p class="d-muted" style="font-size:13px;margin:4px 0 0" id="pulse-checkout-plan-label">
+                        Selected Plan: <strong>$9.99/mo — AFX Pulse Pro (+1 Server Upvote &amp; Full-Page Profile Colors)</strong>
+                      </p>
+                    </div>
+                    <span class="d-theme-live-pill">256-Bit Encrypted Checkout</span>
+                  </div>
+
+                  <form method="post" action="/account/pulse" class="d-pref-form">
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>AFX Pulse Plan</span>
+                        <select name="tier" id="pulse-checkout-tier" class="d-input" onchange="updatePulseCheckoutLabel(this.value)">
+                          <option value="pro" selected>AFX Pulse Pro — $9.99/mo (+1 Server Upvote &amp; Profile Colors)</option>
+                          <option value="sovereign">AFX Pulse Sovereign — $19.99/mo (+4 Server Upvotes &amp; All Perks)</option>
+                          <option value="core">AFX Pulse Core — $4.99/mo (0 Server Upvotes, Basic Colors)</option>
+                        </select>
+                      </label>
+                      <label class="d-label">
+                        <span>Billing Cycle</span>
+                        <select name="billing_cycle" class="d-input">
+                          <option value="monthly" selected>Monthly Billing</option>
+                          <option value="yearly">Annual Billing (Save 16%)</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Cardholder Name</span>
+                        <input type="text" name="card_name" class="d-input" placeholder="Full Name on Card" required minlength="2">
+                      </label>
+                      <label class="d-label">
+                        <span>Card Number (16-Digit Visa / Mastercard / Amex)</span>
+                        <input type="text" name="card_number" class="d-input" placeholder="•••• •••• •••• ••••" inputmode="numeric" maxlength="23" required>
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Expiration Date (MM/YY)</span>
+                        <input type="text" name="card_exp" class="d-input" placeholder="MM/YY" maxlength="7" required>
+                      </label>
+                      <label class="d-label">
+                        <span>Security Code (CVC / CVV)</span>
+                        <input type="password" name="card_cvc" class="d-input" placeholder="3 or 4 digits" inputmode="numeric" maxlength="4" required>
+                      </label>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:8px">
+                      <span class="d-muted" style="font-size:12.5px">Your AFX Pulse membership, profile color studio, and server upvotes activate immediately upon payment verification.</span>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">Complete Payment &amp; Activate AFX Pulse</button>
+                    </div>
+                  </form>
+                </div>
+                {{end}}
               </div>
 
               {{else if eq .Tab "preferences"}}
@@ -612,7 +683,7 @@
                     <div class="d-pref-header-bar">
                       <div>
                         <h3 class="stats-title" style="margin-bottom:4px">Account Identity &amp; Style Profile Layout Studio</h3>
-                        <p class="d-muted" style="font-size:13px;margin:0">Customize your Display Name, Full-Page Layout Colors, Neon Cyber Cat Ears, Moving Profile Effects, and Animated GIFs.</p>
+                        <p class="d-muted" style="font-size:13px;margin:0">Customize your Display Name, Username, Full-Page Layout Colors, Neon Cyber Cat Ears, Moving Profile Effects, and Animated GIFs.</p>
                       </div>
                       <button type="submit" class="d-btn d-btn-primary d-btn-theme">Save Changes</button>
                     </div>
@@ -642,7 +713,7 @@
                           class="d-input"
                           maxlength="32"
                           placeholder="username"
-                          oninput="var h=document.getElementById('live-profile-handle');if(h)h.textContent='@'+(this.value||'{{.Profile.Username}}');"
+                          oninput="var h=document.getElementById('live-profile-handle');if(h)h.textContent='@'+(this.value.replace(/^@+/,'')||'{{.Profile.Username}}');"
                         >
                       </label>
                       <label class="d-label">
@@ -659,14 +730,25 @@
                       </label>
                     </div>
 
-                    <!-- 2. STYLE PROFILE LAYOUT COLORS (Transforms the Whole /u/ Page!) -->
+                    <!-- 2. STYLE PROFILE LAYOUT COLORS (Requires AFX Pulse Pro / Sovereign!) -->
                     <div class="d-discord-theme-box">
+                      {{if not .Profile.HasPulseProOrHigher}}
+                      <div class="d-pro-lock-banner">
+                        <div>
+                          <strong>&#128274; AFX Pulse Pro Required for Profile Color Changing &amp; Moving Effects</strong>
+                          <div style="font-size:12px;margin-top:2px;color:#e2e8f0">Basic / Core accounts use the standard NSM dark theme. Upgrade to <strong>AFX Pulse Pro</strong> or <strong>Sovereign</strong> to unlock full-page custom profile colors, animated banners, and moving profile effects!</div>
+                        </div>
+                        <a href="/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme d-btn-xs">&#9889; Upgrade to AFX Pulse Pro</a>
+                      </div>
+                      {{end}}
+
+                      <div class="{{if not .Profile.HasPulseProOrHigher}}d-fieldset-locked{{end}}">
                       <div class="d-discord-theme-header">
                         <div>
-                          <h4 class="d-sub-heading" style="margin:0;border:none;padding:0">Style Profile Layout Colors</h4>
+                          <h4 class="d-sub-heading" style="margin:0;border:none;padding:0">Style Profile Layout Colors {{if not .Profile.HasPulseProOrHigher}}(AFX Pulse Pro Only){{end}}</h4>
                           <p class="d-muted" style="font-size:12.5px;margin:4px 0 0">Changes the entire <code>/u/{{.Profile.Username}}</code> page background, header, sidebar, cards, borders, and buttons to your chosen colors.</p>
                         </div>
-                        <span class="d-theme-live-pill">Full-Page Live Preview</span>
+                        <span class="d-theme-live-pill">{{if .Profile.HasPulseProOrHigher}}Full-Page Live Preview{{else}}Locked — Pulse Pro{{end}}</span>
                       </div>
 
                       <!-- Custom NSM/AFX Preset Swatches -->
@@ -675,7 +757,7 @@
                         <button
                           type="button"
                           class="d-theme-preset-btn"
-                          onclick="applyNsmProfileTheme('{{.Primary}}','{{.Accent}}','{{.Banner}}','{{.Avatar}}')"
+                          {{if $.Profile.HasPulseProOrHigher}}onclick="applyNsmProfileTheme('{{.Primary}}','{{.Accent}}','{{.Banner}}','{{.Avatar}}')"{{else}}disabled{{end}}
                           title="Apply {{.Name}} Color Theme"
                         >
                           <span class="d-theme-preset-swatch" style="{{.SwatchStyle}}"></span>
@@ -695,7 +777,7 @@
                               id="picker-theme-primary"
                               value="{{.Profile.EffectiveThemePrimary}}"
                               class="d-color-input"
-                              oninput="syncNsmLiveColors()"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
                             >
                             <code id="hex-theme-primary">{{.Profile.EffectiveThemePrimary}}</code>
                           </div>
@@ -710,7 +792,7 @@
                               id="picker-theme-accent"
                               value="{{.Profile.EffectiveThemeAccent}}"
                               class="d-color-input"
-                              oninput="syncNsmLiveColors()"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
                             >
                             <code id="hex-theme-accent">{{.Profile.EffectiveThemeAccent}}</code>
                           </div>
@@ -725,7 +807,7 @@
                               id="picker-banner-color"
                               value="{{.Profile.EffectiveBannerColor}}"
                               class="d-color-input"
-                              oninput="syncNsmLiveColors()"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
                             >
                             <code id="hex-banner-color">{{.Profile.EffectiveBannerColor}}</code>
                           </div>
@@ -740,7 +822,7 @@
                               id="picker-avatar-color"
                               value="{{.Profile.EffectiveAvatarColor}}"
                               class="d-color-input"
-                              oninput="syncNsmLiveColors()"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
                             >
                             <code id="hex-avatar-color">{{.Profile.EffectiveAvatarColor}}</code>
                           </div>
@@ -751,7 +833,7 @@
                       <div class="d-form-row-3" style="margin-top:14px">
                         <label class="d-label">
                           <span>Animated Avatar Decoration (Cat Ears &amp; FX)</span>
-                          <select name="avatar_decoration" id="select-avatar-decoration" class="d-input" onchange="syncNsmLiveDecoration(this.value)">
+                          <select name="avatar_decoration" id="select-avatar-decoration" class="d-input" {{if .Profile.HasPulse}}onchange="syncNsmLiveDecoration(this.value)"{{else}}disabled{{end}}>
                             <option value="cat_ears" {{if eq .Profile.EffectiveAvatarDecoration "cat_ears"}}selected{{end}}>&#128049; Neon Cyber Cat Ears (Animated)</option>
                             <option value="sovereign_crown" {{if eq .Profile.EffectiveAvatarDecoration "sovereign_crown"}}selected{{end}}>&#9813; Sovereign Floating Crown &amp; Halo</option>
                             <option value="cyber_visor" {{if eq .Profile.EffectiveAvatarDecoration "cyber_visor"}}selected{{end}}>&#129302; AFX Cybernetic Visor &amp; HUD Orbit</option>
@@ -765,7 +847,7 @@
 
                         <label class="d-label">
                           <span>Moving Profile Effect (Full-Page Animation)</span>
-                          <select name="profile_effect" id="select-profile-effect" class="d-input" onchange="syncNsmLiveEffect(this.value)">
+                          <select name="profile_effect" id="select-profile-effect" class="d-input" {{if .Profile.HasPulseProOrHigher}}onchange="syncNsmLiveEffect(this.value)"{{else}}disabled{{end}}>
                             <option value="aurora_waves" {{if eq .Profile.EffectiveProfileEffect "aurora_waves"}}selected{{end}}>&#10024; Aurora Borealis Flowing Waves</option>
                             <option value="cyber_matrix" {{if eq .Profile.EffectiveProfileEffect "cyber_matrix"}}selected{{end}}>&#128187; AFX 3D Cyber Grid &amp; Pulse</option>
                             <option value="starlight_warp" {{if eq .Profile.EffectiveProfileEffect "starlight_warp"}}selected{{end}}>&#11088; Starlight Hyperdrive Drift</option>
@@ -777,7 +859,7 @@
                         </label>
 
                         <label class="d-label">
-                          <span>Vanguard Squad House (Unlocks House Badge)</span>
+                          <span>Vanguard Squad House</span>
                           <select name="squad_house" class="d-input">
                             <option value="all" {{if eq .Profile.SquadHouse "all"}}selected{{end}}>&#9733; All Vanguard Houses (Founder / Sovereign)</option>
                             <option value="bravery" {{if eq .Profile.SquadHouse "bravery"}}selected{{end}}>&#128737; Vanguard of Bravery</option>
@@ -785,6 +867,7 @@
                             <option value="balance" {{if eq .Profile.SquadHouse "balance"}}selected{{end}}>&#9878; Vanguard of Balance</option>
                           </select>
                         </label>
+                      </div>
                       </div>
                     </div>
 
@@ -1212,7 +1295,7 @@
 
                   {{else if eq .ActivitySub "votes"}}
                   <div class="d-stream-header">
-                    <h3 class="stats-title" style="margin:0">Server Boosts &amp; Topic Votes ({{.UpvoteCount}})</h3>
+                    <h3 class="stats-title" style="margin:0">NSM Server Upvotes &amp; Topic Votes ({{.UpvoteCount}})</h3>
                     <a href="/servers" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Browse Server List</a>
                   </div>
                   <div class="user-stream">
@@ -1221,10 +1304,10 @@
                         <img src="{{.Profile.AvatarPath}}" alt="{{.Profile.EffectiveDisplayName}}" width="40" height="40" class="avatar">
                         <div class="stream-topic-meta">
                           <div class="stream-topic-title-line">
-                            <strong>Active NSM Server Boost Power: {{.UpvoteCount}} BOOST&trade; ({{.Profile.EffectivePulseTierLabel}})</strong>
+                            <strong>Active NSM Server Upvote Allowance: +{{.UpvoteCount}} Upvotes ({{.Profile.EffectivePulseTierLabel}})</strong>
                           </div>
                           <div class="stream-category-line">
-                            <span class="d-muted">{{if .Profile.FavoriteServer}}Assigned to: {{.Profile.FavoriteServer}}{{else}}Ready to boost any live server on the NSM Masterlist{{end}}</span>
+                            <span class="d-muted">{{if .Profile.FavoriteServer}}Assigned to: {{.Profile.FavoriteServer}}{{else}}AFX Pulse Sovereign grants +4 Server Upvotes, AFX Pulse Pro grants +1 Server Upvote, Core grants 0 Upvotes{{end}}</span>
                           </div>
                         </div>
                       </div>
@@ -1325,44 +1408,113 @@
 
               {{else if eq .Tab "messages"}}
               <!-- ==============================================================
-                   TAB: PERSONAL MESSAGES
+                   TAB: 1-ON-1 PRIVATE MESSAGES CHAT (Direct Chat in Profile!)
                    ============================================================== -->
-              <div class="d-activity-layout">
-                <div class="user-navigation user-secondary-navigation">
-                  <nav class="user-nav-secondary">
-                    <ul class="action-list nav-stacked">
-                      <li><a href="/u/{{.Profile.Username}}?tab=messages" class="active"><span>Inbox</span><span class="d-subnav-count">{{len .Messages}}</span></a></li>
-                      <li><a href="/forum"><span>New Message / Topic</span></a></li>
-                    </ul>
-                  </nav>
-                </div>
-
-                <div class="user-content-stream">
-                  <div class="d-stream-header">
-                    <h3 class="stats-title" style="margin:0">Personal Messages ({{len .Messages}})</h3>
-                    <a href="/forum" class="d-btn d-btn-primary d-btn-theme d-btn-xs">+ New Message</a>
+              <div class="d-dm-chat-shell">
+                <!-- Left Conversation Partners Sidebar -->
+                <div class="d-dm-conv-sidebar">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(var(--prof-primary-rgb),0.28)">
+                    <strong style="font-size:13.5px;color:#fff;text-transform:uppercase;letter-spacing:0.04em">Direct Chats ({{len .Messages}})</strong>
+                    <a href="/u" class="d-btn d-btn-default d-btn-xs">Members</a>
                   </div>
-                  <div class="user-stream">
+
+                  <!-- Quick Start Chat by Username -->
+                  <form method="get" action="/u/{{.Profile.Username}}" style="display:flex;gap:6px">
+                    <input type="hidden" name="tab" value="messages">
+                    <input type="text" name="with" class="d-input" placeholder="Chat with @username..." style="padding:6px 10px;font-size:12.5px">
+                    <button type="submit" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Open</button>
+                  </form>
+
+                  <div style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:380px">
                     {{range .Messages}}
-                    <a href="{{.URL}}" class="user-stream-item d-message-item">
-                      <div class="user-stream-item-header">
-                        <img src="{{.SenderAvatar}}" alt="{{.Sender}}" width="42" height="42" class="avatar">
-                        <div class="stream-topic-meta">
-                          <div class="stream-topic-title-line">
-                            <span class="stream-topic-title">{{.Title}}</span>
-                            <span class="stream-post-badge">From @{{.Sender}}</span>
-                          </div>
-                          <div class="stream-category-line">
-                            <span class="d-muted">{{.Excerpt}}</span>
-                          </div>
+                    <a href="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.Partner}}" class="d-dm-conv-item {{if eq $.ChatWith .Partner}}active{{end}}">
+                      <img src="{{.PartnerAvatar}}" alt="{{.Partner}}" width="38" height="38" class="avatar">
+                      <div class="d-dm-conv-meta">
+                        <div class="d-dm-conv-name">
+                          <span>{{.PartnerDisplay}}</span>
+                          <span style="font-size:11px;color:#94a3b8;font-weight:400">{{.RelativeStr}}</span>
                         </div>
-                        <div class="stream-time-meta">
-                          <span class="time">{{.RelativeStr}}</span>
-                        </div>
+                        <div style="font-size:11.5px;color:#cbd5e1">@{{.Partner}} &middot; {{.Title}}</div>
+                        <div class="d-dm-conv-preview">{{.Excerpt}}</div>
                       </div>
                     </a>
                     {{end}}
                   </div>
+                </div>
+
+                <!-- Right 1-on-1 Live Chat Thread & Compose Box -->
+                <div class="d-dm-thread-panel">
+                  <div class="d-dm-thread-header">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      {{if .ChatPartner}}
+                      <img src="{{.ChatPartner.AvatarPath}}" alt="{{.ChatPartner.Username}}" width="38" height="38" style="border-radius:50%;object-fit:cover">
+                      <div>
+                        <strong style="color:#fff;font-size:15px">{{.ChatPartner.EffectiveDisplayName}}</strong>
+                        <span class="d-muted" style="font-size:13px;margin-left:6px">@{{.ChatPartner.Username}}</span>
+                        <div style="font-size:11.5px;color:#34d399">&#9679; 1-on-1 Private Chat &amp; Instant Notification</div>
+                      </div>
+                      {{else}}
+                      <div>
+                        <strong style="color:#fff;font-size:15px">1-on-1 Chat with @{{.ChatWith}}</strong>
+                        <div style="font-size:11.5px;color:#94a3b8">Private direct message conversation</div>
+                      </div>
+                      {{end}}
+                    </div>
+                    {{if .ChatWith}}
+                    <a href="/u/{{.ChatWith}}" class="d-btn d-btn-default d-btn-xs">View @{{.ChatWith}} Profile</a>
+                    {{end}}
+                  </div>
+
+                  <div class="d-dm-messages-list" id="dm-messages-scroll">
+                    {{if .ChatMessages}}
+                    {{range .ChatMessages}}
+                    <div class="d-dm-msg-row {{if .IsMine}}mine{{end}}">
+                      <a href="/u/{{.Sender}}">
+                        <img src="{{.SenderAvatar}}" alt="{{.Sender}}" width="34" height="34" class="avatar">
+                      </a>
+                      <div>
+                        <div class="d-dm-msg-meta">
+                          <strong style="color:#e2e8f0">{{.SenderDisplay}} (@{{.Sender}})</strong>
+                          <span title="{{.CreatedAtStr}}">{{.RelativeStr}}</span>
+                        </div>
+                        <div class="d-dm-bubble">
+                          {{if .Subject}}<div style="font-size:11.5px;font-weight:700;color:#93c5fd;margin-bottom:4px">{{.Subject}}</div>{{end}}
+                          <div>{{.Body}}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {{end}}
+                    {{else}}
+                    <div class="d-empty-stream" style="margin:auto">
+                      <p style="margin:0 0 6px;color:#fff;font-weight:600">Start your 1-on-1 private chat with @{{.ChatWith}}</p>
+                      <p style="margin:0;font-size:13px">Messages sent below appear here immediately and send a notification directly to @{{.ChatWith}}.</p>
+                    </div>
+                    {{end}}
+                  </div>
+
+                  {{if .User}}
+                  <form method="post" action="/account/messages" class="d-dm-compose-form">
+                    <input type="hidden" name="return_profile" value="{{.Profile.Username}}">
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Recipient (@username)</span>
+                        <input type="text" name="recipient" value="{{.ChatWith}}" class="d-input" placeholder="@username" required>
+                      </label>
+                      <label class="d-label">
+                        <span>Subject (Optional)</span>
+                        <input type="text" name="subject" value="Direct Message" class="d-input" placeholder="Direct Message">
+                      </label>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:flex-end">
+                      <textarea name="body" class="d-input" rows="2" style="flex:1;min-height:54px" placeholder="Write a private message to @{{.ChatWith}}..." required></textarea>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="height:54px;padding:0 18px !important">Send Message</button>
+                    </div>
+                  </form>
+                  {{else}}
+                  <div class="d-dm-compose-form" style="text-align:center">
+                    <a href="/login?next=/u/{{.Profile.Username}}?tab=messages" class="d-btn d-btn-primary d-btn-theme">Log In to Send a Direct Message</a>
+                  </div>
+                  {{end}}
                 </div>
               </div>
 
@@ -1432,7 +1584,7 @@
                   <li class="stats-topics-entered">
                     <a href="/u/{{.Profile.Username}}?tab=read">
                       <div class="user-stat">
-                        <span class="value">{{.TopicsViewed}}</span>
+                        <span class="value" id="profile-realtime-topics-viewed">{{.TopicsViewed}}</span>
                         <span class="label">topics viewed</span>
                       </div>
                     </a>
@@ -1440,7 +1592,7 @@
                   <li class="stats-posts-read">
                     <a href="/u/{{.Profile.Username}}?tab=read">
                       <div class="user-stat">
-                        <span class="value">{{.PostsRead}}</span>
+                        <span class="value" id="profile-realtime-posts-read">{{.PostsRead}}</span>
                         <span class="label">posts read</span>
                       </div>
                     </a>
@@ -1481,7 +1633,7 @@
                     <a href="/u/{{.Profile.Username}}?tab=votes">
                       <div class="user-stat">
                         <span class="value">{{.UpvoteCount}}</span>
-                        <span class="label">server boosts</span>
+                        <span class="label">server upvotes</span>
                       </div>
                     </a>
                   </li>
@@ -1686,10 +1838,48 @@
       root.className = 'dc-ember-body user-summary-page user-full-themed-page fx-effect-' + val;
       root.setAttribute('data-profile-effect', val);
     }
+    function selectPulseCheckoutPlan(tier, label) {
+      var sel = document.getElementById('pulse-checkout-tier');
+      if (sel) sel.value = tier;
+      var lbl = document.getElementById('pulse-checkout-plan-label');
+      if (lbl) lbl.innerHTML = 'Selected Plan: <strong>' + label + '</strong>';
+      var box = document.getElementById('pulse-checkout-box');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function updatePulseCheckoutLabel(tier) {
+      var map = {
+        'core': '$4.99/mo — AFX Pulse Core (0 Server Upvotes)',
+        'pro': '$9.99/mo — AFX Pulse Pro (+1 Server Upvote & Full-Page Profile Colors)',
+        'sovereign': '$19.99/mo — AFX Pulse Sovereign (+4 Server Upvotes & Full-Page Profile Colors)'
+      };
+      var lbl = document.getElementById('pulse-checkout-plan-label');
+      if (lbl && map[tier]) lbl.innerHTML = 'Selected Plan: <strong>' + map[tier] + '</strong>';
+    }
+    function pollProfileRealtimeStats() {
+      fetch('/api/forum/realtime?profile={{.Profile.Username}}', { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (!d) return;
+          if (d.profileViews) {
+            var pv = document.getElementById('profile-realtime-views');
+            if (pv) pv.textContent = d.profileViews;
+          }
+          if (typeof d.topicsViewed === 'number') {
+            var tv = document.getElementById('profile-realtime-topics-viewed');
+            if (tv) tv.textContent = d.topicsViewed;
+          }
+          if (typeof d.postsRead === 'number') {
+            var pr = document.getElementById('profile-realtime-posts-read');
+            if (pr) pr.textContent = d.postsRead;
+          }
+        })
+        .catch(function() {});
+    }
+    setInterval(pollProfileRealtimeStats, 3000);
     if ((window.location.pathname === '/account/profile' || window.location.pathname === '/account/pulse') && window.history && window.history.replaceState) {
       window.history.replaceState(null, '', '/u/{{.Profile.Username}}?tab={{.Tab}}');
     }
   </script>
-  <script src="/js/main.js?v=078i"></script>
+  <script src="/js/main.js?v=078k"></script>
 </body>
 </html>

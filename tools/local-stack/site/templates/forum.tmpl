@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078h">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body class="dc-ember-body navigation-categories">
   <!-- Discourse d-header (1:1 forum.cfx.re header) -->
@@ -30,6 +30,9 @@
           <a href="/marketplace">Marketplace</a>
           <a href="/docs">Docs</a>
           <a href="/support">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" style="color:#6ea8ff !important;font-weight:700">Staff</a>
+          {{end}}
         </nav>
       </div>
 
@@ -40,11 +43,15 @@
         </form>
 
         {{if .User}}
+        {{if .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="d-btn d-btn-default">Staff</a>
+        {{end}}
         <a href="/u/{{.User.Username}}" class="d-header-user" title="Profile: {{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
           <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
         </a>
-        <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat" title="Edit Profile, Discord & GitHub">Preferences</a>
+        <a href="/u/{{.User.Username}}?tab=pulse" class="d-btn d-btn-flat d-btn-pulse-pill">&#9889; AFX Pulse</a>
+        <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat" title="Edit Profile">Preferences</a>
         <a href="/logout" class="d-btn d-btn-flat" title="Sign Out">Log Out</a>
         {{else}}
         <a href="/register?next=/forum" class="d-btn d-btn-primary">Sign Up</a>
@@ -103,13 +110,23 @@
               </a>
             </li>
             <li>
-              <a href="/u/{{.User.Username}}?tab=preferences" class="sidebar-section-link">
+              <a href="/u/{{.User.Username}}?tab=messages" class="sidebar-section-link">
                 <span class="sidebar-section-link-prefix">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 </span>
-                <span class="sidebar-section-link-content-text">Add Discord &amp; GitHub</span>
+                <span class="sidebar-section-link-content-text">Messages</span>
               </a>
             </li>
+            {{if .User.IsStaffOrHigher}}
+            <li>
+              <a href="/admin/users" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Staff Panel</span>
+              </a>
+            </li>
+            {{end}}
             {{end}}
           </ul>
         </div>
@@ -157,17 +174,21 @@
 
     <!-- Main Discourse Content Outlet -->
     <main id="main-outlet" class="d-main-outlet">
+      {{if .ForumError}}
+      <div class="d-alert d-alert-error" style="margin-bottom:16px"><strong>Notice:</strong> {{.ForumError}}</div>
+      {{end}}
+
       <!-- 1:1 forum.cfx.re Global Pinned Announcement Banner -->
       {{if not .ActiveCat}}
       <div class="d-global-banner">
         <div class="d-global-banner-main">
           <div>
             <h2>Welcome to the official AFX.re &amp; NSM Community Forum</h2>
-            <p>Discuss NSM updates, share FXServer scripts &amp; MLOs, advertise your server in the Server Bazaar, and link your Discord &amp; GitHub on your profile.</p>
+            <p>Discuss NSM updates, share FXServer scripts &amp; MLOs, advertise your server in the Server Bazaar, and customize your AFX Profile.</p>
           </div>
           <div class="d-global-banner-actions">
             {{if .User}}
-            <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-primary">Add Discord &amp; GitHub to Profile</a>
+            <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-primary">Customize Profile</a>
             <a href="/u/{{.User.Username}}" class="d-btn d-btn-default">My Profile (@{{.User.Username}})</a>
             {{else}}
             <a href="/login?next=/forum" class="d-btn d-btn-primary">Log In</a>
@@ -183,6 +204,9 @@
       <div class="category-heading" style="border-left: 6px solid {{.ActiveCat.Color}}; padding-left: 14px; margin-bottom: 18px;">
         <h1 style="font-size: 22px; font-weight: 700; color: #ffffff; margin: 0 0 4px;">{{.ActiveCat.Name}}</h1>
         <p style="color: #9197a3; font-size: 14px; margin: 0;">{{.ActiveCat.Description}}</p>
+        {{if and (eq .ActiveCat.Slug "announcements") (not .CanPostAnnouncements)}}
+        <p style="color: #fbbf24; font-size: 13px; margin: 6px 0 0;">&#128274; Only Owners, Admins, and Staff can create new topics in Announcements. Community members can reply to existing announcements.</p>
+        {{end}}
       </div>
       {{end}}
 
@@ -225,7 +249,7 @@
                 <a href="/forum/c/releases">Releases</a>
               </li>
               <li>
-                <a href="/forum/c/server-bazaar">Server Bazaar</a>
+                <a href="/forum/c/bazaar">Server Bazaar</a>
               </li>
               <li>
                 <a href="/u">Users</a>
@@ -234,10 +258,16 @@
 
             <div class="navigation-controls">
               {{if .User}}
+              {{if and (eq .CatSlug "announcements") (not .CanPostAnnouncements)}}
+              <span class="d-btn d-btn-default" style="opacity:0.65;cursor:not-allowed" title="Only Owners, Admins &amp; Staff can create new topics in Announcements">
+                &#128274; Staff Only (Reply Allowed)
+              </span>
+              {{else}}
               <button type="button" class="d-btn d-btn-default" onclick="var el=document.getElementById('new-topic-box');el.classList.toggle('open');if(el.classList.contains('open'))el.scrollIntoView({behavior:'smooth'})">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 <span>New Topic</span>
               </button>
+              {{end}}
               {{else}}
               <a href="/login?next=/forum" class="d-btn d-btn-default">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -261,7 +291,11 @@
             <input type="text" name="title" class="d-input" placeholder="Type title, or paste a link here (min 3 chars)" required minlength="3" maxlength="140">
             <select name="category" class="d-input">
               {{range .Categories}}
-              <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
+              {{if and (eq .Slug "announcements") (not $.CanPostAnnouncements)}}
+              <option value="{{.Slug}}" disabled>&#128274; {{.Name}} (Owners, Admins &amp; Staff Only)</option>
+              {{else}}
+              <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{else if and (not $.CatSlug) (eq .Slug "discussion")}}selected{{end}}>{{.Name}}</option>
+              {{end}}
               {{end}}
             </select>
             <input type="text" name="tags" class="d-input" placeholder="optional tags (e.g. release, script, mlo)">
@@ -366,11 +400,11 @@
                   </div>
                 </div>
                 <div class="topic-stats">
-                  <div class=" num posts-map posts">
-                    <a href="/forum/t/{{.ID}}" class="badge-posts">{{.ReplyCount}}</a>
+                  <div class="num posts-map posts">
+                    <a href="/forum/t/{{.ID}}" class="badge-posts" data-topic-replies="{{.ID}}">{{.Replies}}</a>
                   </div>
                   <div class="topic-last-activity">
-                    <a href="/forum/t/{{.ID}}" title="Last activity"><span class="relative-date">{{.UpdatedAtStr}}</span></a>
+                    <a href="/forum/t/{{.ID}}" title="Last activity"><span class="relative-date" data-topic-activity="{{.ID}}">{{.UpdatedAtStr}}</span></a>
                   </div>
                 </div>
               </div>
@@ -388,13 +422,13 @@
                 <th class="default topic-list-data"><span>Topic</span></th>
                 <th class="posters topic-list-data"><span class="sr-only">Posters</span></th>
                 <th class="posts sortable num topic-list-data"><span>Replies</span></th>
-                <th class="views sortable num topic-list-data"><span>Views</span></th>
+                <th class="views sortable num topic-list-data"><span><span class="d-realtime-live-dot" title="Real-time views"></span>Views</span></th>
                 <th class="activity sortable num topic-list-data"><span>Activity</span></th>
               </tr>
             </thead>
             <tbody class="topic-list-body">
               {{range .Topics}}
-              <tr class="topic-list-item {{if .Pinned}}pinned{{end}}">
+              <tr class="topic-list-item {{if .Pinned}}pinned{{end}}" data-topic-id="{{.ID}}">
                 <td class="main-link clearfix topic-list-data">
                   <span class="link-top-line">
                     {{if .Pinned}}
@@ -427,19 +461,19 @@
                 </td>
                 <td class="posters topic-list-data">
                   {{range $i, $p := .Posters}}
-                  <a href="/u/{{$p.Username}}" title="{{$p.Display}} (@{{$p.Username}})">
+                  <a href="/u/{{$p.Username}}" title="{{$p.DisplayName}} (@{{$p.Username}})">
                     <img alt="{{$p.Username}}" width="25" height="25" src="{{$p.Avatar}}" class="avatar {{if eq $i 0}}latest{{end}}">
                   </a>
                   {{end}}
                 </td>
                 <td class="num posts-map posts topic-list-data">
-                  <a class="badge-posts" href="/forum/t/{{.ID}}"><span class="number">{{.ReplyCount}}</span></a>
+                  <a class="badge-posts" href="/forum/t/{{.ID}}"><span class="number" data-topic-replies="{{.ID}}">{{.Replies}}</span></a>
                 </td>
                 <td class="num views topic-list-data">
-                  <span class="number">{{.Views}}</span>
+                  <span class="number" data-topic-views="{{.ID}}">{{.Views}}</span>
                 </td>
                 <td class="num topic-list-data age activity">
-                  <a class="post-activity" href="/forum/t/{{.ID}}"><span class="relative-date">{{.UpdatedAtStr}}</span></a>
+                  <a class="post-activity" href="/forum/t/{{.ID}}"><span class="relative-date" data-topic-activity="{{.ID}}">{{.UpdatedAtStr}}</span></a>
                 </td>
               </tr>
               {{else}}
@@ -456,6 +490,26 @@
     </main>
   </div>
 
-  <script src="/js/main.js?v=078f"></script>
+  <script>
+    function pollForumRealtime() {
+      fetch('/api/forum/realtime', { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (!d || !Array.isArray(d.topics)) return;
+          for (var i = 0; i < d.topics.length; i++) {
+            var t = d.topics[i];
+            var vEls = document.querySelectorAll('[data-topic-views="' + t.id + '"]');
+            for (var j = 0; j < vEls.length; j++) vEls[j].textContent = t.views;
+            var rEls = document.querySelectorAll('[data-topic-replies="' + t.id + '"]');
+            for (var k = 0; k < rEls.length; k++) rEls[k].textContent = t.replies;
+            var aEls = document.querySelectorAll('[data-topic-activity="' + t.id + '"]');
+            for (var m = 0; m < aEls.length; m++) aEls[m].textContent = t.updated;
+          }
+        })
+        .catch(function() {});
+    }
+    setInterval(pollForumRealtime, 2500);
+  </script>
+  <script src="/js/main.js?v=078k"></script>
 </body>
 </html>

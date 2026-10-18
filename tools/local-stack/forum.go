@@ -691,16 +691,20 @@ func forumPage(w http.ResponseWriter, r *http.Request) {
 		c := categoryBySlug(catFilter)
 		activeCat = &c
 	}
+	u := currentUser(r)
+	canPostAnnouncements := u != nil && u.IsStaffOrHigher()
 
 	renderPage(w, r, "forum.tmpl", map[string]interface{}{
-		"Title":      "AFX Forum - The home of NSM",
-		"Page":       "/forum",
-		"Categories": forumCategoriesWithCounts(),
-		"Topics":     views,
-		"ActiveCat":  activeCat,
-		"CatSlug":    catFilter,
-		"Tab":        tab,
-		"Query":      r.URL.Query().Get("q"),
+		"Title":                "AFX Forum - The home of NSM",
+		"Page":                 "/forum",
+		"Categories":           forumCategoriesWithCounts(),
+		"Topics":               views,
+		"ActiveCat":            activeCat,
+		"CatSlug":              catFilter,
+		"Tab":                  tab,
+		"Query":                r.URL.Query().Get("q"),
+		"ForumError":           r.URL.Query().Get("err"),
+		"CanPostAnnouncements": canPostAnnouncements,
 	})
 }
 
@@ -723,6 +727,10 @@ func forumCreateTopic(w http.ResponseWriter, r *http.Request) {
 		title = title[:140]
 	}
 	cat := categoryBySlug(catSlug)
+	if strings.EqualFold(cat.Slug, "announcements") && !u.IsStaffOrHigher() {
+		http.Redirect(w, r, "/forum/c/announcements?err="+url.QueryEscape("Only Owners, Admins, and Staff can create new topics in Announcements. Community members can reply to existing announcements."), http.StatusSeeOther)
+		return
+	}
 
 	var tags []string
 	for _, part := range strings.Split(rawTags, ",") {
@@ -800,6 +808,7 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := currentUser(r)
+	recordTopicViewByUser(u, found.ID, len(found.Posts))
 	canMod := u != nil && (roleAtLeast(u.Role, "staff") || strings.EqualFold(u.Username, found.AuthorUsername))
 
 	cat := categoryBySlug(found.CategorySlug)
@@ -921,6 +930,7 @@ func forumReplyTopic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().Unix()
+	var notifyTarget, notifyTitle string
 	forumMu.Lock()
 	for i := range forum.Topics {
 		if forum.Topics[i].ID == id {
@@ -940,11 +950,16 @@ func forumReplyTopic(w http.ResponseWriter, r *http.Request) {
 				CreatedAt:      now,
 			})
 			forum.Topics[i].UpdatedAt = now
+			notifyTarget = forum.Topics[i].AuthorUsername
+			notifyTitle = forum.Topics[i].Title
 			saveForumLocked()
 			break
 		}
 	}
 	forumMu.Unlock()
+	if notifyTarget != "" && !strings.EqualFold(notifyTarget, u.Username) {
+		addUserNotification(notifyTarget, u.Username, "reply", notifyTitle, content, "/forum/t/"+strconv.FormatInt(id, 10)+"#post-bottom")
+	}
 
 	http.Redirect(w, r, "/forum/t/"+strconv.FormatInt(id, 10)+"#post-bottom", http.StatusSeeOther)
 }
@@ -958,6 +973,7 @@ func forumLikePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var notifyTarget, notifyTitle, notifyExcerpt string
 	forumMu.Lock()
 	for i := range forum.Topics {
 		if forum.Topics[i].ID == topicID {
@@ -975,6 +991,9 @@ func forumLikePost(w http.ResponseWriter, r *http.Request) {
 						forum.Topics[i].Posts[j].Likes = append(likes[:alreadyIdx], likes[alreadyIdx+1:]...)
 					} else {
 						forum.Topics[i].Posts[j].Likes = append(likes, u.Username)
+						notifyTarget = forum.Topics[i].Posts[j].AuthorUsername
+						notifyTitle = forum.Topics[i].Title
+						notifyExcerpt = forum.Topics[i].Posts[j].Content
 					}
 					saveForumLocked()
 					break
@@ -984,6 +1003,9 @@ func forumLikePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	forumMu.Unlock()
+	if notifyTarget != "" && !strings.EqualFold(notifyTarget, u.Username) {
+		addUserNotification(notifyTarget, u.Username, "like", notifyTitle, notifyExcerpt, "/forum/t/"+strconv.FormatInt(topicID, 10))
+	}
 
 	http.Redirect(w, r, "/forum/t/"+strconv.FormatInt(topicID, 10), http.StatusSeeOther)
 }
@@ -1088,6 +1110,57 @@ func serveDiscourseTopicJSON(w http.ResponseWriter, r *http.Request, t ForumTopi
 			"posts":  posts,
 			"stream": stream,
 		},
+	})
+}
+
+func serveForumRealtimeJSON(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	profileUser := strings.TrimSpace(r.URL.Query().Get("profile"))
+
+	forumMu.Lock()
+	topics := make([]map[string]interface{}, 0)
+	if forum != nil {
+		for _, t := range forum.Topics {
+			topics = append(topics, map[string]interface{}{
+				"id":      t.ID,
+				"views":   t.Views,
+				"replies": t.ReplyCount(),
+				"likes":   t.TotalLikes(),
+				"updated": formatRelativeTime(t.UpdatedAt),
+			})
+		}
+	}
+	forumMu.Unlock()
+
+	var profileViews, topicsViewed, postsRead int64
+	var unreadCount int
+	accMu.Lock()
+	if profileUser != "" {
+		if pu := findUser(profileUser); pu != nil {
+			profileViews = pu.ProfileViews
+			if profileViews < 1 {
+				profileViews = 1
+			}
+			topicsViewed = pu.TopicsViewed
+			postsRead = pu.PostsRead
+		}
+	}
+	if u != nil && acc != nil {
+		for _, n := range acc.Notifications {
+			if strings.EqualFold(n.Username, u.Username) && !n.Read {
+				unreadCount++
+			}
+		}
+	}
+	accMu.Unlock()
+
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"topics":              topics,
+		"profileViews":        profileViews,
+		"topicsViewed":        topicsViewed,
+		"postsRead":           postsRead,
+		"unreadNotifications": unreadCount,
+		"ts":                  time.Now().Unix(),
 	})
 }
 

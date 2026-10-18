@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.CleanName}} - Server List - NSM</title>
   <link rel="icon" type="image/png" href="/img/nsm-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078f">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body class="mp-standalone-body">
   <div class="mp-app-frame">
@@ -29,9 +29,12 @@
           <a href="/marketplace" class="mp-ext-link">Marketplace</a>
           <a href="/docs" class="mp-ext-link">Docs</a>
           <a href="/support" class="mp-ext-link">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" class="mp-ext-link" style="color:#6ea8ff;font-weight:700">Staff</a>
+          {{end}}
         </div>
         {{if .User}}
-        <a href="/account" class="mp-user-bar">
+        <a href="/u/{{.User.Username}}" class="mp-user-bar">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="mp-user-avatar">
           <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
         </a>
@@ -69,9 +72,9 @@
                 <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(240,244,248,0.5)">Players Online</div>
               </div>
               <form method="post" action="/servers/{{.EndPoint}}/upvote" style="display:inline">
-                <button class="nsm-ctrl-btn" type="submit">
+                <button class="nsm-ctrl-btn" type="submit" title="AFX Pulse Sovereign: +4 Upvotes | AFX Pulse Pro: +1 Upvote | Core: 0 Upvotes">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span>{{.Upvotes}} {{if .Voted}}Boosted{{else}}Boost{{end}}</span>
+                  <span>{{.Upvotes}} {{if .Voted}}Upvoted{{else}}Upvote{{if and .User (gt .User.UpvoteAllowance 0)}} (+{{.User.UpvoteAllowance}}){{end}}{{end}}</span>
                 </button>
               </form>
               <button type="button" class="nsm-btn nsm-btn-primary" data-connect-ep="{{.EndPoint}}">

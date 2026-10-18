@@ -379,6 +379,7 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("POST /account/password", accountChangePassword)
 	mux.HandleFunc("POST /account/profile", accountUpdateProfile)
 	mux.HandleFunc("POST /account/pulse", accountSubscribePulse)
+	mux.HandleFunc("POST /account/messages", sendDirectMessage)
 	mux.HandleFunc("POST /account/connect-client", accountConnectClient)
 	mux.HandleFunc("POST /account/claim-owner", accountClaimOwner)
 	mux.HandleFunc("GET /u/check_email.json", serveDiscourseCheckEmail)
@@ -411,6 +412,7 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("POST /forum/t/{id}/reply", forumReplyTopic)
 	mux.HandleFunc("POST /forum/t/{id}/like/{postId}", forumLikePost)
 	mux.HandleFunc("POST /forum/t/{id}/mod/{action}", forumModerateTopic)
+	mux.HandleFunc("GET /api/forum/realtime", serveForumRealtimeJSON)
 
 	// Keymaster
 	mux.HandleFunc("GET /keymaster", keymasterPage)

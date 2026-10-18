@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078h">
+  <link rel="stylesheet" href="/css/style.css?v=078k">
 </head>
 <body class="dc-ember-body users-page">
   <header class="d-header">
@@ -28,6 +28,9 @@
           <a href="/marketplace">Marketplace</a>
           <a href="/docs">Docs</a>
           <a href="/support">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" style="color:#6ea8ff !important;font-weight:700">Staff</a>
+          {{end}}
         </nav>
       </div>
 
@@ -38,6 +41,9 @@
         </form>
 
         {{if .User}}
+        {{if .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="d-btn d-btn-default">Staff</a>
+        {{end}}
         <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
           <span class="d-header-username">{{.User.EffectiveDisplayName}}</span>
@@ -157,6 +163,7 @@
                       {{if .User.DiscordTag}}<span class="d-social-pill d-social-community">Handle: {{.User.DiscordTag}}</span>{{end}}
                       {{if .User.GitHub}}<a href="{{.User.GitHubURL}}" class="d-social-pill d-social-github" rel="noopener">github.com/{{.User.GitHubHandle}}</a>{{end}}
                       {{if .User.Steam}}<a href="{{.User.SteamURL}}" class="d-social-pill d-social-steam" rel="noopener">Steam: {{.User.Steam}}</a>{{end}}
+                      {{if $.User}}<a href="/u/{{$.User.Username}}?tab=messages&amp;with={{.User.Username}}" class="d-social-pill" style="background:rgba(47,123,255,0.22)!important;border-color:rgba(47,123,255,0.5);color:#fff!important">&#9993; Message @{{.User.Username}}</a>{{end}}
                     </div>
                   </div>
                 </div>

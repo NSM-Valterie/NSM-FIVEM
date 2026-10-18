@@ -128,11 +128,14 @@
     <!-- Right side of NavBar: External Platform Links + PlatformStats + UserBar + Settings -->
     <div class="mp-navbar-right">
       <div class="mp-ext-links">
-        <a href="/keymaster" class="mp-ext-link" title="Open AFX Portal in new tab">AFX Portal</a>
-        <a href="/forum" class="mp-ext-link" title="Open AFX Forum in new tab">Forum</a>
-        <a href="/marketplace" class="mp-ext-link" title="Open AFX Marketplace in new tab">Marketplace</a>
-        <a href="/docs" class="mp-ext-link" title="Open NSM Documentation in new tab">Docs</a>
-        <a href="/support" class="mp-ext-link" title="Open AFX Support in new tab">Support</a>
+        <a href="/keymaster" class="mp-ext-link" title="Open AFX Portal">AFX Portal</a>
+        <a href="/forum" class="mp-ext-link" title="Open AFX Forum">Forum</a>
+        <a href="/marketplace" class="mp-ext-link" title="Open AFX Marketplace">Marketplace</a>
+        <a href="/docs" class="mp-ext-link" title="Open NSM Documentation">Docs</a>
+        <a href="/support" class="mp-ext-link" title="Open AFX Support">Support</a>
+        {{if and .User .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="mp-ext-link" style="color:#6ea8ff;font-weight:700" title="Staff Panel">Staff</a>
+        {{end}}
       </div>
 
       <div class="mp-platform-stats" title="Live NSM Masterlist Players &amp; Servers">
@@ -147,7 +150,7 @@
       </div>
 
       {{if .User}}
-      <a href="/account" class="mp-user-bar" title="Signed in as @{{.User.Username}} — Click for Account Settings">
+      <a href="/u/{{.User.Username}}" class="mp-user-bar" title="Signed in as @{{.User.Username}} — Click for Profile">
         <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="mp-user-avatar">
         <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
       </a>
