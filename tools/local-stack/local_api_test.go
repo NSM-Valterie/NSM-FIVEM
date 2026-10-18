@@ -566,13 +566,15 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 		t.Fatalf("POST /l/api/validate/discourse failed: %d %s", wVal.Code, wVal.Body.String())
 	}
 
-	// 5. Verify patchUIBundleBytes rewrites Discord invite to http://127.0.0.1, cache-busts static/js/main.js, and injects auth poller + interceptor
+	// 5. Verify patchUIBundleBytes rewrites Discord invite to http://127.0.0.1, keeps root.html clean, and injects strict-mode-safe auth poller + interceptor into app/index.html
 	var zbuf bytes.Buffer
 	zw := zip.NewWriter(&zbuf)
 	f1, _ := zw.Create("app/index.html")
-	f1.Write([]byte(`<html><head><script defer="defer" src="static/js/main.js"></script></head><body><div id="root"></div></body></html>`))
+	f1.Write([]byte(`<html><head><script defer="defer" src="static/js/main.js?v=nsm078b"></script></head><body><div id="root"></div></body></html>`))
 	f2, _ := zw.Create("app/static/js/main.js")
 	f2.Write([]byte(`const BASE_URL = "https://discord.gg/UXj5QfCX88";`))
+	f3, _ := zw.Create("root.html")
+	f3.Write([]byte(`<html><head>` + uiDiscourseHeadInterceptorV2 + `</head><body></body></html>`))
 	zw.Close()
 
 	patchedZip, changed, err := patchUIBundleBytes(zbuf.Bytes())
@@ -592,11 +594,19 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 		}
 		if zf.Name == "app/index.html" {
 			htmlStr := string(b)
-			for _, m := range []string{`id="nsm-client-auth-poll-v3"`, `id="nsm-discourse-interceptor"`, `src="static/js/main.js?v=nsm078b"`} {
+			for _, m := range []string{`id="nsm-client-auth-poll-v4"`, `id="nsm-discourse-interceptor"`, `src="static/js/main.js"`} {
 				if !strings.Contains(htmlStr, m) {
 					t.Fatalf("app/index.html missing %s: %s", m, htmlStr)
 				}
 			}
+			for _, bad := range []string{`origFetch.call`, `?v=nsm078b`} {
+				if strings.Contains(htmlStr, bad) {
+					t.Fatalf("app/index.html must not contain %s: %s", bad, htmlStr)
+				}
+			}
+		}
+		if zf.Name == "root.html" && strings.Contains(string(b), "nsm-discourse-interceptor") {
+			t.Fatalf("root.html must not contain nsm-discourse-interceptor: %s", string(b))
 		}
 	}
 }

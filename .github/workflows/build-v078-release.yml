@@ -43,7 +43,7 @@ jobs:
           ls -lh /tmp/NSM-Masterlist.exe
           sha256sum /tmp/NSM-Masterlist.exe
 
-      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe & UI bundle
+      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe, UI bundle, Steam 218 & branding
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -51,27 +51,197 @@ jobs:
           cp /tmp/NSM-Masterlist.exe /tmp/v078-dist/NSM-Masterlist.exe
           gh release download nsm-v0.7.7-localtest -p "NSM-client-v0.7.7-localtest.zip" -D /tmp
           python3 - << 'EOF'
-          import hashlib, io, re, zipfile
+          import hashlib, io, re, struct, subprocess, zipfile, zlib
           from pathlib import Path
 
           base_zip = Path("/tmp/NSM-client-v0.7.7-localtest.zip")
           new_exe = Path("/tmp/NSM-Masterlist.exe").read_bytes()
+          patched_steam_dll = Path("data/client/steam_api64.dll").read_bytes()
           out_zip = Path("/tmp/v078-dist/NSM-client-v0.7.8-candidate.zip")
           src_zip = Path("/tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip")
           RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
 
-          POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v3">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},900);})();</script>'
-          HEAD_INTERCEPTOR = b'<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}if(window.Request){var OrigReq=window.Request;window.Request=function(input,init){if(typeof input==="string")input=rw(input);return new OrigReq(input,init);};window.Request.prototype=OrigReq.prototype;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){var h={};try{if(input.headers&&input.headers.forEach)input.headers.forEach(function(v,k){h[k]=v;});}catch(e){}init=init||{method:input.method||"GET",headers:h};input=u;}}}catch(e){}return origFetch.call(this,input,init).then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>'
+          POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v4">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");setTimeout(function(){try{var bs=document.querySelectorAll("button");for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||"").trim();if(t==="Continue"){bs[i].click();break;}}}catch(e){}},450);}}).catch(function(){});}catch(e){}},800);})();</script>'
+          HEAD_INTERCEPTOR = b'<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){input=new Request(u,input);}}}catch(e){}var p=(arguments.length>1)?origFetch(input,init):origFetch(input);if(u&&(u.indexOf("/session/current.json")!==-1||(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1)||u.indexOf("/api/upvote")!==-1)){return p.then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});}return p;};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>'
           EMAIL_REGEX_PATTERNS = [
               b"/^[a-zA-Z0-9!#\\$%&'*+\\/=\\?\\^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#\\$%&'\\*+\\/=\\?\\^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
               b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
               b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/",
               b"/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
           ]
-          ASSET_RE = re.compile(rb'((?:src|href)=["\'][^"\'?]+\.(?:js|css))(?:\?v=nsm078b?)?(["\'])')
 
           def sha(b):
               return hashlib.sha256(b).hexdigest()
+
+          def png_chunk(ctype: bytes, data: bytes) -> bytes:
+              crc = zlib.crc32(ctype + data) & 0xFFFFFFFF
+              return struct.pack(">I", len(data)) + ctype + data + struct.pack(">I", crc)
+
+          def pad_png_to_exact_size(png_bytes: bytes, target_size: int) -> bytes:
+              assert png_bytes.endswith(b"\x00\x00\x00\x00IEND\xaeB`\x82")
+              diff = target_size - len(png_bytes)
+              assert diff >= 12, f"PNG too large ({len(png_bytes)} vs {target_size})"
+              chunk_data_len = diff - 12
+              chunk_data = b"Comment\x00"[:chunk_data_len].ljust(chunk_data_len, b" ")
+              chunk = png_chunk(b"tEXt", chunk_data)
+              out = png_bytes[:-12] + chunk + png_bytes[-12:]
+              assert len(out) == target_size
+              return out
+
+          def render_nsm_icon_png(dim: int) -> bytes:
+              palette = (
+                  b"\x00\x00\x00"
+                  b"\x12\x17\x23"
+                  b"\x1f\x57\xc3"
+                  b"\x2f\x7b\xff"
+                  b"\xff\xff\xff"
+              )
+              trns = b"\x00\xff\xff\xff\xff"
+              rows = []
+              pad = max(1, dim // 12)
+              x0, x1 = int(dim * 0.22), int(dim * 0.78)
+              y0, y1 = int(dim * 0.18), int(dim * 0.82)
+              stroke = max(2, int(dim * 0.14))
+              for y in range(dim):
+                  row = bytearray([0])
+                  for x in range(dim):
+                      if x < pad or x >= dim - pad or y < pad or y >= dim - pad:
+                          row.append(0)
+                          continue
+                      in_n = False
+                      if y0 <= y < y1 and x0 <= x < x1:
+                          if x < x0 + stroke or x >= x1 - stroke:
+                              in_n = True
+                          else:
+                              t = (y - y0) / max(1, (y1 - y0 - 1))
+                              diag_x = x0 + t * (x1 - stroke - x0)
+                              if diag_x <= x < diag_x + stroke * 1.15:
+                                  in_n = True
+                      if in_n:
+                          row.append(3 if (x + y) % 5 != 0 else 4)
+                      elif x < pad + max(1, dim // 16) or x >= dim - pad - max(1, dim // 16) or y < pad + max(1, dim // 16) or y >= dim - pad - max(1, dim // 16):
+                          row.append(2)
+                      else:
+                          row.append(1)
+                  rows.append(bytes(row))
+              raw_idat = zlib.compress(b"".join(rows), 9)
+              ihdr = struct.pack(">IIBBBBB", dim, dim, 8, 3, 0, 0, 0)
+              return (
+                  b"\x89PNG\r\n\x1a\n"
+                  + png_chunk(b"IHDR", ihdr)
+                  + png_chunk(b"PLTE", palette)
+                  + png_chunk(b"tRNS", trns)
+                  + png_chunk(b"IDAT", raw_idat)
+                  + png_chunk(b"IEND", b"")
+              )
+
+          old_backdrop = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/backdrop.png"])
+          new_backdrop_padded = pad_png_to_exact_size(Path("code/client/launcher/backdrop.png").read_bytes(), len(old_backdrop))
+          old_ico = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/fivem.ico"])
+          ico_replacements = []
+          for i in range(6):
+              w, h, colors, res, planes, bpp, size, offset = struct.unpack_from("<BBBBHHII", old_ico, 6 + i * 16)
+              dim = w or 256
+              old_entry = old_ico[offset:offset+size]
+              if old_entry[:8] == b"\x89PNG\r\n\x1a\n":
+                  ico_replacements.append((old_entry, pad_png_to_exact_size(render_nsm_icon_png(dim), size)))
+
+          def patch_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
+              data = bytearray(raw_bytes)
+              orig_len = len(data)
+
+              # 1. Replace green FiveM XAML splash icon & backdrop & RT_ICON entries in NSM.exe
+              old_xaml_path = "M37.97 86.09h23.62l9.1-36.7L55.34 15.8 37.97 86.09zM115.69 15.8H61.59L49.55 37.97l33.57 35.19 6.72-26.97h7.56l18.29-30.39zM86.94 64.03l31.9-31.9-5.9-21.37H64.54l-2.36 4.72 54.1 54.69-29.34-6.14zM141.68 154.99L78.08 91.4 31.48 99.67 16.71 158.53h42.53l12.4-50.2h7.68l12.4 50.2h42.53l-7.43-28.94 14.86 25.4z".encode("utf-16le")
+              new_xaml_path = "M24 190V10H62L138 122V10H170V190H132L56 78V190H24Z".ljust(len(old_xaml_path) // 2, " ").encode("utf-16le")
+              if old_xaml_path in data:
+                  data[:] = data.replace(old_xaml_path, new_xaml_path)
+                  print(f"[pe-patch] {filename}: replaced splash XAML path with blue NSM N")
+              old_fill = 'Fill="#66AD43"'.encode("utf-16le")
+              new_fill = 'Fill="#2F7BFF"'.encode("utf-16le")
+              if old_fill in data:
+                  data[:] = data.replace(old_fill, new_fill)
+                  print(f"[pe-patch] {filename}: replaced Fill=#66AD43 with Fill=#2F7BFF")
+              if old_backdrop in data:
+                  data[:] = data.replace(old_backdrop, new_backdrop_padded)
+                  print(f"[pe-patch] {filename}: replaced embedded backdrop.png with NSM backdrop")
+              for old_png, new_png in ico_replacements:
+                  if old_png in data:
+                      data[:] = data.replace(old_png, new_png)
+                      print(f"[pe-patch] {filename}: replaced RT_ICON ({len(old_png)} bytes) with blue NSM icon")
+
+              # 2. Replace window title strings with "NSM - Powered by AFX"
+              target_title = "NSM - Powered by AFX"
+              long_slot_rva = None
+              if data[:2] == b"MZ":
+                  try:
+                      pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                      num_sec = struct.unpack_from("<H", data, pe_off + 6)[0]
+                      opt_size = struct.unpack_from("<H", data, pe_off + 20)[0]
+                      sec_table = pe_off + 24 + opt_size
+                      sections = []
+                      for i in range(num_sec):
+                          s_off = sec_table + i * 40
+                          s_name = data[s_off:s_off+8].rstrip(b"\x00").decode("ascii", errors="ignore")
+                          vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, s_off + 8)
+                          sections.append([s_off, s_name, vsize, rva, raw_size, raw_ptr])
+
+                      def raw_to_rva(offset):
+                          for _, _, vsize, rva, raw_size, raw_ptr in sections:
+                              if raw_ptr <= offset < raw_ptr + raw_size:
+                                  return rva + (offset - raw_ptr)
+                          return None
+
+                      for pat_str in (
+                          "FiveM\u00ae by Cfx.re - %s\x00",
+                          "FiveM - Powered by Cfx.re\x00",
+                          "FiveM - Powered by cfx.re\x00",
+                          "FiveM - Powered by Cfx.\x00",
+                          "FiveM - Powered by cfx.\x00",
+                          "FiveM - Powered by CFX\x00",
+                          "FiveM - Powered by cfx\x00",
+                      ):
+                          raw_pat = pat_str.encode("utf-16le")
+                          pos = data.find(raw_pat)
+                          if pos != -1:
+                              raw_repl = (target_title + "\x00").encode("utf-16le")
+                              padded = raw_repl + (b"\x00" * (len(raw_pat) - len(raw_repl)))
+                              long_slot_rva = raw_to_rva(pos)
+                              data[pos:pos+len(raw_pat)] = padded
+                              print(f"[pe-patch] {filename}: replaced {pat_str!r} -> {target_title!r}")
+
+                      short_pat = "FiveM\u00ae by Cfx.re\x00".encode("utf-16le")
+                      short_pos = data.find(short_pat)
+                      if short_pos != -1:
+                          old_rva = raw_to_rva(short_pos)
+                          new_rva = long_slot_rva
+                          new_bytes = (target_title + "\x00").encode("utf-16le")
+                          if new_rva is None:
+                              for s_off, s_name, vsize, rva, raw_size, raw_ptr in sections:
+                                  if s_name in (".rdata", ".data") and vsize + len(new_bytes) + 16 <= raw_size:
+                                      cave_off = (vsize + 15) & ~15
+                                      if cave_off + len(new_bytes) <= raw_size:
+                                          cave_raw = raw_ptr + cave_off
+                                          new_rva = rva + cave_off
+                                          data[cave_raw:cave_raw+len(new_bytes)] = new_bytes
+                                          struct.pack_into("<I", data, s_off + 8, cave_off + len(new_bytes))
+                                          break
+                          if new_rva is not None and old_rva is not None:
+                              for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
+                                  if t_name == ".text":
+                                      end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
+                                      for pos in range(t_raw_ptr, end):
+                                          if data[pos] in (0x48, 0x4C) and data[pos+1] == 0x8D and (data[pos+2] & 0xC7) == 0x05:
+                                              disp = struct.unpack_from("<i", data, pos + 3)[0]
+                                              insn_end_rva = t_rva + (pos - t_raw_ptr) + 7
+                                              if insn_end_rva + disp == old_rva:
+                                                  struct.pack_into("<i", data, pos + 3, new_rva - insn_end_rva)
+                                                  print(f"[pe-patch] {filename}: redirected LEA from 0x{old_rva:x} -> 0x{new_rva:x} ({target_title!r})")
+                              data[short_pos:short_pos+len(short_pat)] = "NSM - AFX\x00".encode("utf-16le").ljust(len(short_pat), b"\x00")
+                  except Exception as e:
+                      print(f"[pe-patch] warning on {filename}: {e}")
+
+              assert len(data) == orig_len
+              return bytes(data)
 
           def patch_ui_archive(raw_bytes):
               buf = io.BytesIO()
@@ -92,14 +262,13 @@ jobs:
                           body = body.replace(b"https://portal.cfx.re", b"http://127.0.0.1/keymaster")
                           for pat in EMAIL_REGEX_PATTERNS:
                               body = body.replace(pat, b"/^[^\\s]{2,}$/")
-                          if lower.endswith(".html"):
+                          if lower in ("app/index.html", "index.html"):
                               if b'id="nsm-discourse-interceptor"' not in body:
                                   if b"<head>" in body:
                                       body = body.replace(b"<head>", b"<head>" + HEAD_INTERCEPTOR, 1)
                                   else:
                                       body = HEAD_INTERCEPTOR + body
-                              body = ASSET_RE.sub(rb'\1?v=nsm078b\2', body)
-                              if b'id="nsm-client-auth-poll-v3"' not in body:
+                              if b'id="nsm-client-auth-poll-v4"' not in body:
                                   if b"</body>" in body:
                                       body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
                                   else:
@@ -109,6 +278,7 @@ jobs:
 
           overlay = {
               "NSM-Client/NSM-Masterlist.exe": new_exe,
+              "NSM-Client/steam_appid.txt": b"218\r\n",
               "NSM-Client/repair-info/go-tests.txt": Path("/tmp/go-tests.txt").read_bytes(),
               "NSM-Client/repair-info/race-tests.txt": Path("/tmp/race-tests.txt").read_bytes(),
           }
@@ -117,12 +287,23 @@ jobs:
                   overlay["NSM-Client/repair-info/source/" + p.relative_to("tools/local-stack").as_posix()] = p.read_bytes()
 
           with zipfile.ZipFile(base_zip, "r") as zin:
-              for ui_name in ("NSM-Client/citizen/ui.zip", "NSM-Client/citizen/ui-big.zip"):
-                  if ui_name in zin.namelist():
-                      patched_ui = patch_ui_archive(zin.read(ui_name))
-                      overlay[ui_name] = patched_ui
-                      if ui_name == "NSM-Client/citizen/ui.zip":
-                          Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
+              # Only patch citizen/ui.zip (never ui-big.zip)
+              if "NSM-Client/citizen/ui.zip" in zin.namelist():
+                  patched_ui = patch_ui_archive(zin.read("NSM-Client/citizen/ui.zip"))
+                  overlay["NSM-Client/citizen/ui.zip"] = patched_ui
+                  Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
+
+              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch window titles / icons
+              for member in zin.namelist():
+                  lower = member.lower()
+                  if lower.endswith("steam_api64.dll"):
+                      overlay[member] = patched_steam_dll
+                      print(f"[steam-218] overlaid {member} ({len(patched_steam_dll)} bytes)")
+                  elif lower.endswith(("nsm.exe", "rage-graphics-five.dll", "net_five.dll", "citizen-game-main.dll", "conhost-v2.dll")):
+                      orig_pe = zin.read(member)
+                      patched_pe = patch_pe_binary(orig_pe, member)
+                      if patched_pe != orig_pe:
+                          overlay[member] = patched_pe
 
           sums = {}
           with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
@@ -142,6 +323,7 @@ jobs:
               assert zcheck.testzip() is None
               assert sha(zcheck.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
               assert zcheck.read("NSM-Client/NSM-Masterlist.exe") == new_exe
+              assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
 
           with zipfile.ZipFile(src_zip, "w", zipfile.ZIP_DEFLATED) as zsrc:
               for p in sorted(list(Path("tools/local-stack").rglob("*")) + list(Path("docs/nsm-audit-v077").rglob("*"))):
@@ -152,10 +334,15 @@ jobs:
 
           with zipfile.ZipFile("/tmp/patched-ui.zip", "r") as zui:
               assert zui.testzip() is None
+              app_html = zui.read("app/index.html")
+              root_html = zui.read("root.html")
+              assert b'id="nsm-client-auth-poll-v4"' in app_html
+              assert b'id="nsm-discourse-interceptor"' in app_html
+              assert b"origFetch.call" not in app_html
+              assert b"?v=nsm078b" not in app_html
+              assert b'id="nsm-discourse-interceptor"' not in root_html
               ui_blob = b"".join(zui.read(n) for n in zui.namelist() if not n.endswith("/"))
               assert b"discord.gg/UXj5QfCX88" not in ui_blob
-              assert b'id="nsm-client-auth-poll-v3"' in ui_blob
-              assert b'id="nsm-discourse-interceptor"' in ui_blob
               assert b"http://127.0.0.1" in ui_blob
               assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
 

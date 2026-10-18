@@ -19,7 +19,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -455,6 +454,28 @@ func serveUserAPIKeyNew(w http.ResponseWriter, r *http.Request) {
 				"Scopes":       scopes,
 			})
 			return
+		}
+	}
+
+	// If the user is already signed in on the NSM website when NSM.exe opens /user-api-key/new,
+	// pre-authorize the pending nonce immediately so NSM.exe signs in seamlessly too.
+	if u != nil && nonce != "" && r.URL.Query().Get("switch") != "1" {
+		recordWebsiteLoginForClientAuth(u.ID)
+		if pubKey != "" {
+			if payloadB64, err := buildEncryptedClientPayload(u.ID, clientID, nonce, pubKey, appName); err == nil {
+				clientAuthMu.Lock()
+				if req, ok := pendingAuthByNonce[nonce]; ok {
+					req.AuthorizedBy = u.ID
+					req.PayloadB64 = payloadB64
+				}
+				clientAuthMu.Unlock()
+			}
+		} else {
+			clientAuthMu.Lock()
+			if req, ok := pendingAuthByNonce[nonce]; ok {
+				req.AuthorizedBy = u.ID
+			}
+			clientAuthMu.Unlock()
 		}
 	}
 
@@ -1093,13 +1114,39 @@ const uiClientAuthPollSnippetLegacy = `<script id="nsm-client-auth-poll">(functi
 
 const uiClientAuthPollSnippetV2 = `<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>`
 
-const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v3">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},900);})();</script>`
+const uiClientAuthPollSnippetV3 = `<script id="nsm-client-auth-poll-v3">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},900);})();</script>`
+
+const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v4">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");setTimeout(function(){try{var bs=document.querySelectorAll("button");for(var i=0;i<bs.length;i++){var tx=(bs[i].textContent||"").trim().toLowerCase();if(tx==="continue"){bs[i].click();break;}}}catch(e){}},450);}}).catch(function(){});}catch(e){}},900);})();</script>`
 
 const uiDiscourseHeadInterceptorV1 = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){try{if(typeof input==="string"){input=rw(input);}else if(input&&typeof input.url==="string"){var nu=rw(input.url);if(nu!==input.url)input=new Request(nu,input);}}catch(e){}return origFetch.call(this,input,init);};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
 
-const uiDiscourseHeadInterceptor = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}if(window.Request){var OrigReq=window.Request;window.Request=function(input,init){if(typeof input==="string")input=rw(input);return new OrigReq(input,init);};window.Request.prototype=OrigReq.prototype;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){var h={};try{if(input.headers&&input.headers.forEach)input.headers.forEach(function(v,k){h[k]=v;});}catch(e){}init=init||{method:input.method||"GET",headers:h};input=u;}}}catch(e){}return origFetch.call(this,input,init).then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+const uiDiscourseHeadInterceptorV2 = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}if(window.Request){var OrigReq=window.Request;window.Request=function(input,init){if(typeof input==="string")input=rw(input);return new OrigReq(input,init);};window.Request.prototype=OrigReq.prototype;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){var h={};try{if(input.headers&&input.headers.forEach)input.headers.forEach(function(v,k){h[k]=v;});}catch(e){}init=init||{method:input.method||"GET",headers:h};input=u;}}}catch(e){}return origFetch.call(this,input,init).then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
 
-var htmlAssetCacheBustRe = regexp.MustCompile(`((?:src|href)=["'][^"'?]+\.(?:js|css))(?:\?v=nsm078)?(["'])`)
+// IMPORTANT: In Webpack strict mode (`const originalFetch = fetch; originalFetch(...)` in fetcher.ts),
+// `this` inside `window.fetch` is `undefined`. Calling `origFetch.call(this, ...)` throws synchronous
+// `TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation`. Always call `origFetch(input, init)` directly.
+const uiDiscourseHeadInterceptor = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"Cravenz",name:"Cravenz",avatar_template:"http://127.0.0.1/u/Cravenz/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){return new Response(JSON.stringify({power:5,burst:0,source:""}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){input=new Request(u,input);}}}catch(e){}var p=(arguments.length>1)?origFetch(input,init):origFetch(input);if(u&&(u.indexOf("/session/current.json")!==-1||(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1)||u.indexOf("/api/upvote")!==-1)){return p.then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});}return p;};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+
+func stripInjectedScriptByID(body []byte, idMarker string) []byte {
+	startPrefix := []byte(`<script ` + idMarker)
+	endTag := []byte(`</script>`)
+	for {
+		idx := bytes.Index(body, startPrefix)
+		if idx == -1 {
+			break
+		}
+		endIdx := bytes.Index(body[idx:], endTag)
+		if endIdx == -1 {
+			break
+		}
+		cutEnd := idx + endIdx + len(endTag)
+		var next bytes.Buffer
+		next.Write(body[:idx])
+		next.Write(body[cutEnd:])
+		body = next.Bytes()
+	}
+	return body
+}
 
 func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
@@ -1146,24 +1193,21 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			}
 
 			if strings.HasSuffix(lower, ".html") {
-				// Upgrade or inject head interceptor into index.html (which NUISchemeHandler.cpp never caches)
-				if bytes.Contains(body, []byte(uiDiscourseHeadInterceptorV1)) {
-					body = bytes.ReplaceAll(body, []byte(uiDiscourseHeadInterceptorV1), []byte(uiDiscourseHeadInterceptor))
-				} else if !bytes.Contains(body, []byte(`id="nsm-discourse-interceptor"`)) {
+				// Remove any prior ?v=nsm078b or ?v=nsm078 asset query parameters
+				body = bytes.ReplaceAll(body, []byte("?v=nsm078b"), nil)
+				body = bytes.ReplaceAll(body, []byte("?v=nsm078"), nil)
+
+				// Strip any previous versions of our injected scripts before re-injecting into app/index.html
+				body = stripInjectedScriptByID(body, `id="nsm-discourse-interceptor"`)
+				body = stripInjectedScriptByID(body, `id="nsm-client-auth-poll`)
+
+				if lower == "app/index.html" || lower == "index.html" {
 					if bytes.Contains(body, []byte("<head>")) {
 						body = bytes.Replace(body, []byte("<head>"), []byte("<head>"+uiDiscourseHeadInterceptor), 1)
 					} else {
 						body = append([]byte(uiDiscourseHeadInterceptor), body...)
 					}
-				}
-				// Append ?v=nsm078b cache-buster to static/js/main.js, mpMenu.js, and any .js/.css tags so CEF bypasses 30-day disk cache
-				body = htmlAssetCacheBustRe.ReplaceAll(body, []byte("${1}?v=nsm078b${2}"))
 
-				if bytes.Contains(body, []byte(uiClientAuthPollSnippetLegacy)) {
-					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetLegacy), []byte(uiClientAuthPollSnippet))
-				} else if bytes.Contains(body, []byte(uiClientAuthPollSnippetV2)) {
-					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetV2), []byte(uiClientAuthPollSnippet))
-				} else if !bytes.Contains(body, []byte(`id="nsm-client-auth-poll-v3"`)) {
 					if bytes.Contains(body, []byte("</body>")) {
 						body = bytes.Replace(body, []byte("</body>"), []byte(uiClientAuthPollSnippet+"</body>"), 1)
 					} else {
@@ -1204,11 +1248,8 @@ func patchLocalUIBundlesOnDisk() {
 	}
 	relCandidates := []string{
 		"citizen/ui.zip",
-		"citizen/ui-big.zip",
 		"NSM.app/citizen/ui.zip",
-		"NSM.app/citizen/ui-big.zip",
 		"../citizen/ui.zip",
-		"../citizen/ui-big.zip",
 	}
 	seen := map[string]bool{}
 	patchedAny := false
@@ -1238,7 +1279,7 @@ func patchLocalUIBundlesOnDisk() {
 			}
 		}
 	}
-	// Always clear pre-v078b CEF browser caches at least once (even if ui.zip came pre-patched in the release archive)
+	// Always clear pre-v078c CEF browser caches at least once (even if ui.zip came pre-patched in the release archive)
 	for _, b := range baseDirs {
 		for _, relRoot := range []string{"data/cache/browser", "NSM.app/data/cache/browser", "../data/cache/browser"} {
 			root := filepath.Clean(filepath.Join(b, relRoot))
@@ -1246,7 +1287,7 @@ func patchLocalUIBundlesOnDisk() {
 			if err != nil || !st.IsDir() {
 				continue
 			}
-			sentinel := filepath.Join(root, ".nsm078b")
+			sentinel := filepath.Join(root, ".nsm078c")
 			if !patchedAny {
 				if _, err := os.Stat(sentinel); err == nil {
 					continue
@@ -1258,7 +1299,7 @@ func patchLocalUIBundlesOnDisk() {
 					log.Printf("[ui-patch] cleared CEF browser cache directory %s", cd)
 				}
 			}
-			_ = os.WriteFile(sentinel, []byte("nsm078b\n"), 0644)
+			_ = os.WriteFile(sentinel, []byte("nsm078c\n"), 0644)
 		}
 	}
 }

@@ -1,56 +1,41 @@
 {{define "foot"}}
 </main>
 
-<footer class="site-footer">
-  <div class="footer-inner">
-    <div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-        <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:36px;width:auto">
-        <span class="brand-sub"><img src="/img/afx-icon.png" alt="AFX" class="brand-sub-icon">AFX</span>
+<footer>
+  <div class="container">
+    <div class="spacer">
+      <div class="fx" style="align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem">
+        <div class="c-lg-4 c-md-6 c-xs-12">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <img src="/img/nsm-icon.png" alt="NSM" style="width:40px;height:40px">
+            <span style="font-family:var(--font-header);font-size:1.4rem;font-weight:500">NSM</span>
+          </div>
+          <p class="muted" style="line-height:1.5">
+            NSM is a modification for Grand Theft Auto V enabling you to play multiplayer on customized dedicated servers, powered by <strong>AFX</strong>.
+          </p>
+        </div>
+        <div class="c-lg-8 c-md-6 c-xs-12">
+          <ul class="links" style="display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;margin:0;justify-content:flex-end">
+            <li><a href="/servers" target="_blank" rel="noopener">Server List</a></li>
+            <li><a href="/keymaster" target="_blank" rel="noopener">AFX Portal</a></li>
+            <li><a href="/login" target="_blank" rel="noopener">Login - AFX Portal</a></li>
+            <li><a href="/forum" target="_blank" rel="noopener">AFX Forum</a></li>
+            <li><a href="/marketplace" target="_blank" rel="noopener">AFX Marketplace</a></li>
+            <li><a href="/docs" target="_blank" rel="noopener">Documentation</a></li>
+            <li><a href="/support" target="_blank" rel="noopener">AFX Support</a></li>
+            <li><a href="https://discord.gg/UXj5QfCX88" target="_blank" rel="noopener">Discord</a></li>
+          </ul>
+        </div>
       </div>
-      <p style="font-size:0.88rem;color:rgba(229,238,255,0.68);max-width:360px;line-height:1.6">
-        NSM is the GTA V multiplayer modification and server platform powered by the AFX framework. Browse live servers, issue AFX Portal license keys, and connect directly in <code>NSM.exe</code>.
-      </p>
+      <div class="hbar" style="border-top:1px solid var(--color-text-a10);padding-top:1rem;font-size:.82rem">
+        <span class="muted">&copy; {{.Year}} NSM &amp; AFX Platform.</span>
+        <span class="muted"> Grand Theft Auto and Grand Theft Auto: V are registered trademarks of Take-Two Interactive Software. Trademarks belong to their respective owners.</span>
+      </div>
     </div>
-
-    <div>
-      <h4>AFX Platform</h4>
-      <ul>
-        <li><a href="/servers" target="_blank" rel="noopener">Server List - NSM</a></li>
-        <li><a href="/login" target="_blank" rel="noopener">Login - AFX Portal</a></li>
-        <li><a href="/keymaster" target="_blank" rel="noopener">AFX Portal (Keymaster)</a></li>
-        <li><a href="/marketplace" target="_blank" rel="noopener">AFX Marketplace</a></li>
-      </ul>
-    </div>
-
-    <div>
-      <h4>Community &amp; Docs</h4>
-      <ul>
-        <li><a href="/forum" target="_blank" rel="noopener">AFX Forum - The home of NSM</a></li>
-        <li><a href="/docs" target="_blank" rel="noopener">Home - NSM Documentation</a></li>
-        <li><a href="/docs#server-setup" target="_blank" rel="noopener">Server Setup Guide</a></li>
-        <li><a href="/docs#natives" target="_blank" rel="noopener">Native Reference</a></li>
-      </ul>
-    </div>
-
-    <div>
-      <h4>Account &amp; Support</h4>
-      <ul>
-        <li><a href="/support" target="_blank" rel="noopener">AFX Support</a></li>
-        <li><a href="/account">My Account &amp; Profile</a></li>
-        <li><a href="/user-api-key/new">Link NSM.exe Client</a></li>
-        <li><a href="https://discord.gg/UXj5QfCX88" target="_blank" rel="noopener">Discord Community</a></li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="footer-bottom">
-    <span>&copy; {{.Year}} NSM &amp; AFX Platform. Powered by the AxiomFX multiplayer engine.</span>
-    <span>Not affiliated with or endorsed by Rockstar Games or Take-Two Interactive.</span>
   </div>
 </footer>
 
-<script src="/js/main.js?v=078c"></script>
+<script src="/js/main.js?v=078d"></script>
 </body>
 </html>
 {{end}}
