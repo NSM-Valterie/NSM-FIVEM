@@ -912,7 +912,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	reqPulseClosed.Header.Set("X-NSM-Session", customSess)
 	wPulseClosed := httptest.NewRecorder()
 	h.ServeHTTP(wPulseClosed, reqPulseClosed)
-	if !strings.Contains(wPulseClosed.Body.String(), "AFX Pulse Closed:") {
+	if !strings.Contains(wPulseClosed.Body.String(), "AFX Pulse is currently closed") {
 		t.Fatalf("expected POST /account/pulse to state AFX Pulse is closed right now")
 	}
 
@@ -1045,7 +1045,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("staff reply to support ticket failed: %d", wStaffReply.Code)
 	}
 	wTicketAfter := requestAuth(h, "GET", ticketURL, "", map[string]string{"X-NSM-Session": customSess})
-	if !strings.Contains(wTicketAfter.Body.String(), "Hello from AFX Support Staff!") || !strings.Contains(wTicketAfter.Body.String(), "AFX SUPPORT STAFF") {
+	if !strings.Contains(wTicketAfter.Body.String(), "Hello from AFX Support Staff!") || !strings.Contains(wTicketAfter.Body.String(), "AFX Support Staff") {
 		t.Fatalf("support ticket page did not render staff reply and badge")
 	}
 
@@ -1065,8 +1065,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	reqBan.Header.Set("X-NSM-Session", staffSess)
 	wBan := httptest.NewRecorder()
 	h.ServeHTTP(wBan, reqBan)
-	if wBan.Code != http.StatusOK || !strings.Contains(wBan.Body.String(), "BANNED") {
-		t.Fatalf("POST /admin/users/%d/ban failed: %d", targetID, wBan.Code)
+	if wBan.Code != http.StatusSeeOther || !strings.Contains(wBan.Header().Get("Location"), "Banned") {
+		t.Fatalf("POST /admin/users/%d/ban failed: %d (%s)", targetID, wBan.Code, wBan.Header().Get("Location"))
 	}
 	reqUnban := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/ban", targetID), strings.NewReader("action=unban"))
 	reqUnban.RemoteAddr = "127.0.0.1:12345"
@@ -1074,8 +1074,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	reqUnban.Header.Set("X-NSM-Session", staffSess)
 	wUnban := httptest.NewRecorder()
 	h.ServeHTTP(wUnban, reqUnban)
-	if wUnban.Code != http.StatusOK {
-		t.Fatalf("POST /admin/users/%d/ban unban failed: %d", targetID, wUnban.Code)
+	if wUnban.Code != http.StatusSeeOther || !strings.Contains(wUnban.Header().Get("Location"), "Unbanned") {
+		t.Fatalf("POST /admin/users/%d/ban unban failed: %d (%s)", targetID, wUnban.Code, wUnban.Header().Get("Location"))
 	}
 
 	reqPartner := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/partner", targetID), strings.NewReader("action=grant"))

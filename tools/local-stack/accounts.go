@@ -1204,6 +1204,9 @@ func accountVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	code := strings.TrimSpace(r.FormValue("code"))
 	next := strings.TrimSpace(r.FormValue("next"))
+	if next == "" {
+		next = strings.TrimSpace(r.FormValue("return_to"))
+	}
 
 	accMu.Lock()
 	target := userByID(u.ID)
