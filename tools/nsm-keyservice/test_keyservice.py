@@ -427,6 +427,35 @@ class KeyServiceMatrixTests(unittest.TestCase):
         self.assertEqual(tk_status, 503)
         self.assertEqual(json.loads(tk_raw)["error"], "ticket_pubkey_not_configured")
 
+    def test_10_verify_dedicated_server_acceptance_helper(self) -> None:
+        import verify_dedicated_server as vds
+
+        server_key, _ = self._issue_key_http(label="Verifier Test Server")
+        hb = {
+            "port": 30140,
+            "fallbackData": {
+                "players": [{"id": 1, "name": "P1"}, {"id": 2, "name": "P2"}],
+                "dynamic": {"hostname": "Verifier Server", "clients": 2, "svMaxclients": 32},
+                "info": {"version": "nsm-server 1.0.0", "resources": ["spawnmanager"]},
+            },
+        }
+        status, _ = self.h.request(
+            "POST",
+            "/api/serverlist/ingress",
+            hb,
+            {"Authorization": f"Bearer {server_key}"},
+        )
+        self.assertEqual(status, 200)
+
+        host, port = self.h.server.server_address
+        report = vds.verify_acceptance(
+            server_endpoint="127.0.0.1:30140",
+            masterlist_url=f"http://{host}:{port}",
+            min_players=2,
+            check_direct_server_http=False,
+        )
+        self.assertTrue(report["allPassed"], report)
+
 
 if __name__ == "__main__":
     unittest.main()
