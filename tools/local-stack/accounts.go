@@ -981,9 +981,10 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	returnTab := strings.ToLower(strings.TrimSpace(r.FormValue("return_tab")))
 	if returnTab == "" {
-		returnTab = "summary"
+		returnTab = "preferences"
 	}
-	http.Redirect(w, r, "/u/"+url.PathEscape(userCopy.Username)+"?tab="+url.QueryEscape(returnTab)+"&saved=1", http.StatusSeeOther)
+	data := buildDiscourseProfileData(&userCopy, &userCopy, returnTab, "Your profile, display name, and layout theme colors have been updated.", "")
+	renderPage(w, r, "profile.tmpl", data)
 }
 
 func renderAccountPageWithMsg(w http.ResponseWriter, r *http.Request, u *User, msg, errMsg string) {

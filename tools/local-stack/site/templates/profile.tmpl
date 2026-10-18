@@ -1356,6 +1356,9 @@
       if (v) v.value = avatar;
       syncNsmLiveColors();
     }
+    if (window.location.pathname === '/account/profile' && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', '/u/{{.Profile.Username}}?tab={{.Tab}}');
+    }
   </script>
   <script src="/js/main.js?v=078h"></script>
 </body>

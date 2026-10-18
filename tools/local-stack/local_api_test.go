@@ -865,8 +865,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	reqUpd.Header.Set("X-NSM-Session", customSess)
 	wUpd := httptest.NewRecorder()
 	h.ServeHTTP(wUpd, reqUpd)
-	if wUpd.Code != http.StatusSeeOther {
-		t.Fatalf("POST /account/profile expected 303 redirect, got %d", wUpd.Code)
+	if wUpd.Code != http.StatusOK {
+		t.Fatalf("POST /account/profile expected 200 OK, got %d", wUpd.Code)
 	}
 
 	wCustomProf := requestAuth(h, "GET", "/u/theme_tester", "", map[string]string{"X-NSM-Session": customSess})
