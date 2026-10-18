@@ -1837,7 +1837,10 @@ func sendDirectMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = r.ParseForm()
-	toUsername := strings.TrimPrefix(strings.TrimSpace(r.FormValue("to_user")), "@")
+	toUsername := strings.TrimPrefix(strings.TrimSpace(r.FormValue("recipient")), "@")
+	if toUsername == "" {
+		toUsername = strings.TrimPrefix(strings.TrimSpace(r.FormValue("to_user")), "@")
+	}
 	if toUsername == "" {
 		toUsername = strings.TrimPrefix(strings.TrimSpace(r.PathValue("username")), "@")
 	}
@@ -2205,17 +2208,20 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 			relTime = formatRelativeTime(lastDM.CreatedAt)
 		}
 		messages = append(messages, map[string]interface{}{
-			"ID":            len(messages) + 1,
-			"Title":         "Direct Chat with " + disp + " (@" + pName + ")",
-			"Subject":       "Direct Chat with " + disp,
-			"Sender":        pName,
-			"SenderDisplay": disp,
-			"SenderAvatar":  avatar,
-			"Excerpt":       excerpt,
-			"RelativeStr":   relTime,
-			"TimeStr":       relTime,
-			"Active":        strings.EqualFold(pName, chatWithParam),
-			"URL":           "/u/" + url.PathEscape(chatOwner.Username) + "?tab=messages&with=" + url.QueryEscape(pName),
+			"ID":             len(messages) + 1,
+			"Title":          "Direct Chat with " + disp + " (@" + pName + ")",
+			"Subject":        "Direct Chat with " + disp,
+			"Sender":         pName,
+			"SenderDisplay":  disp,
+			"SenderAvatar":   avatar,
+			"Partner":        pName,
+			"PartnerDisplay": disp,
+			"PartnerAvatar":  avatar,
+			"Excerpt":        excerpt,
+			"RelativeStr":    relTime,
+			"TimeStr":        relTime,
+			"Active":         strings.EqualFold(pName, chatWithParam),
+			"URL":            "/u/" + url.PathEscape(chatOwner.Username) + "?tab=messages&with=" + url.QueryEscape(pName),
 		})
 	}
 
@@ -2228,17 +2234,23 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 				(strings.EqualFold(dm.FromUser, chatWithParam) && strings.EqualFold(dm.ToUser, chatOwner.Username)) {
 				isMine := strings.EqualFold(dm.FromUser, chatOwner.Username)
 				senderAvatar := "/avatars/u/" + url.PathEscape(dm.FromUser) + "/64.png"
+				senderDisp := dm.FromUser
 				if uSnap := findUserInSnapshot(dm.FromUser); uSnap != nil {
 					senderAvatar = uSnap.AvatarPath()
+					senderDisp = uSnap.EffectiveDisplayName()
 				}
 				chatMessages = append(chatMessages, map[string]interface{}{
-					"ID":           dm.ID,
-					"FromUser":     dm.FromUser,
-					"ToUser":       dm.ToUser,
-					"Body":         dm.Body,
-					"IsMine":       isMine,
-					"SenderAvatar": senderAvatar,
-					"RelativeStr":  formatRelativeTime(dm.CreatedAt),
+					"ID":            dm.ID,
+					"FromUser":      dm.FromUser,
+					"ToUser":        dm.ToUser,
+					"Sender":        dm.FromUser,
+					"SenderDisplay": senderDisp,
+					"Subject":       "Direct Message",
+					"Body":          dm.Body,
+					"IsMine":        isMine,
+					"SenderAvatar":  senderAvatar,
+					"CreatedAtStr":  time.Unix(dm.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+					"RelativeStr":   formatRelativeTime(dm.CreatedAt),
 				})
 			}
 		}
@@ -2348,6 +2360,7 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		"ActivitySub":      activitySub,
 		"Msg":              msg,
 		"Error":            errMsg,
+		"PulseError":       errMsg,
 		"IsOwn":            cur != nil && cur.ID == targetCopy.ID,
 		"CanManagePartner": canManagePartner,
 		"HasPending":       hasPendingClientAuth(),

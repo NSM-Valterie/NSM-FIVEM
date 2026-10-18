@@ -958,7 +958,7 @@ func forumReplyTopic(w http.ResponseWriter, r *http.Request) {
 	}
 	forumMu.Unlock()
 	if notifyTarget != "" && !strings.EqualFold(notifyTarget, u.Username) {
-		addUserNotification(notifyTarget, u.Username, "reply", notifyTitle, content, "/forum/t/"+strconv.FormatInt(id, 10)+"#post-bottom")
+		addUserNotification(notifyTarget, "replied", "@"+u.Username+" replied to "+notifyTitle, content, "/forum/t/"+strconv.FormatInt(id, 10)+"#post-bottom")
 	}
 
 	http.Redirect(w, r, "/forum/t/"+strconv.FormatInt(id, 10)+"#post-bottom", http.StatusSeeOther)
@@ -1004,7 +1004,7 @@ func forumLikePost(w http.ResponseWriter, r *http.Request) {
 	}
 	forumMu.Unlock()
 	if notifyTarget != "" && !strings.EqualFold(notifyTarget, u.Username) {
-		addUserNotification(notifyTarget, u.Username, "like", notifyTitle, notifyExcerpt, "/forum/t/"+strconv.FormatInt(topicID, 10))
+		addUserNotification(notifyTarget, "liked", "@"+u.Username+" liked your post in "+notifyTitle, notifyExcerpt, "/forum/t/"+strconv.FormatInt(topicID, 10))
 	}
 
 	http.Redirect(w, r, "/forum/t/"+strconv.FormatInt(topicID, 10), http.StatusSeeOther)
@@ -1132,7 +1132,8 @@ func serveForumRealtimeJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	forumMu.Unlock()
 
-	var profileViews, topicsViewed, postsRead int64
+	var profileViews int64
+	var topicsViewed, postsRead int
 	var unreadCount int
 	accMu.Lock()
 	if profileUser != "" {
@@ -1141,13 +1142,13 @@ func serveForumRealtimeJSON(w http.ResponseWriter, r *http.Request) {
 			if profileViews < 1 {
 				profileViews = 1
 			}
-			topicsViewed = pu.TopicsViewed
+			topicsViewed = len(pu.TopicsViewed)
 			postsRead = pu.PostsRead
 		}
 	}
 	if u != nil && acc != nil {
 		for _, n := range acc.Notifications {
-			if strings.EqualFold(n.Username, u.Username) && !n.Read {
+			if strings.EqualFold(n.Username, u.Username) && n.Unread {
 				unreadCount++
 			}
 		}
