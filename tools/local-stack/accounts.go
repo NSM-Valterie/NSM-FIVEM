@@ -154,6 +154,19 @@ func (u *User) EffectiveTitle() string {
 	}
 }
 
+func isValidUsername(s string) bool {
+	if len(s) < 3 || len(s) > 32 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 func isValidHexColor(s string) bool {
 	if len(s) != 7 || s[0] != '#' {
 		return false
@@ -856,7 +869,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var oldUsername, updatedUsername string
-	if newUsername != "" && newUsername != target.Username && usernameRe.MatchString(newUsername) {
+	if newUsername != "" && newUsername != target.Username && isValidUsername(newUsername) {
 		existing := findUser(newUsername)
 		if existing == nil || existing.ID == target.ID {
 			oldUsername = target.Username
