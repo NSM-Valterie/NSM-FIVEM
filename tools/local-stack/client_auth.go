@@ -238,7 +238,7 @@ func userFromClientRequest(r *http.Request) *User {
 	if recentUID != 0 {
 		fallback = userByID(recentUID)
 	}
-	if fallback == nil && (apiKey != "" || clientID != "") {
+	if fallback == nil {
 		var latest int64
 		for _, ct := range acc.ClientTokens {
 			if ct.LastUsed >= latest {
@@ -606,8 +606,8 @@ func serveDiscourseCheckUsername(w http.ResponseWriter, r *http.Request) {
 
 // serveDiscourseCreateSession handles POST /session and POST /f/session from NSM.exe's in-app login modal.
 func serveDiscourseCreateSession(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodDelete {
-		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+	if r.Method == http.MethodDelete || strings.HasSuffix(r.URL.Path, "/forgot_password") {
+		sendJSON(w, http.StatusOK, map[string]interface{}{"success": "OK", "user_found": true})
 		return
 	}
 	parseAnyForm(r)
@@ -1048,6 +1048,8 @@ const uiClientAuthPollSnippetLegacy = `<script id="nsm-client-auth-poll">(functi
 
 const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>`
 
+const uiDiscourseHeadInterceptor = `<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){try{if(typeof input==="string"){input=rw(input);}else if(input&&typeof input.url==="string"){var nu=rw(input.url);if(nu!==input.url)input=new Request(nu,input);}}catch(e){}return origFetch.call(this,input,init);};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>`
+
 func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 	if err != nil {
@@ -1056,6 +1058,13 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	var out bytes.Buffer
 	zw := zip.NewWriter(&out)
 	changed := false
+
+	emailRegexVariants := [][]byte{
+		[]byte(`/^[a-zA-Z0-9!#\$%&'*+\/=?\^_` + "`" + `{|}~\-]+(?:\.[a-zA-Z0-9!#\$%&'\*+\/=?\^_` + "`" + `{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/`),
+		[]byte(`/^[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~\-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?$/`),
+		[]byte(`/^[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_` + "`" + `{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/`),
+		[]byte(`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`),
+	}
 
 	for _, f := range zr.File {
 		rc, err := f.Open()
@@ -1081,9 +1090,24 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			body = bytes.ReplaceAll(body, []byte("https://forum.cfx.re"), []byte("http://127.0.0.1"))
 			body = bytes.ReplaceAll(body, []byte("https://portal.cfx.re"), []byte("http://127.0.0.1/keymaster"))
 			// Allow typing a username (e.g. "Cravenz") as well as an email in NSM.exe's in-app login input
-			body = bytes.ReplaceAll(body, []byte(`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`), []byte(`/^[^\s]{2,}$/`))
+			for _, pat := range emailRegexVariants {
+				body = bytes.ReplaceAll(body, pat, []byte(`/^[^\s]{2,}$/`))
+			}
 
 			if strings.HasSuffix(lower, ".html") {
+				// Inject head interceptor into index.html (which NUISchemeHandler.cpp never caches)
+				if !bytes.Contains(body, []byte(`id="nsm-discourse-interceptor"`)) {
+					if bytes.Contains(body, []byte("<head>")) {
+						body = bytes.Replace(body, []byte("<head>"), []byte("<head>"+uiDiscourseHeadInterceptor), 1)
+					} else {
+						body = append([]byte(uiDiscourseHeadInterceptor), body...)
+					}
+				}
+				// Append ?v=nsm078 cache-buster to mpMenu.js / main bundle script tags so CEF bypasses 30-day disk cache
+				body = bytes.ReplaceAll(body, []byte(`src="mpMenu.js"`), []byte(`src="mpMenu.js?v=nsm078"`))
+				body = bytes.ReplaceAll(body, []byte(`src="/ui/app/mpMenu.js"`), []byte(`src="/ui/app/mpMenu.js?v=nsm078"`))
+				body = bytes.ReplaceAll(body, []byte(`src="./mpMenu.js"`), []byte(`src="./mpMenu.js?v=nsm078"`))
+
 				if bytes.Contains(body, []byte(uiClientAuthPollSnippetLegacy)) {
 					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetLegacy), []byte(uiClientAuthPollSnippet))
 				} else if !bytes.Contains(body, []byte(`id="nsm-client-auth-poll-v2"`)) {
@@ -1127,6 +1151,7 @@ func patchLocalUIBundlesOnDisk() {
 		"../citizen/ui.zip",
 		"../citizen/ui-big.zip",
 	}
+	patchedAny := false
 	for _, p := range candidates {
 		raw, err := os.ReadFile(p)
 		if err != nil {
@@ -1139,9 +1164,25 @@ func patchLocalUIBundlesOnDisk() {
 		tmp := p + ".nsm.tmp"
 		if err := os.WriteFile(tmp, patched, 0644); err == nil {
 			if err := os.Rename(tmp, p); err == nil {
+				patchedAny = true
 				log.Printf("[ui-patch] updated %s -> linked in-app login & portal to http://127.0.0.1", p)
 			} else {
 				_ = os.Remove(tmp)
+			}
+		}
+	}
+	if patchedAny {
+		cacheDirs := []string{
+			"data/cache/browser/Cache",
+			"data/cache/browser/Code Cache",
+			"NSM.app/data/cache/browser/Cache",
+			"NSM.app/data/cache/browser/Code Cache",
+			"../data/cache/browser/Cache",
+			"../data/cache/browser/Code Cache",
+		}
+		for _, cd := range cacheDirs {
+			if err := os.RemoveAll(cd); err == nil {
+				log.Printf("[ui-patch] cleared CEF browser cache directory %s", cd)
 			}
 		}
 	}

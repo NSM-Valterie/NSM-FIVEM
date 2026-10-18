@@ -96,31 +96,78 @@ func liveServers() []map[string]interface{} {
 				}
 			}
 		}
+		locale := strings.TrimSpace(d.Vars["locale"])
+		if locale == "" || locale == "root-AQ" {
+			locale = "en-US"
+		}
+		country := "US"
+		if parts := strings.Split(strings.ReplaceAll(locale, "_", "-"), "-"); len(parts) >= 2 && len(parts[len(parts)-1]) == 2 {
+			country = strings.ToUpper(parts[len(parts)-1])
+		}
+		onesync := d.Vars["onesync_enabled"]
+		gameBuild := d.Vars["sv_enforceGameBuild"]
+		pureLevel := d.Vars["sv_pureLevel"]
+		scriptHook := d.Vars["sv_scriptHookAllowed"]
+		bannerDetail := d.Vars["banner_detail"]
+		bannerConnecting := d.Vars["banner_connecting"]
 		upv := upvoteCount(ep) + int(d.UpvotePower)
+		burst := int(d.BurstPower)
 		out = append(out, map[string]interface{}{
 			// Template fields
-			"EndPoint":   ep,
-			"Hostname":   d.Hostname,
-			"CleanName":  clean,
-			"Initial":    initial,
-			"Desc":       desc,
-			"Clients":    d.Clients,
-			"MaxClients": d.SVMaxclients,
-			"GameType":   d.Gametype,
-			"MapName":    d.Mapname,
-			"Upvotes":    upv,
-			"Tags":       tags,
-			"Resources":  len(d.Resources),
-			// Client JS fields
-			"id":         ep,
-			"name":       clean,
-			"desc":       desc,
-			"players":    d.Clients,
-			"maxPlayers": d.SVMaxclients,
-			"mode":       d.Gametype,
-			"map":        d.Mapname,
-			"tags":       tags,
-			"upvotes":    upv,
+			"EndPoint":         ep,
+			"Hostname":         d.Hostname,
+			"CleanName":        clean,
+			"Initial":          initial,
+			"Desc":             desc,
+			"Clients":          d.Clients,
+			"MaxClients":       d.SVMaxclients,
+			"GameType":         d.Gametype,
+			"MapName":          d.Mapname,
+			"Upvotes":          upv,
+			"BurstPower":       burst,
+			"Tags":             tags,
+			"Locale":           locale,
+			"Country":          country,
+			"OneSync":          onesync,
+			"GameBuild":        gameBuild,
+			"PureLevel":        pureLevel,
+			"ScriptHook":       scriptHook,
+			"BannerDetail":     bannerDetail,
+			"BannerConnecting": bannerConnecting,
+			"IconVersion":      d.IconVersion,
+			"Resources":        len(d.Resources),
+			"ResourceList":       d.Resources,
+			"PlayersList":        d.Players,
+			"ServerVersion":      d.Server,
+			// Client JS fields (matching NSM.exe cfx-ui IServerView)
+			"id":               ep,
+			"joinId":           ep,
+			"rawName":          d.Hostname,
+			"hostname":         d.Hostname,
+			"name":             clean,
+			"desc":             desc,
+			"projectDescription": desc,
+			"players":          d.Clients,
+			"maxPlayers":       d.SVMaxclients,
+			"mode":             d.Gametype,
+			"map":              d.Mapname,
+			"tags":             tags,
+			"locale":           locale,
+			"country":          country,
+			"onesync":          onesync,
+			"gameBuild":        gameBuild,
+			"pureLevel":        pureLevel,
+			"scriptHook":       scriptHook,
+			"bannerDetail":     bannerDetail,
+			"bannerConnecting": bannerConnecting,
+			"iconVersion":      d.IconVersion,
+			"resourcesCount":   len(d.Resources),
+			"resources":        d.Resources,
+			"playersList":      d.Players,
+			"serverVersion":    d.Server,
+			"upvotes":          upv,
+			"upvotePower":      upv,
+			"burstPower":       burst,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -159,14 +206,24 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 		feedItems = feedItems[:5]
 	}
 	allServers := liveServers()
-	topServers := allServers
-	if len(topServers) > 6 {
-		topServers = topServers[:6]
+	tagSet := map[string]bool{}
+	var allTags []string
+	for _, s := range allServers {
+		if tags, ok := s["Tags"].([]string); ok {
+			for _, t := range tags {
+				if !tagSet[t] {
+					tagSet[t] = true
+					allTags = append(allTags, t)
+				}
+			}
+		}
 	}
+	sort.Strings(allTags)
 	renderPage(w, r, "index.tmpl", map[string]interface{}{
-		"Title":       "NSM — GTA V Multiplayer Modification & Server Platform",
+		"Title":       "NSM — the GTA V multiplayer modification you have dreamt of",
 		"Feed":        feedItems,
-		"Servers":     topServers,
+		"Servers":     allServers,
+		"Tags":        allTags,
 		"ForumTopics": recentForumTopics(4),
 		"Stats": map[string]int64{
 			"Players":  totalPlayers(),
@@ -321,6 +378,9 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /u/check_email.json", serveDiscourseCheckEmail)
 	mux.HandleFunc("GET /u/check_username.json", serveDiscourseCheckUsername)
 	mux.HandleFunc("POST /u", serveDiscourseCreateUser)
+	mux.HandleFunc("/u/action/send_activation_email", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+	})
 	mux.HandleFunc("GET /u/{username}", userProfilePage)
 	mux.HandleFunc("GET /avatars/u/{username}/{size}", serveUserAvatar)
 	mux.HandleFunc("/f/avatars/u/{username}/{size}", serveUserAvatar)
@@ -362,6 +422,9 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("/f/session/{username}", serveDiscourseCreateSession)
 	mux.HandleFunc("/f/u/check_email.json", serveDiscourseCheckEmail)
 	mux.HandleFunc("/f/u/check_username.json", serveDiscourseCheckUsername)
+	mux.HandleFunc("/f/u/action/send_activation_email", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+	})
 	mux.HandleFunc("/f/u", serveDiscourseCreateUser)
 	mux.HandleFunc("/f/u/{username}", func(w http.ResponseWriter, r *http.Request) {
 		serveDiscourseUserJSON(w, r, r.PathValue("username"))

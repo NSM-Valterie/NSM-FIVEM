@@ -698,6 +698,33 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	if wClaim.Code != 200 || !strings.Contains(wClaim.Body.String(), `"role":"owner"`) {
 		t.Fatalf("POST /account/claim-owner failed: %d %s", wClaim.Code, wClaim.Body.String())
 	}
+
+	// 5. Verify 1:1 fivem.net homepage + embedded NSM.exe server browser + /img/hero-bg.jpg
+	wHome := request(h, "GET", "/", "")
+	if wHome.Code != 200 {
+		t.Fatalf("GET / failed: %d", wHome.Code)
+	}
+	for _, needle := range []string{
+		`class="bg-holder with-bg"`,
+		`Welcome to Los Santos.`,
+		`id="dl"`,
+		`What we have for you`,
+		`id="nsm-launcher"`,
+		`Now supporting Grand Theft Auto V Enhanced`,
+		`System requirements`,
+		`Creativity at its best`,
+		`id="faq1"`,
+	} {
+		if !strings.Contains(wHome.Body.String(), needle) {
+			t.Fatalf("GET / missing 1:1 fivem.net / NSM launcher marker %q", needle)
+		}
+	}
+
+	wHeroImg := request(h, "GET", "/img/hero-bg.jpg", "")
+	if wHeroImg.Code != 200 || wHeroImg.Body.Len() < 10000 {
+		t.Fatalf("GET /img/hero-bg.jpg expected artwork bytes, got status %d len %d", wHeroImg.Code, wHeroImg.Body.Len())
+	}
 }
+
 
 

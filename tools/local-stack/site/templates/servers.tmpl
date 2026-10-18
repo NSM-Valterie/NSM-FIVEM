@@ -1,61 +1,191 @@
-{{template "head" .}}
-
-<section class="wrap section">
-  <div class="sec-head">
-    <div>
-      <h1>Server List</h1>
-      <p class="muted"><b id="srv-total-count">{{len .Servers}}</b> live servers &bull; <b id="srv-total-players">{{index .Stats "Players"}}</b> players online</p>
+{{define "nsm_server_launcher"}}
+<div id="nsm-launcher" class="nsm-launcher-shell">
+  <!-- NSM.exe Top NavBar: ListTypeTabs + SearchInput + ServerFilters + DirectConnect -->
+  <div class="nsm-launcher-navbar">
+    <div class="nsm-list-tabs" role="tablist" aria-label="Server List Tabs">
+      <button type="button" class="nsm-tab-btn active" data-nsm-tab="all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>All</span>
+        <span class="nsm-tab-count" id="nsm-cnt-all">{{len .Servers}}</span>
+      </button>
+      <button type="button" class="nsm-tab-btn tab-supporters" data-nsm-tab="supporters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Supporters</span>
+        <span class="nsm-tab-count" id="nsm-cnt-supporters">0</span>
+      </button>
+      <button type="button" class="nsm-tab-btn tab-favorites" data-nsm-tab="favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>Favorites</span>
+        <span class="nsm-tab-count" id="nsm-cnt-favorites">0</span>
+      </button>
+      <button type="button" class="nsm-tab-btn" data-nsm-tab="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>History</span>
+        <span class="nsm-tab-count" id="nsm-cnt-history">0</span>
+      </button>
     </div>
-    <div class="filter-bar">
-      <input type="search" id="srv-search" placeholder="Search server name, gamemode, map, or tag..." class="inp">
-      <select id="srv-sort" class="inp" style="min-width:160px">
-        <option value="players">Sort: Most Players</option>
-        <option value="upvotes">Sort: Most Upvotes</option>
+
+    <div class="nsm-filter-bar">
+      <div class="nsm-search-box">
+        <svg class="search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="nsm-search-input" class="nsm-search-input" placeholder="Search servers, tags (~rp, ~-pvp, tag:economy), or locale..." autocomplete="off">
+        <button type="button" id="nsm-search-clear" class="nsm-search-clear" title="Clear search">&times;</button>
+      </div>
+
+      <button type="button" id="nsm-filter-toggle" class="nsm-ctrl-btn" title="Filter by Tags, Empty, Full">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters
+      </button>
+
+      <select id="nsm-sort-select" class="nsm-sort-select" aria-label="Sort servers">
+        <option value="players">Sort: Players</option>
+        <option value="upvotes">Sort: Boosts™</option>
         <option value="name">Sort: Name (A–Z)</option>
       </select>
-      <a href="/keymaster" class="btn btn-primary btn-sm">+ Host a Server</a>
+    </div>
+
+    <div class="nsm-direct-connect">
+      <input type="text" id="nsm-dc-input" class="nsm-dc-input" placeholder="127.0.0.1:30120" aria-label="Direct connect endpoint">
+      <button type="button" id="nsm-dc-btn" class="nsm-ctrl-btn" title="Connect directly via NSM.exe">Connect</button>
+      <a href="/keymaster" class="btn btn-primary btn-sm">+ Host Server</a>
     </div>
   </div>
 
-  {{if .Tags}}
-  <div class="tag-filter-bar" id="srv-tag-filters">
-    <button type="button" class="tag-btn on" data-tag="">All Servers</button>
-    {{range .Tags}}
-    <button type="button" class="tag-btn" data-tag="{{.}}">#{{.}}</button>
-    {{end}}
+  <!-- Collapsible Filter Drawer (ServerFilters.tsx: Hide Empty, Hide Full, Tag Faucets) -->
+  <div id="nsm-filter-drawer" class="nsm-filter-drawer">
+    <label class="nsm-checkbox-lbl">
+      <input type="checkbox" id="nsm-hide-empty">
+      <span>Hide Empty</span>
+    </label>
+    <label class="nsm-checkbox-lbl">
+      <input type="checkbox" id="nsm-hide-full">
+      <span>Hide Full</span>
+    </label>
+    <div style="width:1px;height:20px;background:rgba(229,238,255,0.12)"></div>
+    <span style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Tag Faucets:</span>
+    <div id="nsm-tag-faucets" class="nsm-faucet-list">
+      {{range .Tags}}
+      <button type="button" class="nsm-faucet" data-faucet-tag="{{.}}">{{.}}</button>
+      {{end}}
+    </div>
   </div>
-  {{end}}
 
-  {{if .Servers}}
-  <div class="srv-list" id="srv-list">
-    {{range .Servers}}
-    <div class="srv-row" data-name="{{.CleanName}} {{.GameType}} {{.MapName}} {{.EndPoint}}" data-tags="{{range .Tags}}{{.}} {{end}}" data-players="{{.Clients}}" data-upvotes="{{.Upvotes}}">
-      <div class="srv-icon">{{.Initial}}</div>
-      <div class="srv-row-main">
-        <a href="/servers/{{.EndPoint}}" class="srv-name">{{.CleanName}}</a>
-        {{if .Desc}}<div class="srv-desc-inline">{{.Desc}}</div>{{end}}
-        <div class="srv-sub">
-          {{if .GameType}}<span class="tag">{{.GameType}}</span>{{end}}
-          {{if .MapName}}<span class="tag">{{.MapName}}</span>{{end}}
-          {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
-          <span class="muted"><code>{{.EndPoint}}</code> &bull; {{.Resources}} resources</span>
-        </div>
+  <!-- Split Workspace: Left ServerListItem Virtual List + Right ServerDetailsPage Inspector -->
+  <div class="nsm-launcher-workspace">
+    <div class="nsm-list-island">
+      <div class="nsm-list-colhead">
+        <span>Icon</span>
+        <span>Server Name &amp; Project Description</span>
+        <span>Tags / Boost Power</span>
+        <span style="text-align:right">Players</span>
       </div>
-      <div class="srv-row-upv" title="Community Boost / Upvotes">&#9650; {{.Upvotes}}</div>
-      <div class="srv-row-players"><b>{{.Clients}}</b><span class="max">/{{.MaxClients}}</span></div>
-      <div style="display:flex;gap:8px">
-        <a href="/servers/{{.EndPoint}}" class="btn btn-ghost btn-sm">Details</a>
-        <a href="nsm://connect/{{.EndPoint}}" class="btn btn-primary btn-sm">Connect</a>
+
+      <div id="nsm-srv-list" class="nsm-list-scroll">
+        {{if .Servers}}
+          {{range .Servers}}
+          <div class="nsm-srv-row" data-srv-id="{{.EndPoint}}">
+            <div class="nsm-srv-icon">
+              <img src="/api/servers/icon/{{.EndPoint}}.png" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center">{{.Initial}}</span>
+            </div>
+            <div class="nsm-srv-title-col">
+              <div class="nsm-srv-title-line">
+                <a href="/servers/{{.EndPoint}}" style="color:inherit;text-decoration:none">{{.CleanName}}</a>
+              </div>
+              <div class="nsm-srv-desc">{{if .Desc}}{{.Desc}}{{else}}{{.GameType}} &bull; {{.MapName}}{{end}}</div>
+            </div>
+            <div class="nsm-srv-tags hide-on-hover">
+              {{range .Tags}}<span class="nsm-tag-loaf" data-click-tag="{{.}}">{{.}}</span>{{end}}
+            </div>
+            <div class="nsm-srv-actions show-on-hover">
+              <button type="button" class="nsm-row-btn boost" data-boost-id="{{.EndPoint}}">⚡ BOOST™ ({{.Upvotes}})</button>
+              <a href="fivem://connect/{{.EndPoint}}" class="nsm-row-btn connect" data-connect-id="{{.EndPoint}}">▶ CONNECT</a>
+            </div>
+            <div class="nsm-srv-decorator">
+              <span class="nsm-power-pill">⚡ {{.Upvotes}}</span>
+              <span class="nsm-country-pill">{{.Country}}</span>
+            </div>
+            <div class="nsm-srv-players">
+              <div class="nsm-srv-players-num">{{.Clients}} <span class="max">/ {{.MaxClients}}</span></div>
+            </div>
+          </div>
+          {{end}}
+        {{else}}
+          <div style="padding:3rem 1.5rem;text-align:center">
+            <div style="font-size:1.15rem;font-weight:700;margin-bottom:6px;color:#fff">Waiting for Live Server Heartbeats</div>
+            <p class="muted" style="font-size:0.88rem;max-width:440px;margin:0 auto 14px">
+              No server has sent a heartbeat yet. Issue a server license key in Keymaster and start your server to see it appear live here and in <code>NSM.exe</code>!
+            </p>
+            <div style="display:flex;gap:8px;justify-content:center">
+              <a href="/keymaster" class="btn btn-primary btn-sm">Open Keymaster</a>
+              <a href="/docs#server-setup" class="btn btn-ghost btn-sm">Server Setup Guide</a>
+            </div>
+          </div>
+        {{end}}
       </div>
     </div>
-    {{end}}
+
+    <aside id="nsm-srv-details" class="nsm-details-island" aria-label="Server Details Inspector">
+      <div style="padding:2.5rem 1.5rem;text-align:center;color:var(--muted)">
+        <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:6px">NSM.exe Server Inspector</div>
+        <p style="font-size:0.85rem">Select any server row on the left to inspect its live players, resources, tags, and connection endpoint.</p>
+      </div>
+    </aside>
   </div>
-  {{else}}
-  <div class="empty">
-    <h3>No servers are currently online</h3>
-    <p class="muted">Issue a key in <a href="/keymaster">Keymaster</a> and start <code>nsm-server.exe</code> to list your server here.</p>
+</div>
+
+<script>
+  window.__NSM_INITIAL_SERVERS__ = [
+    {{- range $i, $s := .Servers -}}
+      {{- if $i}},{{end -}}
+      {
+        "id": {{printf "%q" $s.EndPoint}},
+        "rawName": {{printf "%q" $s.Hostname}},
+        "name": {{printf "%q" $s.CleanName}},
+        "initial": {{printf "%q" $s.Initial}},
+        "desc": {{printf "%q" $s.Desc}},
+        "players": {{$s.Clients}},
+        "maxPlayers": {{$s.MaxClients}},
+        "mode": {{printf "%q" $s.GameType}},
+        "map": {{printf "%q" $s.MapName}},
+        "upvotes": {{$s.Upvotes}},
+        "burstPower": {{$s.BurstPower}},
+        "locale": {{printf "%q" $s.Locale}},
+        "country": {{printf "%q" $s.Country}},
+        "onesync": {{printf "%q" $s.OneSync}},
+        "gameBuild": {{printf "%q" $s.GameBuild}},
+        "pureLevel": {{printf "%q" $s.PureLevel}},
+        "scriptHook": {{printf "%q" $s.ScriptHook}},
+        "bannerDetail": {{printf "%q" $s.BannerDetail}},
+        "resourcesCount": {{$s.Resources}},
+        "tags": [{{- range $ti, $t := $s.Tags -}}{{- if $ti}},{{end -}}{{printf "%q" $t}}{{- end -}}],
+        "resources": [{{- range $ri, $r := $s.ResourceList -}}{{- if $ri}},{{end -}}{{printf "%q" $r}}{{- end -}}]
+      }
+    {{- end -}}
+  ];
+</script>
+{{end}}
+
+{{template "head" .}}
+
+<section class="nsm-launcher-section full-page">
+  <div class="nsm-launcher-header">
+    <div>
+      <h1>
+        <span>NSM Server List</span>
+        <span class="nsm-live-badge"><span class="pulse-dot" style="width:7px;height:7px"></span> Live Masterlist Sync</span>
+      </h1>
+      <p class="muted" style="margin:4px 0 0;font-size:0.9rem">
+        Synced 1:1 with the <code>NSM.exe</code> desktop launcher &mdash; <strong data-stat="players">{{index .Stats "Players"}}</strong> players online across <strong data-stat="servers">{{index .Stats "Servers"}}</strong> live servers
+      </p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="/api/servers/streamRedir/" class="btn btn-ghost btn-sm" title="Binary protobuf masterlist stream consumed by NSM.exe">Protobuf Stream</a>
+      <a href="/keymaster" class="btn btn-primary btn-sm">Issue Server Key</a>
+    </div>
   </div>
-  {{end}}
+
+  {{template "nsm_server_launcher" .}}
 </section>
 
 {{template "foot" .}}

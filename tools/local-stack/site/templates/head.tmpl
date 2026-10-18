@@ -1,65 +1,82 @@
 {{define "head"}}<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{if .Title}}{{.Title}} — {{end}}NSM — FiveM / Cfx.re Local Platform</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{if .Title}}{{.Title}} - {{end}}NSM</title>
+  <link rel="stylesheet" href="/css/style.css?v=078b">
 </head>
 <body>
+
 {{if .HasPendingClientAuth}}
 <div class="client-auth-banner">
   <div class="wrap client-auth-banner-inner">
-    <span><strong>NSM Client Sign-In Requested:</strong> Your NSM desktop app is waiting to link your account.</span>
-    <a href="/user-api-key/new" class="btn btn-primary btn-xs">Authorize NSM App &rarr;</a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="pulse-dot"></span>
+      <span><strong>NSM.exe Desktop Client is waiting to sign in!</strong> {{if .User}}Click Authorize to connect your <strong>@{{.User.Username}}</strong> account inside NSM.exe.{{else}}Sign in to connect your account inside NSM.exe.{{end}}</span>
+    </div>
+    <div>
+      {{if .User}}
+      <form method="post" action="/account/connect-client" style="display:inline">
+        <button type="submit" class="btn btn-primary btn-sm">Authorize NSM.exe as @{{.User.Username}}</button>
+      </form>
+      {{else}}
+      <a href="/user-api-key/new" class="btn btn-primary btn-sm">Sign In for NSM.exe</a>
+      {{end}}
+    </div>
   </div>
 </div>
 {{end}}
-<header class="topbar">
-  <div class="wrap topbar-in">
-    <a href="/" class="brand">
-      <span class="brand-mark">
-        <svg viewBox="0 0 22 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="margin-right:6px;vertical-align:-3px">
-          <path d="M3 22V2H7.2L15.5 14.2V2H19V22H14.8L6.5 9.8V22H3Z"/>
-        </svg>NSM
-      </span>
-      <span class="brand-sub">Platform <small>v0.7.8</small></span>
+
+<header class="site-header">
+  <div class="hbar">
+    <a class="logo" href="/">
+      <span class="brand-mark">NSM</span>
+      <span>NSM</span>
+      <span class="brand-sub">Cfx.re</span>
     </a>
-    <nav class="nav">
-      <a href="/" {{if eq .Page "/"}}class="on"{{end}}>Home</a>
-      <a href="/servers" {{if eq .Page "/servers"}}class="on"{{end}}>Servers {{if .Stats}}<span class="nav-count">{{index .Stats "Servers"}}</span>{{end}}</a>
-      <a href="/forum" {{if eq .Page "/forum"}}class="on"{{end}}>Forum</a>
-      <a href="/keymaster" {{if eq .Page "/keymaster"}}class="on"{{end}}>Keymaster</a>
-      <a href="/docs" {{if eq .Page "/docs"}}class="on"{{end}}>Docs</a>
-      <a href="/support" {{if eq .Page "/support"}}class="on"{{end}}>Support</a>
-      {{if .User}}{{if or (eq .User.Role "staff") (eq .User.Role "admin") (eq .User.Role "owner")}}
-      <a href="/admin/users" {{if eq .Page "/admin/users"}}class="on"{{end}}>Staff</a>
-      {{end}}{{end}}
-    </nav>
-    <div class="auth">
-      {{if .Stats}}
-      <a href="/servers" class="live-pill" title="Live players and servers on NSM Masterlist">
-        <span class="dot"></span>
-        <span><b id="nav-players">{{index .Stats "Players"}}</b> playing</span>
+
+    <nav>
+      <a href="/" {{if eq .Page "/"}}class="active"{{end}}>Home</a>
+      <a href="/servers" {{if or (eq .Page "/servers") (eq .Title "Server List")}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/><circle cx="6" cy="6.5" r="1"/><circle cx="6" cy="17.5" r="1"/></svg>
+        Servers
+        {{if .Stats}}<span class="nav-pill" data-stat="servers">{{index .Stats "Servers"}}</span>{{end}}
       </a>
+      <a href="/forum" {{if or (eq .Page "/forum") (eq .Title "Community Forum")}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Forum
+      </a>
+      <a href="/keymaster" {{if eq .Page "/keymaster"}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Keymaster
+      </a>
+      <a href="/docs" {{if eq .Page "/docs"}}class="active"{{end}}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Documentation
+      </a>
+      <a href="/support" {{if eq .Page "/support"}}class="active"{{end}}>Support</a>
+      {{if and .User (or (eq .User.Role "owner") (eq .User.Role "admin") (eq .User.Role "staff"))}}
+      <a href="/admin/users" {{if eq .Page "/admin/users"}}class="active"{{end}}>Staff</a>
       {{end}}
+    </nav>
+
+    <div class="auth-area">
       {{if .User}}
-        <a href="/u/{{.User.Username}}" class="user-chip" title="View public profile">
+        <a href="/account" class="user-chip" title="Customize profile &amp; manage NSM account">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
-          <span class="user-chip-name">{{.User.EffectiveDisplayName}}</span>
+          <span>{{.User.EffectiveDisplayName}}</span>
           <span class="role role-{{.User.Role}}">{{.User.Role}}</span>
         </a>
-        <a href="/account" class="btn btn-ghost btn-sm">Profile &amp; Settings</a>
-        <a href="/logout" class="btn btn-ghost btn-sm">Log out</a>
+        <a href="/u/{{.User.Username}}" class="btn btn-ghost btn-sm">Profile</a>
+        <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
       {{else}}
-        <a href="/login" class="btn btn-ghost btn-sm">Sign in</a>
-        <a href="/register" class="btn btn-primary btn-sm">Create account</a>
+        <a href="/login" class="btn btn-ghost btn-sm">Log In</a>
+        <a href="/register" class="btn btn-primary btn-sm">Create Account</a>
       {{end}}
     </div>
   </div>
 </header>
-<main class="main">
+
+<main>
 {{end}}

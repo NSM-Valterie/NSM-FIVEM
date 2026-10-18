@@ -61,6 +61,13 @@ jobs:
           RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
 
           POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>'
+          HEAD_INTERCEPTOR = b'<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "http://127.0.0.1"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "http://127.0.0.1"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "http://127.0.0.1"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "http://127.0.0.1/keymaster"+u.slice(21);return u;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){try{if(typeof input==="string"){input=rw(input);}else if(input&&typeof input.url==="string"){var nu=rw(input.url);if(nu!==input.url)input=new Request(nu,input);}}catch(e){}return origFetch.call(this,input,init);};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="openUrl"&&typeof a==="string"&&(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1)){a=rw(a);}}catch(e){}return origInv.apply(this,arguments);};}})();</script>'
+          EMAIL_REGEX_PATTERNS = [
+              b"/^[a-zA-Z0-9!#\\$%&'*+\\/=\\?\\^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#\\$%&'\\*+\\/=\\?\\^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
+              b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
+              b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/",
+              b"/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
+          ]
 
           def sha(b):
               return hashlib.sha256(b).hexdigest()
@@ -82,12 +89,22 @@ jobs:
                           body = body.replace(b"https://discord.gg/UXj5QfCX88", b"http://127.0.0.1")
                           body = body.replace(b"https://forum.cfx.re", b"http://127.0.0.1")
                           body = body.replace(b"https://portal.cfx.re", b"http://127.0.0.1/keymaster")
-                          body = body.replace(b"/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/", b"/^[^\\s]{2,}$/")
-                          if lower.endswith(".html") and b'id="nsm-client-auth-poll-v2"' not in body:
-                              if b"</body>" in body:
-                                  body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
-                              else:
-                                  body += POLL_SNIPPET
+                          for pat in EMAIL_REGEX_PATTERNS:
+                              body = body.replace(pat, b"/^[^\\s]{2,}$/")
+                          if lower.endswith(".html"):
+                              if b'id="nsm-discourse-interceptor"' not in body:
+                                  if b"<head>" in body:
+                                      body = body.replace(b"<head>", b"<head>" + HEAD_INTERCEPTOR, 1)
+                                  else:
+                                      body = HEAD_INTERCEPTOR + body
+                              body = body.replace(b'src="mpMenu.js"', b'src="mpMenu.js?v=nsm078"')
+                              body = body.replace(b'src="/ui/app/mpMenu.js"', b'src="/ui/app/mpMenu.js?v=nsm078"')
+                              body = body.replace(b'src="./mpMenu.js"', b'src="./mpMenu.js?v=nsm078"')
+                              if b'id="nsm-client-auth-poll-v2"' not in body:
+                                  if b"</body>" in body:
+                                      body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
+                                  else:
+                                      body += POLL_SNIPPET
                       zout.writestr(info.filename, body)
               return buf.getvalue()
 

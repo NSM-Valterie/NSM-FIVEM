@@ -1,47 +1,56 @@
 {{define "foot"}}
 </main>
-<footer class="foot">
-  <div class="wrap foot-grid">
-    <div class="foot-col">
-      <div class="brand">
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <span class="brand-mark">NSM</span>
-        <span class="brand-sub">Platform</span>
+        <strong style="font-size:1.15rem;color:#fff">NSM Platform</strong>
       </div>
-      <p class="muted" style="margin-top:10px;max-width:300px">
-        The NSM multiplayer modification framework, masterlist, Keymaster portal, and community forum.
-      </p>
-      <p class="muted" style="margin-top:8px;font-size:12px">
-        <span class="dot"></span> Local Masterlist &amp; Auth Online (<code>127.0.0.1:80</code>)
+      <p style="font-size:0.88rem;color:rgba(229,238,255,0.68);max-width:360px;line-height:1.6">
+        NSM is the GTA V multiplayer modification and server platform powered by the Cfx.re framework. Browse live servers, issue Keymaster license keys, and connect directly in <code>NSM.exe</code>.
       </p>
     </div>
-    <div class="foot-col">
+
+    <div>
       <h4>Platform</h4>
-      <a href="/">Home</a>
-      <a href="/servers">Server List</a>
-      <a href="/keymaster">Keymaster Portal</a>
-      <a href="/user-api-key/new">NSM Client Sign-In</a>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/servers">Server List</a></li>
+        <li><a href="/keymaster">Keymaster</a></li>
+        <li><a href="/forum">Community Forum</a></li>
+      </ul>
     </div>
-    <div class="foot-col">
-      <h4>Community</h4>
-      <a href="/forum">Community Forum</a>
-      <a href="/forum/c/announcements">Announcements</a>
-      <a href="/forum/c/releases">Resource Releases</a>
-      <a href="/forum/c/bazaar">Server Bazaar</a>
+
+    <div>
+      <h4>Developers</h4>
+      <ul>
+        <li><a href="/docs">Documentation</a></li>
+        <li><a href="/docs#server-setup">Server Setup Guide</a></li>
+        <li><a href="/docs#natives">Native Reference</a></li>
+        <li><a href="/forum/c/releases">Resource Releases</a></li>
+      </ul>
     </div>
-    <div class="foot-col">
-      <h4>Developers &amp; Help</h4>
-      <a href="/docs">Documentation</a>
-      <a href="/support">Support &amp; Status</a>
-      <a href="/account">Custom Profile &amp; Avatar</a>
-      <a href="https://discord.gg/UXj5QfCX88" target="_blank" rel="noopener">Official Discord</a>
+
+    <div>
+      <h4>Account &amp; Support</h4>
+      <ul>
+        <li><a href="/account">My Account &amp; Profile</a></li>
+        <li><a href="/user-api-key/new">Link NSM.exe Client</a></li>
+        <li><a href="/support">Support &amp; Status</a></li>
+        <li><a href="https://discord.gg/UXj5QfCX88" target="_blank" rel="noopener">Discord Community</a></li>
+      </ul>
     </div>
   </div>
-  <div class="wrap foot-bottom">
-    <span>&copy; {{.Year}} NSM Platform — Not affiliated with Rockstar Games or Take-Two Interactive.</span>
-    <span>Masterlist &bull; Keymaster &bull; Forum &bull; In-App Auth</span>
+
+  <div class="footer-bottom">
+    <span>&copy; {{.Year}} NSM Platform. Built on the Cfx.re / CitizenFX framework.</span>
+    <span>Not affiliated with or endorsed by Rockstar Games or Take-Two Interactive.</span>
   </div>
 </footer>
-<script src="/js/main.js"></script>
+
+<script src="/js/main.js?v=078b"></script>
 </body>
 </html>
 {{end}}
