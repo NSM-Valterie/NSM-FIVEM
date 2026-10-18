@@ -69,15 +69,17 @@ type User struct {
 	PostsRead        int      `json:"postsRead,omitempty"`
 	DaysVisitedCount int      `json:"daysVisitedCount,omitempty"`
 	LastVisitDay     string   `json:"lastVisitDay,omitempty"`
-	Friends          []string `json:"friends,omitempty"`
-	EmailVerified    bool     `json:"emailVerified,omitempty"`
-	EmailVerifyCode  string   `json:"emailVerifyCode,omitempty"`
-	TwoFactorEnabled bool     `json:"twoFactorEnabled,omitempty"`
-	TwoFactorCode    string   `json:"twoFactorCode,omitempty"`
-	Banned           bool     `json:"banned,omitempty"`
-	BanReason        string   `json:"banReason,omitempty"`
-	BannedAt         int64    `json:"bannedAt,omitempty"`
-	BannedBy         string   `json:"bannedBy,omitempty"`
+	Friends           []string `json:"friends,omitempty"`
+	FriendRequestsIn  []string `json:"friendRequestsIn,omitempty"`
+	FriendRequestsOut []string `json:"friendRequestsOut,omitempty"`
+	EmailVerified     bool     `json:"emailVerified,omitempty"`
+	EmailVerifyCode   string   `json:"emailVerifyCode,omitempty"`
+	TwoFactorEnabled  bool     `json:"twoFactorEnabled,omitempty"`
+	TwoFactorCode     string   `json:"twoFactorCode,omitempty"`
+	Banned            bool     `json:"banned,omitempty"`
+	BanReason         string   `json:"banReason,omitempty"`
+	BannedAt          int64    `json:"bannedAt,omitempty"`
+	BannedBy          string   `json:"bannedBy,omitempty"`
 }
 
 func (u *User) IsFounderAccount() bool {
@@ -96,6 +98,38 @@ func (u *User) HasFriend(otherUsername string) bool {
 		return false
 	}
 	for _, f := range u.Friends {
+		if strings.EqualFold(strings.TrimSpace(f), otherUsername) {
+			return true
+		}
+	}
+	return false
+}
+
+func (u *User) HasIncomingFriendRequest(otherUsername string) bool {
+	if u == nil {
+		return false
+	}
+	otherUsername = strings.TrimPrefix(strings.TrimSpace(otherUsername), "@")
+	if otherUsername == "" {
+		return false
+	}
+	for _, f := range u.FriendRequestsIn {
+		if strings.EqualFold(strings.TrimSpace(f), otherUsername) {
+			return true
+		}
+	}
+	return false
+}
+
+func (u *User) HasOutgoingFriendRequest(otherUsername string) bool {
+	if u == nil {
+		return false
+	}
+	otherUsername = strings.TrimPrefix(strings.TrimSpace(otherUsername), "@")
+	if otherUsername == "" {
+		return false
+	}
+	for _, f := range u.FriendRequestsOut {
 		if strings.EqualFold(strings.TrimSpace(f), otherUsername) {
 			return true
 		}
@@ -423,7 +457,7 @@ func (u *User) ThemeStyleAttr() template.CSS {
 }
 
 func (u *User) BannerPath() string {
-	if u == nil || !u.HasPulseProOrHigher() {
+	if u == nil {
 		return ""
 	}
 	if strings.HasPrefix(u.BannerData, "data:image/") {
@@ -1388,9 +1422,9 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<20)
 	if strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "multipart/form-data") {
-		_ = r.ParseMultipartForm(4 << 20)
+		_ = r.ParseMultipartForm(16 << 20)
 	} else {
 		_ = r.ParseForm()
 	}
@@ -1444,6 +1478,12 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var uploadedAvatarData, uploadedBannerData string
+	if ad := firstNonEmpty("avatar_data", "avatarData"); strings.HasPrefix(ad, "data:image/") {
+		uploadedAvatarData = ad
+	}
+	if bd := firstNonEmpty("banner_data", "bannerData"); strings.HasPrefix(bd, "data:image/") {
+		uploadedBannerData = bd
+	}
 	if r.MultipartForm != nil {
 		files := r.MultipartForm.File["avatar_file"]
 		if len(files) == 0 {
@@ -1453,7 +1493,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			f, err := files[0].Open()
 			if err == nil {
 				defer f.Close()
-				raw, err := io.ReadAll(io.LimitReader(f, 3<<20))
+				raw, err := io.ReadAll(io.LimitReader(f, 8<<20))
 				if err == nil && len(raw) > 0 {
 					ct := http.DetectContentType(raw)
 					if ct == "image/png" || ct == "image/jpeg" || ct == "image/gif" || ct == "image/webp" {
@@ -1470,7 +1510,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			bf, err := bfiles[0].Open()
 			if err == nil {
 				defer bf.Close()
-				raw, err := io.ReadAll(io.LimitReader(bf, 4<<20))
+				raw, err := io.ReadAll(io.LimitReader(bf, 10<<20))
 				if err == nil && len(raw) > 0 {
 					ct := http.DetectContentType(raw)
 					if ct == "image/png" || ct == "image/jpeg" || ct == "image/gif" || ct == "image/webp" {
@@ -1542,11 +1582,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		target.AvatarURL = ""
 	} else {
 		if uploadedAvatarData != "" {
-			if strings.HasPrefix(uploadedAvatarData, "data:image/gif") && !target.HasPulse() {
-				warnMsg = "Animated GIF avatars require AFX Pulse Core, Pro, or Sovereign."
-			} else {
-				target.AvatarData = uploadedAvatarData
-			}
+			target.AvatarData = uploadedAvatarData
 		}
 		if avatarURL != "" || r.Form.Has("avatarUrl") || r.Form.Has("avatar_url") {
 			target.AvatarURL = avatarURL
@@ -1555,7 +1591,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if clearBanner {
 		target.BannerData = ""
 		target.BannerURL = ""
-	} else if target.HasPulseProOrHigher() {
+	} else {
 		if uploadedBannerData != "" {
 			target.BannerData = uploadedBannerData
 		}
@@ -2212,6 +2248,16 @@ func recordTopicViewByUser(u *User, topicID int64, postCount int) {
 	saveAccountsLocked()
 }
 
+func removeUsernameCI(list []string, target string) []string {
+	var out []string
+	for _, s := range list {
+		if !strings.EqualFold(strings.TrimSpace(s), target) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 func accountFriendAction(w http.ResponseWriter, r *http.Request) {
 	cur := currentUser(r)
 	if cur == nil {
@@ -2243,32 +2289,79 @@ func accountFriendAction(w http.ResponseWriter, r *http.Request) {
 	}
 	recipName := recip.Username
 	senderName := sender.Username
+	statusResult := action
 
-	if action == "remove" {
-		var sf []string
-		for _, f := range sender.Friends {
-			if !strings.EqualFold(f, recipName) {
-				sf = append(sf, f)
+	switch action {
+	case "remove", "decline", "cancel":
+		sender.Friends = removeUsernameCI(sender.Friends, recipName)
+		recip.Friends = removeUsernameCI(recip.Friends, senderName)
+		sender.FriendRequestsIn = removeUsernameCI(sender.FriendRequestsIn, recipName)
+		sender.FriendRequestsOut = removeUsernameCI(sender.FriendRequestsOut, recipName)
+		recip.FriendRequestsIn = removeUsernameCI(recip.FriendRequestsIn, senderName)
+		recip.FriendRequestsOut = removeUsernameCI(recip.FriendRequestsOut, senderName)
+		statusResult = "removed"
+
+	case "accept":
+		if sender.HasIncomingFriendRequest(recipName) || recip.HasOutgoingFriendRequest(senderName) {
+			sender.FriendRequestsIn = removeUsernameCI(sender.FriendRequestsIn, recipName)
+			sender.FriendRequestsOut = removeUsernameCI(sender.FriendRequestsOut, recipName)
+			recip.FriendRequestsIn = removeUsernameCI(recip.FriendRequestsIn, senderName)
+			recip.FriendRequestsOut = removeUsernameCI(recip.FriendRequestsOut, senderName)
+			if !sender.HasFriend(recipName) {
+				sender.Friends = append(sender.Friends, recipName)
 			}
+			if !recip.HasFriend(senderName) {
+				recip.Friends = append(recip.Friends, senderName)
+			}
+			addUserNotificationLocked(recip, "message",
+				"@"+senderName+" accepted your friend request!",
+				"You and @"+senderName+" are now friends and can message each other.",
+				"/u/"+url.PathEscape(recipName)+"?tab=messages&with="+url.QueryEscape(senderName))
+			statusResult = "accepted"
+		} else {
+			statusResult = "no_pending_request"
 		}
-		sender.Friends = sf
-	} else {
-		if !sender.HasFriend(recipName) {
-			sender.Friends = append(sender.Friends, recipName)
+
+	default: // "add" / "request"
+		if sender.HasFriend(recipName) {
+			statusResult = "already_friends"
+		} else if sender.HasIncomingFriendRequest(recipName) || recip.HasOutgoingFriendRequest(senderName) {
+			// The other account already requested us -> accepting mutual friendship!
+			sender.FriendRequestsIn = removeUsernameCI(sender.FriendRequestsIn, recipName)
+			sender.FriendRequestsOut = removeUsernameCI(sender.FriendRequestsOut, recipName)
+			recip.FriendRequestsIn = removeUsernameCI(recip.FriendRequestsIn, senderName)
+			recip.FriendRequestsOut = removeUsernameCI(recip.FriendRequestsOut, senderName)
+			if !sender.HasFriend(recipName) {
+				sender.Friends = append(sender.Friends, recipName)
+			}
+			if !recip.HasFriend(senderName) {
+				recip.Friends = append(recip.Friends, senderName)
+			}
+			addUserNotificationLocked(recip, "message",
+				"@"+senderName+" accepted your friend request!",
+				"You and @"+senderName+" are now friends and can message each other.",
+				"/u/"+url.PathEscape(recipName)+"?tab=messages&with="+url.QueryEscape(senderName))
+			statusResult = "accepted"
+		} else {
+			// Send a pending friend request — the other user MUST accept before messaging is unlocked
+			if !sender.HasOutgoingFriendRequest(recipName) {
+				sender.FriendRequestsOut = append(sender.FriendRequestsOut, recipName)
+			}
+			if !recip.HasIncomingFriendRequest(senderName) {
+				recip.FriendRequestsIn = append(recip.FriendRequestsIn, senderName)
+			}
+			addUserNotificationLocked(recip, "message",
+				"New Friend Request from @"+senderName,
+				"Accept @"+senderName+"'s friend request to unlock 1-on-1 direct messaging.",
+				"/u/"+url.PathEscape(recipName)+"?tab=messages&with="+url.QueryEscape(senderName))
+			statusResult = "request_sent"
 		}
-		if !recip.HasFriend(senderName) {
-			recip.Friends = append(recip.Friends, senderName)
-		}
-		addUserNotificationLocked(recip, "message",
-			"@"+senderName+" added you as a friend on AFX",
-			"You can now send direct messages to @"+senderName+".",
-			"/u/"+url.PathEscape(recipName)+"?tab=messages&with="+url.QueryEscape(senderName))
 	}
 	saveAccountsLocked()
 	accMu.Unlock()
 
 	if wantsJSONResponse(r) {
-		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "friend": recipName, "action": action})
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "friend": recipName, "status": statusResult})
 		return
 	}
 	if returnTo != "" && strings.HasPrefix(returnTo, "/") && !strings.HasPrefix(returnTo, "//") {
@@ -2319,9 +2412,16 @@ func sendDirectMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	if !sender.HasFriend(recip.Username) {
 		recipUsername := recip.Username
+		pendingOut := sender.HasOutgoingFriendRequest(recipUsername)
+		pendingIn := sender.HasIncomingFriendRequest(recipUsername)
 		senderCopy := *sender
 		accMu.Unlock()
-		errMsg := "You must add @" + recipUsername + " as a friend before you can text them. Click '+ Add @" + recipUsername + "' first."
+		errMsg := "You must send a friend request to @" + recipUsername + " and have them accept it before you can message each other."
+		if pendingOut {
+			errMsg = "Friend request pending: @" + recipUsername + " must accept your friend request before you can message each other."
+		} else if pendingIn {
+			errMsg = "@" + recipUsername + " sent you a friend request! Click 'Accept Friend Request' before you can message each other."
+		}
 		if wantsJSONResponse(r) {
 			sendJSON(w, http.StatusForbidden, map[string]interface{}{"ok": false, "error": errMsg})
 			return
@@ -2773,52 +2873,66 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 	}
 
 	chatIsFriend := false
+	chatPendingOut := false
+	chatPendingIn := false
 	if chatWithParam != "" {
 		chatIsFriend = chatOwner.HasFriend(chatWithParam)
+		chatPendingOut = chatOwner.HasOutgoingFriendRequest(chatWithParam)
+		chatPendingIn = chatOwner.HasIncomingFriendRequest(chatWithParam)
 	}
 	isFriendWithProfile := false
+	pendingOutWithProfile := false
+	pendingInWithProfile := false
 	if cur != nil && cur.ID != targetCopy.ID {
 		isFriendWithProfile = cur.HasFriend(targetCopy.Username)
+		pendingOutWithProfile = cur.HasOutgoingFriendRequest(targetCopy.Username)
+		pendingInWithProfile = cur.HasIncomingFriendRequest(targetCopy.Username)
 	}
 
 	return map[string]interface{}{
-		"Title":               targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
-		"Page":                "/forum",
-		"User":                cur,
-		"Profile":             targetCopy,
-		"ProfileUser":         targetCopy,
-		"JoinedStr":           joinedStr,
-		"LastPostStr":         lastPostStr,
-		"LastSeenStr":         lastSeenStr,
-		"ProfileViews":        realProfileViews,
-		"TrustLevelName":      trustLevel,
-		"DaysVisited":         realDaysVisited,
-		"ReadTime":            readTimeStr,
-		"RecentReadTime":      readTimeStr,
-		"TopicsViewed":        realTopicsViewed,
-		"PostsRead":           realPostsRead,
-		"LikesGiven":          likesGiven,
-		"LikesReceived":       likesReceived,
-		"TopicCount":          len(userTopics),
-		"PostCount":           len(userPosts),
-		"ReplyCount":          len(replyPosts),
-		"LikedCount":          len(likedPosts),
-		"SolvedCount":         len(solvedPosts),
-		"Topics":              userTopics,
-		"EnrichedTopics":      enrichedTopics,
-		"Posts":               userPosts,
-		"ReplyPosts":          replyPosts,
-		"LikedPosts":          likedPosts,
-		"ReadTopics":          readTopics,
-		"SolvedPosts":         solvedPosts,
-		"Notifications":       notifications,
-		"UnreadNotifCount":    unreadNotifCount,
-		"Messages":            messages,
-		"ChatWith":            chatWithParam,
-		"ChatPartner":         chatPartnerUser,
-		"ChatIsFriend":        chatIsFriend,
-		"IsFriendWithProfile": isFriendWithProfile,
-		"ChatMessages":        chatMessages,
+		"Title":                  targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
+		"Page":                   "/forum",
+		"User":                   cur,
+		"Profile":                targetCopy,
+		"ProfileUser":            targetCopy,
+		"JoinedStr":              joinedStr,
+		"LastPostStr":            lastPostStr,
+		"LastSeenStr":            lastSeenStr,
+		"ProfileViews":           realProfileViews,
+		"TrustLevelName":         trustLevel,
+		"DaysVisited":            realDaysVisited,
+		"ReadTime":               readTimeStr,
+		"RecentReadTime":         readTimeStr,
+		"TopicsViewed":           realTopicsViewed,
+		"PostsRead":              realPostsRead,
+		"LikesGiven":             likesGiven,
+		"LikesReceived":          likesReceived,
+		"TopicCount":             len(userTopics),
+		"PostCount":              len(userPosts),
+		"ReplyCount":             len(replyPosts),
+		"LikedCount":             len(likedPosts),
+		"SolvedCount":            len(solvedPosts),
+		"Topics":                 userTopics,
+		"EnrichedTopics":         enrichedTopics,
+		"Posts":                  userPosts,
+		"ReplyPosts":             replyPosts,
+		"LikedPosts":             likedPosts,
+		"ReadTopics":             readTopics,
+		"SolvedPosts":            solvedPosts,
+		"Notifications":          notifications,
+		"UnreadNotifCount":       unreadNotifCount,
+		"Messages":               messages,
+		"ChatWith":               chatWithParam,
+		"ChatPartner":            chatPartnerUser,
+		"ChatIsFriend":           chatIsFriend,
+		"ChatPendingOut":         chatPendingOut,
+		"ChatPendingIn":          chatPendingIn,
+		"IsFriendWithProfile":    isFriendWithProfile,
+		"PendingOutWithProfile":  pendingOutWithProfile,
+		"PendingInWithProfile":   pendingInWithProfile,
+		"IncomingFriendRequests": chatOwner.FriendRequestsIn,
+		"OutgoingFriendRequests": chatOwner.FriendRequestsOut,
+		"ChatMessages":           chatMessages,
 		"AllUsers":            allUsersSnapshot,
 		"TopCategories":       topCats,
 		"Badges":              unlockedBadges,
@@ -3280,8 +3394,19 @@ func supportViewRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isStaff := u != nil && u.IsStaffOrHigher()
-	canReply := isStaff || (u != nil && (u.ID == found.RequesterID || strings.EqualFold(u.Username, found.RequesterUsername))) || found.RequesterID == 0
+	if u == nil {
+		http.Redirect(w, r, fmt.Sprintf("/login?next=/support/requests/%d", id), http.StatusSeeOther)
+		return
+	}
+
+	isStaff := u.IsStaffOrHigher()
+	isOwnerOfTicket := u.ID == found.RequesterID || strings.EqualFold(u.Username, found.RequesterUsername)
+	if !isStaff && !isOwnerOfTicket {
+		http.Error(w, "Access Restricted: You can only view your own support requests. Only AFX Staff can view all requests.", http.StatusForbidden)
+		return
+	}
+
+	canReply := true
 
 	renderPage(w, r, "support_ticket.tmpl", map[string]interface{}{
 		"Title":    fmt.Sprintf("Request #%d — %s | AFX Support", found.ID, found.Subject),

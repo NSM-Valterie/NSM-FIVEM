@@ -916,8 +916,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("expected POST /account/pulse to state AFX Pulse is closed right now")
 	}
 
-	// Attempt to change profile layout colors as basic user -> colors remain locked to default #2F7BFF
-	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&avatar_decoration=cat_ears&profile_effect=cyber_matrix&squad_house=brilliance&return_tab=summary"
+	// Verify basic user (without AFX Pulse) CAN set both profile picture and profile banner
+	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&avatar_url=%2Fimg%2Fafx-icon.png&banner_url=%2Fimg%2Fhero-bg.jpg&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&avatar_decoration=cat_ears&profile_effect=cyber_matrix&squad_house=brilliance&return_tab=summary"
 	reqUpdBasic := httptest.NewRequest("POST", "/account/profile", strings.NewReader(formPayload))
 	reqUpdBasic.RemoteAddr = "127.0.0.1:12345"
 	reqUpdBasic.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -926,6 +926,14 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	h.ServeHTTP(wUpdBasic, reqUpdBasic)
 	if strings.Contains(wUpdBasic.Body.String(), "--prof-primary: #EC4899") {
 		t.Fatalf("basic user without AFX Pulse Pro should not be able to change profile layout colors")
+	}
+	accMu.Lock()
+	basicTester := findUser("theme_tester")
+	basicAvatar := basicTester.AvatarPath()
+	basicBanner := basicTester.BannerPath()
+	accMu.Unlock()
+	if basicAvatar != "/img/afx-icon.png" || basicBanner != "/img/hero-bg.jpg" {
+		t.Fatalf("basic user should be able to set both avatar and banner: got avatar=%q banner=%q", basicAvatar, basicBanner)
 	}
 
 	// Grant Sovereign tier directly in store (as Founder/pre-existing subscriber) and verify profile customization & username rename
@@ -961,45 +969,69 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		t.Fatalf("clicking own profile tabs must not increment ProfileViews: before=%d after=%d", viewsBeforeSelf, viewsAfterSelf)
 	}
 
-	// 15. Verify Friend Requirement before Direct Messaging:
-	// Attempting to DM nta~ before adding nta~ must be blocked
-	dmPayload := "recipient=nta~&subject=Server+Collab&body=Hey+nta+lets+test+1on1+chat&return_profile=neon_captain"
+	// 15. Verify Two-Way Friend Request & Acceptance Requirement before Direct Messaging:
+	peerSess := registerTestUser(t, h, "friend_peer")
+
+	// Step A: Attempting to DM friend_peer before sending a friend request must be blocked
+	dmPayload := "recipient=friend_peer&subject=Server+Collab&body=Hey+peer+lets+test+1on1+chat&return_profile=neon_captain"
 	reqDMBlocked := httptest.NewRequest("POST", "/account/messages", strings.NewReader(dmPayload))
 	reqDMBlocked.RemoteAddr = "127.0.0.1:12345"
 	reqDMBlocked.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqDMBlocked.Header.Set("X-NSM-Session", customSess)
 	wDMBlocked := httptest.NewRecorder()
 	h.ServeHTTP(wDMBlocked, reqDMBlocked)
-	if !strings.Contains(wDMBlocked.Body.String(), "You must add @nta~ as a friend before you can text them") {
-		t.Fatalf("expected DM before adding friend to be blocked, got status %d", wDMBlocked.Code)
+	if !strings.Contains(wDMBlocked.Body.String(), "You must send a friend request to @friend_peer") {
+		t.Fatalf("expected DM before sending friend request to be blocked, got status %d", wDMBlocked.Code)
 	}
 
-	// Now add nta~ via POST /account/friends and verify DM succeeds
-	reqAddFriend := httptest.NewRequest("POST", "/account/friends", strings.NewReader("target=nta~&action=add&return_to=%2Fu%2Fneon_captain%3Ftab%3Dmessages%26with%3Dnta~"))
+	// Step B: neon_captain sends a friend request to friend_peer -> still cannot message until friend_peer accepts!
+	reqAddFriend := httptest.NewRequest("POST", "/account/friends", strings.NewReader("target=friend_peer&action=add&return_to=%2Fu%2Fneon_captain%3Ftab%3Dmessages%26with%3Dfriend_peer"))
 	reqAddFriend.RemoteAddr = "127.0.0.1:12345"
 	reqAddFriend.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqAddFriend.Header.Set("X-NSM-Session", customSess)
 	wAddFriend := httptest.NewRecorder()
 	h.ServeHTTP(wAddFriend, reqAddFriend)
 	if wAddFriend.Code != http.StatusSeeOther {
-		t.Fatalf("POST /account/friends failed: %d", wAddFriend.Code)
+		t.Fatalf("POST /account/friends (send request) failed: %d", wAddFriend.Code)
 	}
 
+	reqDMPending := httptest.NewRequest("POST", "/account/messages", strings.NewReader(dmPayload))
+	reqDMPending.RemoteAddr = "127.0.0.1:12345"
+	reqDMPending.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqDMPending.Header.Set("X-NSM-Session", customSess)
+	wDMPending := httptest.NewRecorder()
+	h.ServeHTTP(wDMPending, reqDMPending)
+	if !strings.Contains(wDMPending.Body.String(), "Friend request pending: @friend_peer must accept your friend request before you can message each other.") {
+		t.Fatalf("expected DM while friend request is pending to be blocked until recipient accepts")
+	}
+
+	// Step C: friend_peer logs in on their account and accepts neon_captain's friend request
+	reqAcceptFriend := httptest.NewRequest("POST", "/account/friends", strings.NewReader("target=neon_captain&action=accept"))
+	reqAcceptFriend.RemoteAddr = "127.0.0.1:12345"
+	reqAcceptFriend.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqAcceptFriend.Header.Set("X-NSM-Session", peerSess)
+	wAcceptFriend := httptest.NewRecorder()
+	h.ServeHTTP(wAcceptFriend, reqAcceptFriend)
+	if wAcceptFriend.Code != http.StatusSeeOther {
+		t.Fatalf("POST /account/friends (accept request) failed: %d", wAcceptFriend.Code)
+	}
+
+	// Step D: Now neon_captain can send direct messages to friend_peer!
 	reqDM := httptest.NewRequest("POST", "/account/messages", strings.NewReader(dmPayload))
 	reqDM.RemoteAddr = "127.0.0.1:12345"
 	reqDM.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqDM.Header.Set("X-NSM-Session", customSess)
 	wDM := httptest.NewRecorder()
 	h.ServeHTTP(wDM, reqDM)
-	if wDM.Code != http.StatusSeeOther || !strings.Contains(wDM.Header().Get("Location"), "/u/neon_captain?tab=messages&with=nta~") {
-		t.Fatalf("POST /account/messages after adding friend expected redirect to 1-on-1 chat, got %d (%s)", wDM.Code, wDM.Header().Get("Location"))
+	if wDM.Code != http.StatusSeeOther || !strings.Contains(wDM.Header().Get("Location"), "/u/neon_captain?tab=messages&with=friend_peer") {
+		t.Fatalf("POST /account/messages after friend acceptance expected redirect to 1-on-1 chat, got %d (%s)", wDM.Code, wDM.Header().Get("Location"))
 	}
-	wChat := requestAuth(h, "GET", "/u/neon_captain?tab=messages&with=nta~", "", map[string]string{"X-NSM-Session": customSess})
-	if !strings.Contains(wChat.Body.String(), "Hey nta lets test 1on1 chat") {
+	wChat := requestAuth(h, "GET", "/u/neon_captain?tab=messages&with=friend_peer", "", map[string]string{"X-NSM-Session": customSess})
+	if !strings.Contains(wChat.Body.String(), "Hey peer lets test 1on1 chat") {
 		t.Fatalf("1-on-1 chat thread did not render sent direct message")
 	}
 
-	// 16. Verify FiveM/Zendesk-Style Support Request Creation, Dedicated Ticket Page, and Staff Reply
+	// 16. Verify FiveM/Zendesk-Style Support Request Creation, Strict Per-User Privacy, and Staff Access
 	supForm := url.Values{
 		"email":       {"neon@nsm.local"},
 		"category":    {"Technical / Client Issue"},
@@ -1020,6 +1052,16 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	wTicket := requestAuth(h, "GET", ticketURL, "", map[string]string{"X-NSM-Session": customSess})
 	if wTicket.Code != http.StatusOK || !strings.Contains(wTicket.Body.String(), "neon@nsm.local") || !strings.Contains(wTicket.Body.String(), "NSM.exe Audio Device Question") {
 		t.Fatalf("GET %s did not display requester email and subject: %d", ticketURL, wTicket.Code)
+	}
+
+	// Another regular user (friend_peer) MUST NOT be able to view neon_captain's support request or see it on /support
+	wTicketOther := requestAuth(h, "GET", ticketURL, "", map[string]string{"X-NSM-Session": peerSess})
+	if wTicketOther.Code != http.StatusForbidden {
+		t.Fatalf("other regular user must receive 403 Forbidden when attempting to view another user's support request, got %d", wTicketOther.Code)
+	}
+	wSupportOther := requestAuth(h, "GET", "/support", "", map[string]string{"X-NSM-Session": peerSess})
+	if strings.Contains(wSupportOther.Body.String(), "NSM.exe Audio Device Question") {
+		t.Fatalf("other regular user must not see neon_captain's support request on /support")
 	}
 
 	// 17. Verify Staff user can reply to support ticket, grant Partner role, and ban/unban a user

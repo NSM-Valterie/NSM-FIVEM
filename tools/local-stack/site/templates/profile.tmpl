@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078k">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
 </head>
 <body
   class="dc-ember-body user-summary-page user-full-themed-page fx-effect-{{.Profile.EffectiveProfileEffect}}"
@@ -390,16 +390,57 @@
                     </li>
                     {{else}}
                     {{if .User}}
+                    {{if .IsFriendWithProfile}}
                     <li>
                       <form method="post" action="/account/friends" style="margin:0">
                         <input type="hidden" name="target" value="{{.Profile.Username}}">
-                        <input type="hidden" name="action" value="{{if .IsFriendWithProfile}}remove{{else}}add{{end}}">
+                        <input type="hidden" name="action" value="remove">
                         <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
-                        <button type="submit" class="d-btn {{if .IsFriendWithProfile}}d-btn-default{{else}}d-btn-primary d-btn-theme{{end}}" style="width:100%">
-                          {{if .IsFriendWithProfile}}&#10004; Added (@{{.Profile.Username}}){{else}}+ Add @{{.Profile.Username}} to Text{{end}}
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%" title="Click to remove friend">
+                          &#10004; Friends (@{{.Profile.Username}})
                         </button>
                       </form>
                     </li>
+                    {{else if .PendingInWithProfile}}
+                    <li style="display:flex;gap:6px">
+                      <form method="post" action="/account/friends" style="margin:0;flex:1">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="accept">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
+                          &#10004; Accept Friend Request
+                        </button>
+                      </form>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="decline">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-default" title="Decline Request">&#10005;</button>
+                      </form>
+                    </li>
+                    {{else if .PendingOutWithProfile}}
+                    <li>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%" title="Waiting for @{{.Profile.Username}} to accept (click to cancel)">
+                          &#9203; Friend Request Pending
+                        </button>
+                      </form>
+                    </li>
+                    {{else}}
+                    <li>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="add">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
+                          + Add Friend (@{{.Profile.Username}})
+                        </button>
+                      </form>
+                    </li>
+                    {{end}}
                     {{end}}
                     <li>
                       <a href="{{if .User}}/u/{{.User.Username}}?tab=messages&amp;with={{.Profile.Username}}{{else}}/login?next=/u/{{.Profile.Username}}?tab=messages{{end}}" class="d-btn d-btn-default">
@@ -877,26 +918,26 @@
                       </label>
                     </div>
 
-                    <h4 class="d-sub-heading">Animated GIF Avatar &amp; Animated GIF Banner</h4>
+                    <h4 class="d-sub-heading">Profile Picture (Avatar) &amp; Profile Banner</h4>
                     <div class="d-form-row-2">
                       <label class="d-label">
-                        <span>Upload Avatar (Supports Animated GIF / PNG / JPG / WebP)</span>
-                        <input type="file" name="avatar_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input">
+                        <span>Upload Profile Picture (PNG / JPG / GIF / WebP)</span>
+                        <input type="file" name="avatar_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input" onchange="previewNsmAvatarFile(this)">
                       </label>
                       <label class="d-label">
-                        <span>Or External Avatar GIF / Image URL</span>
-                        <input type="url" name="avatar_url" value="{{.Profile.AvatarURL}}" class="d-input" placeholder="https://example.com/animated-avatar.gif">
+                        <span>Or External Avatar Image / GIF URL</span>
+                        <input type="url" name="avatar_url" value="{{.Profile.AvatarURL}}" class="d-input" placeholder="https://example.com/avatar.png">
                       </label>
                     </div>
 
                     <div class="d-form-row-2">
                       <label class="d-label">
-                        <span>Upload Profile Banner (Supports Animated GIF / PNG / JPG / WebP)</span>
-                        <input type="file" name="banner_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input">
+                        <span>Upload Profile Banner (PNG / JPG / GIF / WebP)</span>
+                        <input type="file" name="banner_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input" onchange="previewNsmBannerFile(this)">
                       </label>
                       <label class="d-label">
-                        <span>Or External Profile Banner GIF / Image URL</span>
-                        <input type="url" name="banner_url" value="{{.Profile.BannerURL}}" class="d-input" placeholder="https://example.com/animated-banner.gif">
+                        <span>Or External Profile Banner Image / GIF URL</span>
+                        <input type="url" name="banner_url" value="{{.Profile.BannerURL}}" class="d-input" placeholder="https://example.com/banner.png">
                       </label>
                     </div>
 
@@ -1410,6 +1451,35 @@
                     <button type="submit" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Open</button>
                   </form>
 
+                  {{if .IncomingFriendRequests}}
+                  <div style="padding:10px;border-radius:8px;background:rgba(47,123,255,0.14);border:1px solid rgba(47,123,255,0.45);margin-bottom:4px">
+                    <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#60a5fa;margin-bottom:6px">
+                      Incoming Friend Requests ({{len .IncomingFriendRequests}})
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                      {{range .IncomingFriendRequests}}
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border-radius:6px;background:rgba(15,23,42,0.8)">
+                        <a href="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.}}" style="font-size:12.5px;font-weight:700;color:#fff;text-decoration:none">@{{.}}</a>
+                        <div style="display:flex;gap:4px">
+                          <form method="post" action="/account/friends" style="margin:0">
+                            <input type="hidden" name="target" value="{{.}}">
+                            <input type="hidden" name="action" value="accept">
+                            <input type="hidden" name="return_to" value="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.}}">
+                            <button type="submit" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Accept</button>
+                          </form>
+                          <form method="post" action="/account/friends" style="margin:0">
+                            <input type="hidden" name="target" value="{{.}}">
+                            <input type="hidden" name="action" value="decline">
+                            <input type="hidden" name="return_to" value="/u/{{$.Profile.Username}}?tab=messages">
+                            <button type="submit" class="d-btn d-btn-default d-btn-xs">&#10005;</button>
+                          </form>
+                        </div>
+                      </div>
+                      {{end}}
+                    </div>
+                  </div>
+                  {{end}}
+
                   <div style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:380px">
                     {{range .Messages}}
                     <a href="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.Partner}}" class="d-dm-conv-item {{if eq $.ChatWith .Partner}}active{{end}}">
@@ -1496,16 +1566,50 @@
                       <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="height:54px;padding:0 18px !important">Send Message</button>
                     </div>
                   </form>
+                  {{else if .ChatPendingIn}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(16,185,129,0.14);border-top:1px solid rgba(16,185,129,0.45)">
+                    <div>
+                      <strong style="color:#fff;font-size:14px">&#128075; @{{.ChatWith}} Sent You a Friend Request!</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">Accept @{{.ChatWith}}'s friend request to unlock 1-on-1 direct messaging between your accounts.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="action" value="accept">
+                        <input type="hidden" name="target" value="{{.ChatWith}}">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme">&#10004; Accept Friend Request</button>
+                      </form>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="action" value="decline">
+                        <input type="hidden" name="target" value="{{.ChatWith}}">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                        <button type="submit" class="d-btn d-btn-default">Decline</button>
+                      </form>
+                    </div>
+                  </div>
+                  {{else if .ChatPendingOut}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(245,158,11,0.14);border-top:1px solid rgba(245,158,11,0.45)">
+                    <div>
+                      <strong style="color:#fcd34d;font-size:14px">&#9203; Friend Request Sent to @{{.ChatWith}} — Waiting for Acceptance</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">@{{.ChatWith}} must accept your friend request on their account before you can message each other.</div>
+                    </div>
+                    <form method="post" action="/account/friends" style="margin:0">
+                      <input type="hidden" name="action" value="cancel">
+                      <input type="hidden" name="target" value="{{.ChatWith}}">
+                      <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                      <button type="submit" class="d-btn d-btn-default">Cancel Request</button>
+                    </form>
+                  </div>
                   {{else}}
                   <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(47,123,255,0.12);border-top:1px solid rgba(47,123,255,0.4)">
                     <div>
                       <strong style="color:#fff;font-size:14px">Add @{{.ChatWith}} as a Friend to Text Them</strong>
-                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">You must add a user as a friend/contact before sending direct messages.</div>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">Send a friend request first — once @{{.ChatWith}} accepts on their account, you can message each other.</div>
                     </div>
                     <form method="post" action="/account/friends" style="margin:0;display:flex;gap:8px;align-items:center">
                       <input type="hidden" name="action" value="add">
                       <input type="text" name="target" value="{{.ChatWith}}" class="d-input" placeholder="@username" style="width:150px;margin:0" required>
-                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">+ Add Friend to Text</button>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">+ Send Friend Request</button>
                     </form>
                   </div>
                   {{end}}
@@ -1837,6 +1941,28 @@
       root.className = 'dc-ember-body user-summary-page user-full-themed-page fx-effect-' + val;
       root.setAttribute('data-profile-effect', val);
     }
+    function previewNsmAvatarFile(inp) {
+      if (!inp || !inp.files || !inp.files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var av = document.getElementById('live-profile-avatar');
+        if (av && ev.target && ev.target.result) av.src = ev.target.result;
+      };
+      reader.readAsDataURL(inp.files[0]);
+    }
+    function previewNsmBannerFile(inp) {
+      if (!inp || !inp.files || !inp.files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var bEl = document.getElementById('live-profile-banner');
+        if (bEl && ev.target && ev.target.result) {
+          bEl.style.backgroundImage = "linear-gradient(180deg, rgba(14,16,22,0.18), rgba(14,16,22,0.82)), url('" + ev.target.result + "')";
+          bEl.style.backgroundSize = 'cover';
+          bEl.style.backgroundPosition = 'center';
+        }
+      };
+      reader.readAsDataURL(inp.files[0]);
+    }
     function selectPulseCheckoutPlan(tier, label) {
       var sel = document.getElementById('pulse-checkout-tier');
       if (sel) sel.value = tier;
@@ -1879,6 +2005,6 @@
       window.history.replaceState(null, '', '/u/{{.Profile.Username}}?tab={{.Tab}}');
     }
   </script>
-  <script src="/js/main.js?v=078k"></script>
+  <script src="/js/main.js?v=078m"></script>
 </body>
 </html>

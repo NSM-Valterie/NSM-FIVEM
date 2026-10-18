@@ -821,22 +821,28 @@
         if (actionUrl.origin !== window.location.origin) return;
         if (actionUrl.pathname === '/logout') return;
         e.preventDefault();
+        var fd = new FormData(form);
+        if (e.submitter && e.submitter.name) {
+          fd.set(e.submitter.name, e.submitter.value || '');
+        }
         if (method === 'GET') {
-          var params = new URLSearchParams(new FormData(form));
+          var params = new URLSearchParams(fd);
           var targetGet = actionUrl.pathname + (params.toString() ? '?' + params.toString() : '');
           nsmNavigate(targetGet, true);
           return;
         }
-        var bodyData = new URLSearchParams(new FormData(form));
-        fetch(actionUrl.href, {
+        var enc = (form.getAttribute('enctype') || '').toLowerCase();
+        var isMultipart = enc.indexOf('multipart/form-data') !== -1 || !!form.querySelector('input[type="file"]');
+        var fetchOpts = {
           method: method,
           credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-            'X-NSM-SPA': '1'
-          },
-          body: bodyData.toString()
-        })
+          headers: { 'X-NSM-SPA': '1' },
+          body: isMultipart ? fd : new URLSearchParams(fd).toString()
+        };
+        if (!isMultipart) {
+          fetchOpts.headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+        }
+        fetch(actionUrl.href, fetchOpts)
           .then(function (res) {
             var ct = (res.headers.get('content-type') || '').toLowerCase();
             if (ct.indexOf('text/html') === -1) {

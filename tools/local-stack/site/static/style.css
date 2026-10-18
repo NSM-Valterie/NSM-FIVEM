@@ -6811,6 +6811,175 @@ body.mp-standalone-body {
   justify-content: center !important;
 }
 
+/* ==========================================================================
+   AFX SUPPORT, PORTAL AUTH, FAQ ACCORDION & STAFF PANEL SHARED COMPONENTS
+   ========================================================================== */
+body.afx-hc-body {
+  min-height: 100vh;
+  background-color: #0b0e14;
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(47, 123, 255, 0.16), transparent 45%),
+    radial-gradient(circle at 82% 86%, rgba(0, 248, 185, 0.10), transparent 45%);
+  color: #f0f4f8;
+}
+
+.nsm-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nsm-faq-item {
+  border-radius: 8px;
+  background: rgba(22, 25, 35, 0.85);
+  border: 1px solid rgba(240, 244, 248, 0.1);
+  overflow: hidden;
+}
+.nsm-faq-q {
+  width: 100%;
+  padding: 15px 18px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-family: var(--font);
+  font-size: 0.94rem;
+  font-weight: 700;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.nsm-faq-q:hover {
+  background: rgba(47, 123, 255, 0.12);
+}
+.nsm-faq-a {
+  display: none;
+  padding: 0 18px 16px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: rgba(240, 244, 248, 0.78);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 12px;
+}
+.nsm-faq-item.open .nsm-faq-a {
+  display: block;
+}
+
+.zd-requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.zd-requests-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  background: rgba(12, 15, 23, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.zd-requests-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: middle;
+}
+.zd-requests-table tr:hover td {
+  background: rgba(47, 123, 255, 0.07);
+}
+
+.zd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+.zd-status-pill.status-Answered {
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+}
+.zd-status-pill.status-Solved,
+.zd-status-pill.status-Closed {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+.fcard {
+  padding: 22px;
+  border-radius: 10px;
+  background: rgba(22, 25, 35, 0.9);
+  border: 1px solid rgba(240, 244, 248, 0.11);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.flabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: rgba(229, 238, 255, 0.88);
+  margin-bottom: 12px;
+}
+.finput,
+select.finput,
+textarea.finput {
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: 6px;
+  border: 1px solid rgba(229, 238, 255, 0.16);
+  background: rgba(12, 15, 22, 0.9);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.finput:focus,
+select.finput:focus,
+textarea.finput:focus {
+  outline: none;
+  border-color: #2F7BFF;
+  box-shadow: 0 0 0 2px rgba(47, 123, 255, 0.25);
+}
+.btn.primary {
+  background: linear-gradient(135deg, #2F7BFF 0%, #0093b4 100%);
+  color: #fff;
+  border-color: rgba(86, 212, 232, 0.35);
+}
+.btn.ghost {
+  background: rgba(229, 238, 255, 0.06);
+  color: #e5eeff;
+  border-color: rgba(229, 238, 255, 0.14);
+}
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+.alert.err {
+  padding: 11px 14px;
+  border-radius: 6px;
+  font-size: 0.86rem;
+  background: rgba(255, 71, 87, 0.16);
+  border: 1px solid rgba(255, 71, 87, 0.40);
+  color: #ff8a9b;
+}
+.alert.ok {
+  padding: 11px 14px;
+  border-radius: 6px;
+  font-size: 0.86rem;
+  background: rgba(46, 213, 115, 0.16);
+  border: 1px solid rgba(46, 213, 115, 0.40);
+  color: #7bed9f;
+}
+
+
 
 
 

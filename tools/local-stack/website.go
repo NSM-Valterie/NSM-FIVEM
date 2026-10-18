@@ -323,24 +323,32 @@ func accountPage(w http.ResponseWriter, r *http.Request) {
 
 func supportPage(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
+	isStaff := u != nil && u.IsStaffOrHigher()
 	var myTickets []map[string]interface{}
+	var allTickets []map[string]interface{}
 	accMu.Lock()
-	if acc != nil {
+	if acc != nil && u != nil {
 		for i := len(acc.SupportTickets) - 1; i >= 0; i-- {
 			tk := acc.SupportTickets[i]
-			if u != nil && (u.IsStaffOrHigher() || tk.RequesterID == u.ID || strings.EqualFold(tk.RequesterUsername, u.Username)) {
+			if tk.RequesterID == u.ID || strings.EqualFold(tk.RequesterUsername, u.Username) {
 				myTickets = append(myTickets, buildSupportTicketView(&tk))
+			}
+			if isStaff {
+				allTickets = append(allTickets, buildSupportTicketView(&tk))
 			}
 		}
 	}
 	accMu.Unlock()
 	renderPage(w, r, "support.tmpl", map[string]interface{}{
-		"Title":   "AFX Support",
-		"Page":    "/support",
-		"Invite":  "https://discord.gg/UXj5QfCX88",
-		"Tickets": myTickets,
-		"Error":   r.URL.Query().Get("error"),
-		"Msg":     r.URL.Query().Get("msg"),
+		"Title":      "AFX Support",
+		"Page":       "/support",
+		"Invite":     "https://discord.gg/UXj5QfCX88",
+		"Tickets":    myTickets,
+		"MyTickets":  myTickets,
+		"AllTickets": allTickets,
+		"IsStaff":    isStaff,
+		"Error":      r.URL.Query().Get("error"),
+		"Msg":        r.URL.Query().Get("msg"),
 	})
 }
 
@@ -425,7 +433,9 @@ func buildMux() *http.ServeMux {
 
 	mux.HandleFunc("GET /docs", docsPage)
 	mux.HandleFunc("GET /support", supportPage)
+	mux.HandleFunc("GET /support/requests", supportPage)
 	mux.HandleFunc("GET /hc/en-us", supportPage)
+	mux.HandleFunc("GET /hc/en-us/requests", supportPage)
 	mux.HandleFunc("POST /support/requests", supportCreateRequest)
 	mux.HandleFunc("GET /support/requests/{id}", supportViewRequest)
 	mux.HandleFunc("GET /hc/en-us/requests/{id}", supportViewRequest)
