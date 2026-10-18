@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AFX Marketplace</title>
   <link rel="icon" type="image/png" href="/img/afx-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078c">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
 <body class="afx-mp-body">
   <!-- AFX Marketplace Header -->
@@ -17,12 +17,12 @@
           <span style="font-weight:700;font-size:1.15rem;color:#fff">AFX <strong style="color:#00f8b9">Marketplace</strong></span>
         </a>
         <div class="mp-ext-links">
-          <a href="/" target="_blank" rel="noopener" class="mp-ext-link">NSM Home</a>
-          <a href="/servers" target="_blank" rel="noopener" class="mp-ext-link">Server List</a>
-          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
-          <a href="/forum" target="_blank" rel="noopener" class="mp-ext-link">AFX Forum</a>
-          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
-          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
+          <a href="/" class="mp-ext-link">NSM Home</a>
+          <a href="/servers" class="mp-ext-link">Server List</a>
+          <a href="/keymaster" class="mp-ext-link">AFX Portal</a>
+          <a href="/forum" class="mp-ext-link">AFX Forum</a>
+          <a href="/docs" class="mp-ext-link">Docs</a>
+          <a href="/support" class="mp-ext-link">Support</a>
         </div>
       </div>
 
@@ -31,7 +31,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="search" id="afx-mp-search" placeholder="Search scripts, MLOs, vehicles, EUP, or HUDs..." autocomplete="off">
         </div>
-        <a href="/forum/c/releases" target="_blank" rel="noopener" class="btn btn-primary btn-sm">+ Publish Resource</a>
+        <a href="/forum/c/releases" class="btn btn-primary btn-sm">+ Publish Resource</a>
         {{if .User}}
         <a href="/account" class="user-chip">
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
@@ -53,8 +53,8 @@
         <p>Browse community-vetted gameplay scripts, custom interiors (MLOs), addon vehicles, EUP packs, and NUI HUDs ready for <code>nsm-server.exe</code>.</p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <a href="/keymaster" target="_blank" rel="noopener" class="nsm-btn nsm-btn-primary">Manage Granted Assets in AFX Portal &nearr;</a>
-        <a href="/forum/c/releases" target="_blank" rel="noopener" class="nsm-ctrl-btn">Community Releases Forum &nearr;</a>
+        <a href="/keymaster" class="nsm-btn nsm-btn-primary">Manage Granted Assets in AFX Portal &nearr;</a>
+        <a href="/forum/c/releases" class="nsm-ctrl-btn">Community Releases Forum &nearr;</a>
       </div>
     </div>
   </section>
@@ -194,6 +194,6 @@
     </div>
   </main>
 
-  <script src="/js/main.js?v=078c"></script>
+  <script src="/js/main.js?v=078e"></script>
 </body>
 </html>

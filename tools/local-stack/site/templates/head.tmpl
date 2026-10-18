@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&family=Rubik:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Material+Icons+Outlined&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078d">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
 <body>
 
@@ -32,6 +32,7 @@
 </div>
 {{end}}
 
+<div class="bg-holder{{if eq .Page "/"}} with-bg{{end}}">
 <div class="container"><div class="spacer">
 <header class="nsm-top-header">
   <div class="hbar">
@@ -41,25 +42,25 @@
     </a>
     <div class="burger-toggle" id="burger-open"><span class="material-icons-outlined">menu</span></div>
     <ul class="links hidden-xs hidden-sm">
-      <li><a href="/servers" target="_blank" rel="noopener" class="{{if eq .Page "/servers"}}active{{end}}">Server List</a></li>
-      <li><a href="/keymaster" target="_blank" rel="noopener" class="{{if eq .Page "/keymaster"}}active{{end}}">Portal</a></li>
-      <li><a href="/support" target="_blank" rel="noopener" class="{{if eq .Page "/support"}}active{{end}}">Support</a></li>
-      <li><a href="/forum" target="_blank" rel="noopener" class="{{if eq .Page "/forum"}}active{{end}}">Forum</a></li>
-      <li><a href="/marketplace" target="_blank" rel="noopener" class="{{if eq .Page "/marketplace"}}active{{end}}">Marketplace</a></li>
-      <li><a href="/docs" target="_blank" rel="noopener" class="{{if eq .Page "/docs"}}active{{end}}">Documentation</a></li>
+      <li><a href="/servers" class="{{if eq .Page "/servers"}}active{{end}}">Server List</a></li>
+      <li><a href="/keymaster" class="{{if eq .Page "/keymaster"}}active{{end}}">Portal</a></li>
+      <li><a href="/support" class="{{if eq .Page "/support"}}active{{end}}">Support</a></li>
+      <li><a href="/forum" class="{{if eq .Page "/forum"}}active{{end}}">Forum</a></li>
+      <li><a href="/marketplace" class="{{if eq .Page "/marketplace"}}active{{end}}">Marketplace</a></li>
+      <li><a href="/docs" class="{{if eq .Page "/docs"}}active{{end}}">Documentation</a></li>
       {{if and .User (or (eq .User.Role "owner") (eq .User.Role "admin") (eq .User.Role "staff"))}}
       <li><a href="/admin/users" class="{{if eq .Page "/admin/users"}}active{{end}}">Staff</a></li>
       {{end}}
       {{if .User}}
-      <li><a href="/account" class="{{if eq .Page "/account"}}active{{end}}">{{.User.Username}} ({{.User.Role}})</a></li>
+      <li><a href="/u/{{.User.Username}}" class="{{if eq .Page "/u"}}active{{end}}">@{{.User.Username}}</a></li>
+      <li><a href="/account" class="{{if eq .Page "/account"}}active{{end}}">Account</a></li>
       <li><a href="/logout">Log out</a></li>
       {{else}}
-      <li><a href="/login" target="_blank" rel="noopener" class="{{if eq .Page "/login"}}active{{end}}">Log in</a></li>
+      <li><a href="/login" class="{{if eq .Page "/login"}}active{{end}}">Log in</a></li>
       {{end}}
     </ul>
   </div>
 </header>
 </div></div>
-
-<main>
+{{if ne .Page "/"}}</div><main>{{end}}
 {{end}}

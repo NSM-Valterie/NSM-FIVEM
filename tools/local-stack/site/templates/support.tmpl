@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AFX Support</title>
   <link rel="icon" type="image/png" href="/img/afx-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078c">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
 <body class="afx-hc-body">
   <!-- Zendesk Help Center Header -->
@@ -18,10 +18,10 @@
       </a>
 
       <div class="afx-hc-nav">
-        <a href="/" target="_blank" rel="noopener">NSM Home</a>
-        <a href="/servers" target="_blank" rel="noopener">Server List</a>
-        <a href="/keymaster" target="_blank" rel="noopener">AFX Portal</a>
-        <a href="/forum" target="_blank" rel="noopener">Community Forum</a>
+        <a href="/">NSM Home</a>
+        <a href="/servers">Server List</a>
+        <a href="/keymaster">AFX Portal</a>
+        <a href="/forum">Community Forum</a>
         <a href="#submit-ticket" class="btn btn-ghost btn-sm">Submit a request</a>
         {{if .User}}
         <a href="/account" class="user-chip">
@@ -29,7 +29,7 @@
           <span>{{.User.EffectiveDisplayName}}</span>
         </a>
         {{else}}
-        <a href="/login" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Sign in</a>
+        <a href="/login" class="btn btn-primary btn-sm">Sign in</a>
         {{end}}
       </div>
     </div>
@@ -64,13 +64,13 @@
         <p>Launching <code>NSM.exe</code>, clearing CEF cache, Direct Connect, audio/graphics settings, and game verification.</p>
       </a>
 
-      <a href="/keymaster" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="keymaster portal server key">
+      <a href="/keymaster" class="afx-hc-block" data-hc-cat="keymaster portal server key">
         <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px"></div>
         <h3>AFX Portal &amp; Registration Keys</h3>
         <p>Issuing, rotating, and revoking <code>nsm_srv_...</code> server keys in AFX Portal and binding IP endpoints.</p>
       </a>
 
-      <a href="/docs#server-setup" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="server hosting cfg onesync">
+      <a href="/docs#server-setup" class="afx-hc-block" data-hc-cat="server hosting cfg onesync">
         <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Server" style="width:28px;height:28px"></div>
         <h3>Dedicated Server Administration</h3>
         <p>Configuring <code>nsm-server.exe</code>, <code>server-local.cfg</code>, heartbeats on <code>/api/serverlist/ingress</code>, and OneSync.</p>
@@ -82,13 +82,13 @@
         <p>Linking your account inside <code>NSM.exe</code>, claiming the <code>Cravenz</code> owner account, and custom profile avatars.</p>
       </a>
 
-      <a href="/marketplace" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="marketplace resources scripts mlo">
+      <a href="/marketplace" class="afx-hc-block" data-hc-cat="marketplace resources scripts mlo">
         <div class="afx-hc-block-icon"><img src="/img/afx-icon.png" alt="Marketplace" style="width:28px;height:28px;border-radius:6px"></div>
         <h3>AFX Marketplace &amp; Resources</h3>
         <p>Downloading verified NSM resources, installing scripts and custom MLOs, and managing granted assets.</p>
       </a>
 
-      <a href="/docs#natives" target="_blank" rel="noopener" class="afx-hc-block" data-hc-cat="scripting lua js csharp natives">
+      <a href="/docs#natives" class="afx-hc-block" data-hc-cat="scripting lua js csharp natives">
         <div class="afx-hc-block-icon"><img src="/img/nsm-icon.png" alt="Scripting" style="width:28px;height:28px"></div>
         <h3>Scripting, NUI &amp; Native Reference</h3>
         <p>Building Lua, JavaScript, and C# resources, CEF NUI interfaces, state bags, and server events.</p>
@@ -128,7 +128,7 @@
               <span>+</span>
             </button>
             <div class="nsm-faq-a">
-              Open <a href="/keymaster" target="_blank" style="color:#00f8b9">AFX Portal (/keymaster)</a>, enter your server's Display Name and optional IP:port, and click <strong>Generate Server Key</strong>. Copy the <code>sets sv_nsmServerKey "nsm_srv_..."</code> line into your <code>server.cfg</code> or <code>server-local.cfg</code> and launch <code>nsm-server.exe</code>.
+              Open <a href="/keymaster" style="color:#00f8b9">AFX Portal (/keymaster)</a>, enter your server's Display Name and optional IP:port, and click <strong>Generate Server Key</strong>. Copy the <code>sets sv_nsmServerKey "nsm_srv_..."</code> line into your <code>server.cfg</code> or <code>server-local.cfg</code> and launch <code>nsm-server.exe</code>.
             </div>
           </div>
 
@@ -138,7 +138,7 @@
               <span>+</span>
             </button>
             <div class="nsm-faq-a">
-              Open <a href="/servers" target="_blank" style="color:#00f8b9">Server List - NSM (/servers)</a> and click <strong>Connect</strong> on any server row, or press <code>F8</code> inside <code>NSM.exe</code> and type <code>connect 127.0.0.1:30120</code>.
+              Open <a href="/servers" style="color:#00f8b9">Server List - NSM (/servers)</a> and click <strong>Connect</strong> on any server row, or press <code>F8</code> inside <code>NSM.exe</code> and type <code>connect 127.0.0.1:30120</code>.
             </div>
           </div>
         </div>
@@ -183,12 +183,12 @@
       <span>&copy; {{.Year}} AFX Support &amp; NSM Platform.</span>
       <div style="display:flex;gap:16px">
         <a href="/" style="color:rgba(240,244,248,0.65)">NSM Home</a>
-        <a href="/servers" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">Server List</a>
-        <a href="/keymaster" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">AFX Portal</a>
-        <a href="/forum" target="_blank" rel="noopener" style="color:rgba(240,244,248,0.65)">AFX Forum</a>
+        <a href="/servers" style="color:rgba(240,244,248,0.65)">Server List</a>
+        <a href="/keymaster" style="color:rgba(240,244,248,0.65)">AFX Portal</a>
+        <a href="/forum" style="color:rgba(240,244,248,0.65)">AFX Forum</a>
       </div>
     </div>
   </footer>
-  <script src="/js/main.js?v=078c"></script>
+  <script src="/js/main.js?v=078e"></script>
 </body>
 </html>

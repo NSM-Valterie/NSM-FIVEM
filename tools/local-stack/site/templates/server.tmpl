@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.CleanName}} - Server List - NSM</title>
   <link rel="icon" type="image/png" href="/img/nsm-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078c">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
 <body class="mp-standalone-body">
   <div class="mp-app-frame">
@@ -24,11 +24,11 @@
 
       <div class="mp-navbar-right">
         <div class="mp-ext-links">
-          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
-          <a href="/forum" target="_blank" rel="noopener" class="mp-ext-link">Forum</a>
-          <a href="/marketplace" target="_blank" rel="noopener" class="mp-ext-link">Marketplace</a>
-          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
-          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
+          <a href="/keymaster" class="mp-ext-link">AFX Portal</a>
+          <a href="/forum" class="mp-ext-link">Forum</a>
+          <a href="/marketplace" class="mp-ext-link">Marketplace</a>
+          <a href="/docs" class="mp-ext-link">Docs</a>
+          <a href="/support" class="mp-ext-link">Support</a>
         </div>
         {{if .User}}
         <a href="/account" class="mp-user-bar">
@@ -36,7 +36,7 @@
           <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
         </a>
         {{else}}
-        <a href="/login" target="_blank" rel="noopener" class="mp-user-bar mp-user-signin">
+        <a href="/login" class="mp-user-bar mp-user-signin">
           <span>Sign In</span>
         </a>
         {{end}}
@@ -125,6 +125,6 @@
       </div>
     </div>
   </div>
-  <script src="/js/main.js?v=078c"></script>
+  <script src="/js/main.js?v=078e"></script>
 </body>
 </html>

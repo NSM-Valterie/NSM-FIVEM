@@ -755,7 +755,73 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 			t.Fatalf("GET %s expected image bytes, got status %d len %d", imgPath, wImg.Code, wImg.Body.Len())
 		}
 	}
+
+	// 11. Verify 1:1 Discourse Forum, Topic, and /u/<username> Profile DOM structure & same-tab navigation
+	wForum := request(h, "GET", "/forum", "")
+	if wForum.Code != http.StatusOK {
+		t.Fatalf("GET /forum returned %d", wForum.Code)
+	}
+	forumBody := wForum.Body.String()
+	for _, marker := range []string{
+		`class="d-header"`,
+		`id="d-sidebar"`,
+		`class="categories-and-latest"`,
+		`class="category-list"`,
+		`class="subcategories"`,
+		`class="latest-topic-list"`,
+		`class="badge-category-bg"`,
+	} {
+		if !strings.Contains(forumBody, marker) {
+			t.Fatalf("GET /forum missing Discourse marker %q", marker)
+		}
+	}
+	if strings.Contains(forumBody, `target="_blank"`) {
+		t.Fatalf("GET /forum still contains target=_blank link")
+	}
+
+	wTopic := request(h, "GET", "/forum/t/1", "")
+	if wTopic.Code != http.StatusOK {
+		t.Fatalf("GET /forum/t/1 returned %d", wTopic.Code)
+	}
+	topicBody := wTopic.Body.String()
+	for _, marker := range []string{
+		`id="topic-title"`,
+		`class="container posts"`,
+		`class="post-stream"`,
+		`class="topic-map"`,
+		`class="timeline-container"`,
+		`id="reply-control"`,
+	} {
+		if !strings.Contains(topicBody, marker) {
+			t.Fatalf("GET /forum/t/1 missing Discourse marker %q", marker)
+		}
+	}
+
+	wProf := request(h, "GET", "/u/Cravenz", "")
+	if wProf.Code != http.StatusOK {
+		t.Fatalf("GET /u/Cravenz returned %d", wProf.Code)
+	}
+	profBody := wProf.Body.String()
+	for _, marker := range []string{
+		`class="user-main"`,
+		`class="about has-background"`,
+		`class="user-profile-avatar"`,
+		`id="collapsed-info-panel"`,
+		`class="user-primary-navigation"`,
+		`class="top-section stats-section"`,
+		`class="top-section replies-and-topics-section"`,
+		`class="top-section top-categories-section"`,
+		`class="top-section badges-section"`,
+	} {
+		if !strings.Contains(profBody, marker) {
+			t.Fatalf("GET /u/Cravenz missing Discourse profile marker %q", marker)
+		}
+	}
+	if strings.Contains(profBody, `target="_blank"`) {
+		t.Fatalf("GET /u/Cravenz still contains target=_blank link")
+	}
 }
+
 
 
 

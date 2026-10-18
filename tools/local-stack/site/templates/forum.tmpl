@@ -1,219 +1,439 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="discourse-dark-theme">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AFX Forum - The home of NSM</title>
   <link rel="icon" type="image/png" href="/img/nsm-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
-<body class="afx-discourse-body">
-  <!-- Discourse d-header -->
-  <header class="afx-d-header">
-    <div class="afx-d-header-inner">
-      <div style="display:flex;align-items:center;gap:14px">
-        <a href="/forum" class="afx-d-logo">
-          <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:32px;width:auto">
-          <span class="brand-sub"><img src="/img/afx-icon.png" alt="AFX" class="brand-sub-icon">Forum</span>
+<body class="dc-ember-body">
+  <!-- Discourse d-header (forum.cfx.re 1:1) -->
+  <header class="d-header">
+    <div class="d-header-wrap">
+      <div class="d-header-left">
+        <button type="button" class="btn-sidebar-toggle" onclick="document.getElementById('d-sidebar').classList.toggle('collapsed')" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <a href="/forum" class="d-logo-link">
+          <img src="/img/nsm-icon.png" alt="NSM" class="d-logo-mark">
+          <span class="d-logo-text">AFX <strong>Forum</strong></span>
+          <span class="d-logo-sub">NSM Community Forum</span>
         </a>
-        <div class="mp-ext-links">
-          <a href="/" target="_blank" rel="noopener" class="mp-ext-link">NSM Home</a>
-          <a href="/servers" target="_blank" rel="noopener" class="mp-ext-link">Server List</a>
-          <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link">AFX Portal</a>
-          <a href="/marketplace" target="_blank" rel="noopener" class="mp-ext-link">Marketplace</a>
-          <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link">Docs</a>
-          <a href="/support" target="_blank" rel="noopener" class="mp-ext-link">Support</a>
-        </div>
+        <nav class="d-top-links">
+          <a href="/">NSM.net</a>
+          <a href="/servers">Server List</a>
+          <a href="/keymaster">AFX Portal</a>
+          <a href="/marketplace">Marketplace</a>
+          <a href="/docs">Docs</a>
+          <a href="/support">Support</a>
+        </nav>
       </div>
 
-      <div style="display:flex;align-items:center;gap:10px">
-        <form method="get" action="/forum" class="afx-d-search">
+      <div class="d-header-icons">
+        <form method="get" action="/forum" class="d-header-search">
           {{if .CatSlug}}<input type="hidden" name="cat" value="{{.CatSlug}}">{{end}}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" name="q" value="{{.Query}}" placeholder="Search AFX Forum topics, tags, or users...">
+          <input type="search" name="q" value="{{.Query}}" placeholder="Search topics, posts, #tags, or @users...">
         </form>
 
         {{if .User}}
-        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
-        <a href="/account" class="user-chip">
-          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
-          <span>{{.User.EffectiveDisplayName}}</span>
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="@{{.User.Username}} — View Forum Profile">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
+          <span class="d-header-username">{{.User.Username}}</span>
         </a>
+        <a href="/account" class="d-btn d-btn-flat" title="Account Preferences">Preferences</a>
         {{else}}
-        <a href="/login?next=/forum" class="btn btn-ghost btn-sm">Log In</a>
-        <a href="/register?next=/forum" class="btn btn-primary btn-sm">Sign Up</a>
+        <a href="/register?next=/forum" class="d-btn d-btn-primary">Sign Up</a>
+        <a href="/login?next=/forum" class="d-btn d-btn-default">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Log In
+        </a>
         {{end}}
       </div>
     </div>
   </header>
 
-  <!-- Discourse 2-Column Shell: Left Sidebar + Main Topic List -->
-  <div class="afx-d-shell">
-    <!-- Left Discourse Sidebar -->
-    <aside class="afx-d-sidebar">
-      <div class="afx-d-nav-sec">
-        <a href="/forum" class="afx-d-nav-link {{if and (eq .CatSlug "") (eq .Tab "latest")}}active{{end}}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          <span>Topics (Latest)</span>
-        </a>
-        <a href="/forum?tab=top" class="afx-d-nav-link {{if eq .Tab "top"}}active{{end}}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-          <span>Top Discussions</span>
-        </a>
-        {{if .User}}
-        <a href="/u/{{.User.Username}}" class="afx-d-nav-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>My Posts &amp; Profile</span>
-        </a>
-        {{end}}
-      </div>
+  <!-- Discourse Main Outlet Wrapper (Left Sidebar + #main-outlet) -->
+  <div id="main-outlet-wrapper" class="d-outlet-wrapper">
+    <!-- Left Discourse Sidebar (#d-sidebar) -->
+    <aside id="d-sidebar" class="sidebar-wrapper">
+      <div class="sidebar-sections">
+        <div class="sidebar-section">
+          <ul class="sidebar-section-content">
+            <li>
+              <a href="/forum" class="sidebar-section-link {{if and (eq .CatSlug "") (eq .Tab "latest")}}active{{end}}">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Topics</span>
+              </a>
+            </li>
+            <li>
+              <a href="/forum?tab=categories" class="sidebar-section-link {{if eq .Tab "categories"}}active{{end}}">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Categories</span>
+              </a>
+            </li>
+            <li>
+              <a href="/forum?tab=top" class="sidebar-section-link {{if eq .Tab "top"}}active{{end}}">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Top</span>
+              </a>
+            </li>
+            {{if .User}}
+            <li>
+              <a href="/u/{{.User.Username}}" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">My Posts &amp; Profile</span>
+              </a>
+            </li>
+            {{end}}
+          </ul>
+        </div>
 
-      <div class="afx-d-nav-sec">
-        <div class="afx-d-nav-title">CATEGORIES</div>
-        <a href="/forum" class="afx-d-nav-link {{if eq .CatSlug ""}}active{{end}}">
-          <span class="afx-d-cat-sq" style="background:#2f7bff"></span>
-          <span>All Categories</span>
-        </a>
-        {{range .Categories}}
-        <a href="/forum/c/{{.Slug}}" class="afx-d-nav-link {{if eq $.CatSlug .Slug}}active{{end}}">
-          <span class="afx-d-cat-sq" style="background:{{.Color}}"></span>
-          <span style="flex:1">{{.Name}}</span>
-          <span class="muted" style="font-size:0.75rem">{{.TopicCount}}</span>
-        </a>
-        {{end}}
-      </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">CATEGORIES</div>
+          <ul class="sidebar-section-content">
+            {{range .Categories}}
+            <li>
+              <a href="/forum/c/{{.Slug}}" class="sidebar-section-link {{if eq $.CatSlug .Slug}}active{{end}}">
+                <span class="sidebar-section-link-prefix">
+                  <span class="prefix-square" style="background:{{.Color}}"></span>
+                </span>
+                <span class="sidebar-section-link-content-text">{{.Name}}</span>
+                <span class="sidebar-section-link-suffix">{{.TopicCount}}</span>
+              </a>
+            </li>
+            {{end}}
+            <li>
+              <a href="/forum" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">All categories</span>
+              </a>
+            </li>
+          </ul>
+        </div>
 
-      <div class="afx-d-nav-sec">
-        <div class="afx-d-nav-title">POPULAR TAGS</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px">
-          <a href="/forum?q=official" class="nsm-loaf">#official</a>
-          <a href="/forum?q=keymaster" class="nsm-loaf">#keymaster</a>
-          <a href="/forum?q=release" class="nsm-loaf">#release</a>
-          <a href="/forum?q=script" class="nsm-loaf">#script</a>
-          <a href="/forum?q=tutorial" class="nsm-loaf">#tutorial</a>
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">TAGS</div>
+          <ul class="sidebar-section-content">
+            <li><a href="/forum?q=official" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">official</span></a></li>
+            <li><a href="/forum?q=release" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">release</span></a></li>
+            <li><a href="/forum?q=standalone" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">standalone</span></a></li>
+            <li><a href="/forum?q=onesync" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">onesync</span></a></li>
+            <li><a href="/forum?q=keymaster" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">keymaster</span></a></li>
+            <li><a href="/forum?q=tutorial" class="sidebar-section-link"><span class="sidebar-section-link-prefix">#</span><span class="sidebar-section-link-content-text">tutorial</span></a></li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">AFX PLATFORM</div>
+          <ul class="sidebar-section-content">
+            <li><a href="/servers" class="sidebar-section-link"><span class="sidebar-section-link-content-text">Server List - NSM</span></a></li>
+            <li><a href="/keymaster" class="sidebar-section-link"><span class="sidebar-section-link-content-text">AFX Portal (Keymaster)</span></a></li>
+            <li><a href="/docs" class="sidebar-section-link"><span class="sidebar-section-link-content-text">NSM Documentation</span></a></li>
+          </ul>
         </div>
       </div>
     </aside>
 
-    <!-- Main Discourse Content -->
-    <main class="afx-d-main">
-      <!-- Category Banner / Boxes -->
-      <div class="forum-cats-grid" style="margin-bottom:20px">
-        {{range .Categories}}
-        <a href="/forum/c/{{.Slug}}" class="forum-cat-card {{if eq $.CatSlug .Slug}}on{{end}}" style="--cat-color:{{.Color}}">
-          <div class="forum-cat-top">
-            <span class="forum-cat-dot" style="background:{{.Color}}"></span>
-            <strong>{{.Name}}</strong>
-            <span class="forum-cat-count">{{.TopicCount}}</span>
+    <!-- Main Discourse Outlet (#main-outlet) -->
+    <main id="main-outlet" class="d-main-outlet">
+      {{if .ActiveCat}}
+      <div class="discovery-heading category-heading" style="border-left: 6px solid {{.ActiveCat.Color}}">
+        <div class="category-heading__content">
+          <div class="badge-category__wrapper">
+            <span class="badge-category-bg" style="background:{{.ActiveCat.Color}}"></span>
+            <span class="badge-category__name">{{.ActiveCat.Name}}</span>
           </div>
-          <div class="muted" style="font-size:12px">{{.Description}}</div>
-        </a>
-        {{end}}
+          <p class="category-heading__description">{{.ActiveCat.Description}}</p>
+        </div>
       </div>
+      {{end}}
 
-      <!-- New Topic Composer -->
-      {{if .User}}
-      <div id="new-topic-box" class="composer-card">
-        <h3 style="margin-bottom:12px">Create a New Topic on AFX Forum</h3>
-        <form method="post" action="/forum/new" class="form">
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
-            <label>Topic Title
-              <input type="text" name="title" class="inp" placeholder="What is this discussion about?" required minlength="3" maxlength="140">
-            </label>
-            <label>Category
-              <select name="category" class="inp">
+      <!-- Discourse .list-controls (Category Breadcrumb + .nav-pills + #create-topic) -->
+      <div class="list-controls">
+        <div class="navigation-container">
+          <ol class="category-breadcrumb">
+            <li>
+              <select class="d-combo-box" onchange="if(this.value!==undefined)window.location.href=this.value">
+                <option value="/forum" {{if eq .CatSlug ""}}selected{{end}}>all categories</option>
                 {{range .Categories}}
-                <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
+                <option value="/forum/c/{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}} ({{.TopicCount}})</option>
                 {{end}}
               </select>
-            </label>
-            <label>Tags (comma-separated)
-              <input type="text" name="tags" class="inp" placeholder="e.g. script, release, help">
-            </label>
+            </li>
+            <li>
+              <select class="d-combo-box" onchange="if(this.value)window.location.href=this.value">
+                <option value="/forum">all tags</option>
+                <option value="/forum?q=official" {{if eq .Query "official"}}selected{{end}}>#official</option>
+                <option value="/forum?q=release" {{if eq .Query "release"}}selected{{end}}>#release</option>
+                <option value="/forum?q=standalone" {{if eq .Query "standalone"}}selected{{end}}>#standalone</option>
+                <option value="/forum?q=onesync" {{if eq .Query "onesync"}}selected{{end}}>#onesync</option>
+                <option value="/forum?q=keymaster" {{if eq .Query "keymaster"}}selected{{end}}>#keymaster</option>
+                <option value="/forum?q=tutorial" {{if eq .Query "tutorial"}}selected{{end}}>#tutorial</option>
+              </select>
+            </li>
+          </ol>
+
+          <ul id="navigation-bar" class="nav-pills">
+            <li>
+              <a href="/forum?tab=categories" class="{{if eq .Tab "categories"}}active{{end}}">Categories</a>
+            </li>
+            <li>
+              <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=latest" class="{{if and (ne .Tab "categories") (ne .Tab "top")}}active{{end}}">Latest</a>
+            </li>
+            <li>
+              <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=top" class="{{if eq .Tab "top"}}active{{end}}">Top</a>
+            </li>
+            <li>
+              <a href="/forum/c/releases" class="{{if eq .CatSlug "releases"}}active{{end}}">Releases</a>
+            </li>
+            <li>
+              <a href="/forum/c/bazaar" class="{{if eq .CatSlug "bazaar"}}active{{end}}">Server Bazaar</a>
+            </li>
+            {{if .Query}}
+            <li>
+              <a href="/forum{{if .CatSlug}}/c/{{.CatSlug}}{{end}}" class="active">Search: "{{.Query}}" &times;</a>
+            </li>
+            {{end}}
+          </ul>
+
+          <div class="navigation-controls">
+            {{if .User}}
+            <button type="button" id="create-topic" class="d-btn d-btn-default" onclick="document.getElementById('new-topic-box').classList.toggle('open')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>New Topic</span>
+            </button>
+            {{else}}
+            <a href="/login?next=/forum" id="create-topic" class="d-btn d-btn-default">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>New Topic</span>
+            </a>
+            {{end}}
           </div>
-          <label>Message Body
-            <textarea name="content" class="inp" rows="6" placeholder="Write your post here..." required minlength="2"></textarea>
-          </label>
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('new-topic-box').classList.remove('open')">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-sm">Publish Topic</button>
+        </div>
+      </div>
+
+      <!-- Discourse New Topic Composer (#new-topic-box) -->
+      {{if .User}}
+      <div id="new-topic-box" class="d-composer-drawer">
+        <div class="d-composer-header">
+          <span>Create a New Topic on AFX Forum</span>
+          <button type="button" class="d-btn d-btn-flat" onclick="document.getElementById('new-topic-box').classList.remove('open')">&times;</button>
+        </div>
+        <form method="post" action="/forum/new" class="d-composer-form">
+          <div class="d-composer-meta-row">
+            <input type="text" name="title" class="d-input" placeholder="Type title, or paste a link here..." required minlength="3" maxlength="140">
+            <select name="category" class="d-input">
+              {{range .Categories}}
+              <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+            <input type="text" name="tags" class="d-input" placeholder="optional tags (e.g. release, script, hud)">
+          </div>
+          <textarea name="content" class="d-input d-textarea" rows="6" placeholder="Type here. Use Markdown, BBCode, or HTML to format." required minlength="2"></textarea>
+          <div class="d-composer-actions">
+            <button type="submit" class="d-btn d-btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create Topic
+            </button>
+            <button type="button" class="d-btn d-btn-flat" onclick="document.getElementById('new-topic-box').classList.remove('open')">Close</button>
           </div>
         </form>
       </div>
       {{end}}
 
-      <!-- Discourse Navigation Bar -->
-      <div class="forum-tabs" style="display:flex;justify-content:space-between;align-items:center">
-        <div style="display:flex;gap:8px;align-items:center">
-          <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=latest" class="forum-tab {{if eq .Tab "latest"}}on{{end}}">Latest</a>
-          <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=top" class="forum-tab {{if eq .Tab "top"}}on{{end}}">Top</a>
-          {{if .ActiveCat}}
-          <span class="cat-pill" style="--cat-color:{{.ActiveCat.Color}};margin-left:8px">{{.ActiveCat.Name}}</span>
-          {{end}}
-          {{if .Query}}
-          <a href="/forum{{if .CatSlug}}/c/{{.CatSlug}}{{end}}" class="forum-tab">Clear Search ("{{.Query}}") &times;</a>
-          {{end}}
+      <!-- 1:1 forum.cfx.re Dual-Column .categories-and-latest (Categories Table on Left + Latest Topics on Right) -->
+      {{if and (eq .CatSlug "") (eq .Query "")}}
+      <div class="categories-and-latest">
+        <!-- Left Column: table.category-list -->
+        <div class="column categories">
+          <table class="category-list">
+            <thead>
+              <tr>
+                <th class="category"><span role="heading">Category</span></th>
+                <th class="topics">Topics</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Categories}}
+              <tr class="has-description" style="border-left: 6px solid {{.Color}}">
+                <td class="category" style="border-color: {{.Color}}">
+                  <div>
+                    <h3 id=" category-{{.Slug}}">
+                      <a class="category-title-link" href="/forum/c/{{.Slug}}">
+                        <div class="category-text-title">
+                          <span class="badge-category__wrapper">
+                            <span class="badge-category-bg" style="background-color: {{.Color}}"></span>
+                            <span class="badge-category__name">{{.Name}}</span>
+                          </span>
+                        </div>
+                      </a>
+                    </h3>
+                    <div class="category-description">{{.Description}}</div>
+                    {{if .Subcategories}}
+                    <div class="subcategories">
+                      {{range .Subcategories}}
+                      <span class="subcategory">
+                        <a class="badge-category__wrapper" href="/forum/c/{{.Slug}}">
+                          <span class="badge-category-bg" style="background-color: {{.Color}}"></span>
+                          <span class="badge-category__name">{{.Name}}</span>
+                        </a>
+                      </span>
+                      {{end}}
+                    </div>
+                    {{end}}
+                  </div>
+                </td>
+                <td class="topics">
+                  <div title="{{.TopicCount}} topics">
+                    <span class="value">{{.TopicCount}}</span>
+                  </div>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
-        {{if .User}}
-        <button type="button" class="nsm-ctrl-btn" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
-        {{end}}
-      </div>
 
-      <!-- Discourse Topic List Table -->
-      {{if .Topics}}
-      <div class="forum-table-wrap">
-        <table class="forum-table">
-          <thead>
+        <!-- Right Column: div.latest-topic-list -->
+        <div class="column">
+          <div class="latest-topic-list">
+            <div class="table-heading">Latest</div>
+            {{range .Topics}}
+            <div class="latest-topic-list-item {{if .Pinned}}pinned{{end}}">
+              <div class="topic-poster">
+                <a href="/u/{{.AuthorUsername}}" title="@{{.AuthorUsername}}">
+                  <img alt="" width="45" height="45" src="{{.AuthorAvatar}}" class="avatar">
+                  {{if or (eq .AuthorRole "owner") (eq .AuthorRole "admin") (eq .AuthorRole "staff")}}
+                  <div class="avatar-flair" title="AFX Staff">&#9733;</div>
+                  {{end}}
+                </a>
+              </div>
+              <div class="main-link">
+                <div class="top-row">
+                  {{if .Pinned}}
+                  <span class="topic-status" title="Pinned topic">
+                    <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  </span>
+                  {{end}}
+                  <a href="/forum/t/{{.ID}}" class="title">{{.Title}}</a>
+                </div>
+                <div class="bottom-row">
+                  <a class="badge-category__wrapper" href="/forum/c/{{.Category.Slug}}">
+                    <span class="badge-category-bg" style="background-color: {{.Category.Color}}"></span>
+                    <span class="badge-category__name">{{.Category.Name}}</span>
+                  </a>
+                  <div class="discourse-tags">
+                    {{range .Tags}}
+                    <a href="/forum?q={{.}}" class="discourse-tag box">{{.}}</a>
+                    {{end}}
+                  </div>
+                </div>
+              </div>
+              <div class="topic-stats">
+                <div class="posts-map badge-posts">
+                  <a href="/forum/t/{{.ID}}" class="posts-map">{{.Replies}}</a>
+                </div>
+                <div class="topic-last-activity">
+                  <a href="/forum/t/{{.ID}}" title="Last activity">{{.UpdatedAtStr}}</a>
+                </div>
+              </div>
+            </div>
+            {{end}}
+            <div class="more-topics">
+              <a href="#all-topics-table" class="d-btn d-btn-default pull-right">More &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {{end}}
+
+      <!-- Full Discourse Topic List Table (table.topic-list) -->
+      <div class="contents" id="all-topics-table" style="margin-top: 24px">
+        {{if .Topics}}
+        <table class="topic-list">
+          <thead class="topic-list-header">
             <tr>
-              <th>Topic</th>
-              <th>Posters</th>
-              <th class="num">Replies</th>
-              <th class="num">Likes</th>
-              <th class="num">Views</th>
-              <th class="num">Activity</th>
+              <th class="default topic-list-data">Topic</th>
+              <th class="posters topic-list-data"></th>
+              <th class="posts num topic-list-data">Replies</th>
+              <th class="views num topic-list-data">Views</th>
+              <th class="activity num topic-list-data">Activity</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="topic-list-body">
             {{range .Topics}}
-            <tr class="forum-topic-tr {{if .Pinned}}pinned{{end}}">
-              <td class="topic-main-cell">
-                <div class="topic-title-line">
-                  {{if .Pinned}}<span class="pin-badge" title="Pinned Topic">&#128204;</span>{{end}}
-                  {{if .Locked}}<span class="pin-badge" title="Locked Topic">&#128274;</span>{{end}}
-                  <a href="/forum/t/{{.ID}}" class="topic-link">{{.Title}}</a>
-                </div>
-                <div class="topic-sub-line">
-                  <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
-                  {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
-                  <span class="muted">by <a href="/u/{{.AuthorUsername}}">{{.AuthorDisplay}}</a></span>
-                </div>
-              </td>
-              <td class="posters-cell">
-                <div class="posters-stack">
-                  {{range .Posters}}
-                  <a href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
-                    <img src="{{.Avatar}}" alt="{{.Username}}" class="poster-av">
-                  </a>
+            <tr class="topic-list-item {{if .Pinned}}pinned{{end}}">
+              <td class="main-link clearfix topic-list-data">
+                <span class="link-top-line">
+                  {{if .Pinned}}
+                  <span class="topic-status" title="Pinned">
+                    <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  </span>
                   {{end}}
+                  {{if .Locked}}
+                  <span class="topic-status" title="Closed">
+                    <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  {{end}}
+                  <a href="/forum/t/{{.ID}}" class="title raw-link raw-topic-link">{{.Title}}</a>
+                </span>
+                <div class="link-bottom-line">
+                  <a class="badge-category__wrapper" href="/forum/c/{{.Category.Slug}}">
+                    <span class="badge-category-bg" style="background-color: {{.Category.Color}}"></span>
+                    <span class="badge-category__name">{{.Category.Name}}</span>
+                  </a>
+                  <div class="discourse-tags">
+                    {{range .Tags}}
+                    <a href="/forum?q={{.}}" class="discourse-tag box">{{.}}</a>
+                    {{end}}
+                  </div>
                 </div>
               </td>
-              <td class="num"><b>{{.Replies}}</b></td>
-              <td class="num"><span style="color:#e7064f">&#9829;</span> {{.Likes}}</td>
-              <td class="num muted">{{.Views}}</td>
-              <td class="num muted">{{.UpdatedAtStr}}</td>
+              <td class="posters topic-list-data">
+                {{range $i, $p := .Posters}}
+                <a href="/u/{{$p.Username}}" title="{{$p.DisplayName}} (@{{$p.Username}})">
+                  <img alt="{{$p.Username}}" width="25" height="25" src="{{$p.Avatar}}" class="avatar {{if eq $i 0}}latest{{end}}">
+                </a>
+                {{end}}
+              </td>
+              <td class="num posts-map posts topic-list-data">
+                <a href="/forum/t/{{.ID}}" class="badge-posts">{{.Replies}}</a>
+              </td>
+              <td class="num views topic-list-data">
+                <span class="number">{{.Views}}</span>
+              </td>
+              <td class="num age activity topic-list-data">
+                <a href="/forum/t/{{.ID}}" class="post-activity"><span class="relative-date">{{.UpdatedAtStr}}</span></a>
+              </td>
             </tr>
             {{end}}
           </tbody>
         </table>
+        {{else}}
+        <div class="d-empty-state">
+          <h3>There are no topics matching your filter</h3>
+          <p>Use the <strong>New Topic</strong> button above to start the conversation.</p>
+        </div>
+        {{end}}
       </div>
-      {{else}}
-      <div class="empty">
-        <h3>No topics match your filter</h3>
-        <p class="muted">Start the first conversation using the <strong>+ New Topic</strong> button above.</p>
-      </div>
-      {{end}}
     </main>
   </div>
-  <script src="/js/main.js?v=078c"></script>
+
+  <script src="/js/main.js?v=078e"></script>
 </body>
 </html>

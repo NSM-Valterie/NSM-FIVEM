@@ -14,14 +14,21 @@ import (
 	"time"
 )
 
+type ForumSubcategory struct {
+	Slug  string `json:"slug"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}
+
 type ForumCategory struct {
-	ID          int    `json:"id"`
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
-	TopicCount  int    `json:"topicCount"`
-	PostCount   int    `json:"postCount"`
+	ID            int                `json:"id"`
+	Slug          string             `json:"slug"`
+	Name          string             `json:"name"`
+	Color         string             `json:"color"`
+	Description   string             `json:"description"`
+	TopicCount    int                `json:"topicCount"`
+	PostCount     int                `json:"postCount"`
+	Subcategories []ForumSubcategory `json:"subcategories,omitempty"`
 }
 
 type ForumPost struct {
@@ -94,12 +101,61 @@ var (
 )
 
 var defaultCategories = []ForumCategory{
-	{ID: 1, Slug: "announcements", Name: "Announcements", Color: "#e7064f", Description: "Official NSM platform announcements, changelogs, and release notes."},
-	{ID: 2, Slug: "server-dev", Name: "Server Development", Color: "#2F7BFF", Description: "Configuration, server.cfg, Keymaster keys, OneSync, and server administration."},
-	{ID: 3, Slug: "releases", Name: "Resource Releases", Color: "#07baae", Description: "Share and download community resources, scripts, maps, vehicles, and UI packs."},
-	{ID: 4, Slug: "bazaar", Name: "Server Bazaar", Color: "#a2ba0b", Description: "Showcase your NSM server, recruit staff, and invite players to join."},
-	{ID: 5, Slug: "support", Name: "Technical Support", Color: "#f59e0b", Description: "Client launch, account linking, server connection, and troubleshooting help."},
-	{ID: 6, Slug: "discussion", Name: "General Discussion", Color: "#8b5cf6", Description: "Everything else related to the NSM community and multiplayer modding."},
+	{
+		ID: 1, Slug: "announcements", Name: "Announcements", Color: "#e7064f",
+		Description: "Official NSM & AFX platform announcements, client updates, and release notes.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "announcements", Name: "Client Updates", Color: "#e7064f"},
+			{Slug: "announcements", Name: "Server Artifacts", Color: "#ff4757"},
+			{Slug: "announcements", Name: "Platform Status", Color: "#ff7f50"},
+		},
+	},
+	{
+		ID: 2, Slug: "server-dev", Name: "Server Development", Color: "#2F7BFF",
+		Description: "Resource scripting (Lua, C#, JS), server.cfg, AFX Portal license keys, OneSync Infinity, and NUI.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "server-dev", Name: "Scripting Discussion", Color: "#2F7BFF"},
+			{Slug: "server-dev", Name: "OneSync & Networking", Color: "#00a8cc"},
+			{Slug: "server-dev", Name: "NUI & CEF", Color: "#56d4e8"},
+		},
+	},
+	{
+		ID: 3, Slug: "releases", Name: "Resource Releases", Color: "#07baae",
+		Description: "Share and download community resources, scripts, maps, MLOs, vehicles, and UI packs.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "releases", Name: "Scripts & Gamemodes", Color: "#07baae"},
+			{Slug: "releases", Name: "Maps & MLOs", Color: "#00d68f"},
+			{Slug: "releases", Name: "Vehicles & Weapons", Color: "#20bf6b"},
+			{Slug: "releases", Name: "Standalone Tools", Color: "#2bcbba"},
+		},
+	},
+	{
+		ID: 4, Slug: "bazaar", Name: "Server Bazaar", Color: "#a2ba0b",
+		Description: "Showcase your NSM server, recruit staff and developers, and invite players to join.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "bazaar", Name: "Roleplay Servers", Color: "#a2ba0b"},
+			{Slug: "bazaar", Name: "Freeroam & Drift", Color: "#fed330"},
+			{Slug: "bazaar", Name: "Staff Recruitment", Color: "#f7b731"},
+		},
+	},
+	{
+		ID: 5, Slug: "support", Name: "Technical Support", Color: "#f59e0b",
+		Description: "Client launch, in-app account linking, server connection, and troubleshooting help.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "support", Name: "NSM Client Support", Color: "#f59e0b"},
+			{Slug: "support", Name: "Server Support", Color: "#fa8231"},
+			{Slug: "support", Name: "Account & Portal", Color: "#eb3b5a"},
+		},
+	},
+	{
+		ID: 6, Slug: "discussion", Name: "General Discussion", Color: "#8b5cf6",
+		Description: "Modding tutorials, media showcases, community guides, and general NSM discussion.",
+		Subcategories: []ForumSubcategory{
+			{Slug: "discussion", Name: "Modding Tutorials", Color: "#8b5cf6"},
+			{Slug: "discussion", Name: "Media & Screenshots", Color: "#a55eea"},
+			{Slug: "discussion", Name: "Community Lounge", Color: "#778ca3"},
+		},
+	},
 }
 
 func categoryBySlug(slug string) ForumCategory {
@@ -204,14 +260,81 @@ func loadForum() {
 						PostNumber:     1,
 						AuthorUsername: "Cravenz",
 						CreatedAt:      now - 86400,
+						Likes:          []string{"Cravenz"},
 						Content: "When you click **Link Account** in the NSM client navbar, it opens our NSM Client Authorization page in your browser instead of Discord.\n\nOnce you sign in or click **Authorize & Sign In to NSM App**, your NSM client receives an RSA-encrypted session key and logs you in immediately. Visit **My Account** (`/account`) at any time to upload a custom avatar, change your display name, or set a custom title!",
+					},
+				},
+			},
+			{
+				ID:             4,
+				Title:          "[Release] [Standalone] NSM OneSync Modern HUD, Speedometer & Voice Indicator v2.4",
+				Slug:           "release-standalone-nsm-onesync-modern-hud-speedometer-voice-indicator-v2-4",
+				CategorySlug:   "releases",
+				Tags:           []string{"release", "standalone", "hud", "nui"},
+				AuthorUsername: "Cravenz",
+				Pinned:         false,
+				Views:          318,
+				CreatedAt:      now - 86400*4,
+				UpdatedAt:      now - 1800,
+				Posts: []ForumPost{
+					{
+						ID:             4,
+						PostNumber:     1,
+						AuthorUsername: "Cravenz",
+						CreatedAt:      now - 86400*4,
+						Likes:          []string{"Cravenz"},
+						Content: "Here is the official standalone NSM OneSync HUD & Speedometer resource (`nsm-hud`) built for NSM dedicated servers!\n\n### Features\n- Zero idle CPU usage (`0.00ms` in resmon)\n- Reactive NUI health, armor, stamina, and voice proximity ring\n- Dynamic vehicle speedometer with RPM bar, gear indicator, seatbelt chime, and fuel gauge\n- Drop-in `fxmanifest.lua` compatible with any Lua, C#, or JS framework",
+					},
+				},
+			},
+			{
+				ID:             5,
+				Title:          "[Bazaar] Los Santos Official NSM Roleplay — Custom Framework | Active LSPD & EMS | OneSync",
+				Slug:           "bazaar-los-santos-official-nsm-roleplay-custom-framework-onesync",
+				CategorySlug:   "bazaar",
+				Tags:           []string{"roleplay", "onesync", "economy", "custom-cars"},
+				AuthorUsername: "Cravenz",
+				Pinned:         false,
+				Views:          275,
+				CreatedAt:      now - 86400*5,
+				UpdatedAt:      now - 3600,
+				Posts: []ForumPost{
+					{
+						ID:             5,
+						PostNumber:     1,
+						AuthorUsername: "Cravenz",
+						CreatedAt:      now - 86400*5,
+						Likes:          []string{"Cravenz"},
+						Content: "Join **Los Santos Official NSM Roleplay** directly from the NSM Server List (`/servers`) or inside `NSM.exe`!\n\n- **Custom Streamed Vehicles & MLO Interiors**\n- **Player-Run Economy, Businesses & Heists**\n- **Active Whitelisted Police, EMS & DOJ Departments**\n- **Direct Connect:** `127.0.0.1:30120`",
+					},
+				},
+			},
+			{
+				ID:             6,
+				Title:          "[Tutorial] Streaming Add-On Vehicles, Weapons & Custom MLO Interiors in NSM",
+				Slug:           "tutorial-streaming-add-on-vehicles-weapons-custom-mlo-interiors-in-nsm",
+				CategorySlug:   "discussion",
+				Tags:           []string{"tutorial", "streaming", "mlo", "vehicles"},
+				AuthorUsername: "Cravenz",
+				Pinned:         false,
+				Views:          194,
+				CreatedAt:      now - 86400*6,
+				UpdatedAt:      now - 5400,
+				Posts: []ForumPost{
+					{
+						ID:             6,
+						PostNumber:     1,
+						AuthorUsername: "Cravenz",
+						CreatedAt:      now - 86400*6,
+						Likes:          []string{"Cravenz"},
+						Content: "Streaming custom vehicles, ped clothing (EUP), and MLO interiors in NSM only requires placing your `.yft`, `.ytd`, and `.ymap` assets inside a resource's `stream/` folder and declaring `data_file` entries in `fxmanifest.lua`.\n\nNSM automatically caches streamed assets locally so players load into your server instantaneously.",
 					},
 				},
 			},
 		}
 		forum.Topics = seed
-		forum.NextTopic = 4
-		forum.NextPostID = 4
+		forum.NextTopic = 7
+		forum.NextPostID = 7
 		saveForumLocked()
 	}
 }
@@ -612,6 +735,8 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 
 	cat := categoryBySlug(found.CategorySlug)
 	postsView := make([]map[string]interface{}, 0, len(found.Posts))
+	seenParticipants := map[string]bool{}
+	var participants []map[string]string
 	accMu.Lock()
 	for _, p := range found.Posts {
 		pu := findUser(p.AuthorUsername)
@@ -624,6 +749,16 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 			dn = pu.EffectiveDisplayName()
 			role = pu.Role
 			title = pu.EffectiveTitle()
+		}
+		pKey := strings.ToLower(p.AuthorUsername)
+		if !seenParticipants[pKey] {
+			seenParticipants[pKey] = true
+			participants = append(participants, map[string]string{
+				"Username":    p.AuthorUsername,
+				"DisplayName": dn,
+				"Avatar":      av,
+				"Role":        role,
+			})
 		}
 		liked := false
 		if u != nil {
@@ -653,13 +788,19 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 	accMu.Unlock()
 
 	renderPage(w, r, "forum_topic.tmpl", map[string]interface{}{
-		"Title":      found.Title + " - Forum",
-		"Page":       "/forum",
-		"Topic":      found,
-		"Category":   cat,
-		"Posts":      postsView,
-		"CanMod":     canMod,
-		"Categories": forumCategoriesWithCounts(),
+		"Title":          found.Title + " - AFX Forum",
+		"Page":           "/forum",
+		"Topic":          found,
+		"Category":       cat,
+		"Posts":          postsView,
+		"Participants":   participants,
+		"ParticipantCnt": len(participants),
+		"ReplyCount":     found.ReplyCount(),
+		"TotalLikes":     found.TotalLikes(),
+		"CreatedAtShort": formatRelativeTime(found.CreatedAt),
+		"LastReplyShort": formatRelativeTime(found.UpdatedAt),
+		"CanMod":         canMod,
+		"Categories":     forumCategoriesWithCounts(),
 	})
 }
 

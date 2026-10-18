@@ -1,6 +1,4 @@
 {{template "head" .}}
-
-<div class="bg-holder with-bg">
   <section class="hero">
     <div class="container">
       <div class="spacer">
@@ -13,14 +11,14 @@
               <span class="live-dot"></span>Join the <span class="current-players" data-stat="players">{{index .Stats "Players"}}</span> people playing right now!
             </div>
             <div class="btnpadder" style="position:relative">
-              <a id="dl" href="/servers" target="_blank" rel="noopener">
+              <a id="dl" href="/servers">
                 <span class="txt">DOWNLOAD CLIENT</span>
                 <span class="desc">NSM.exe</span>
               </a>
             </div>
-            <p class="plaText">By downloading, you agree to the <a href="/docs" target="_blank" rel="noopener">NSM Terms of Service</a></p>
+            <p class="plaText">By downloading, you agree to the <a href="/docs">NSM Terms of Service</a></p>
             <div class="server">
-              <a class="btn block" href="/keymaster" target="_blank" rel="noopener">Create your own server</a>
+              <a class="btn block" href="/keymaster">Create your own server</a>
             </div>
           </div>
         </div>
@@ -28,6 +26,7 @@
     </div>
   </section>
 </div>
+<main>
 
 <section class="features">
   <div class="container">
@@ -105,11 +104,11 @@
       <div class="content">
         <div class="cleft">
           <span class="ea-badge">Now Available</span>
-          <h1>NSM for Grand Theft Auto V</h1>
+          <h1>Now supporting Grand Theft Auto V Enhanced</h1>
           <p>Jump into customized dedicated servers with the NSM desktop client, browse the live server list, and manage your server keys in AFX Portal.</p>
           <hr>
           <div class="btnrow">
-            <a class="ghostbtn" href="/servers" target="_blank" rel="noopener">
+            <a class="ghostbtn" href="/servers">
               <div class="in"><span class="gbtn-txt">Open Live Server List</span></div>
             </a>
             <span class="dl-text"><strong data-stat="servers">{{index .Stats "Servers"}}</strong> live servers &middot; <strong data-stat="players">{{index .Stats "Players"}}</strong> players online</span>
@@ -127,8 +126,8 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1rem">
         <h1 style="margin:0">Live Server List</h1>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a class="btn primary" href="/servers" target="_blank" rel="noopener">Open Fullscreen Server Browser &rarr;</a>
-          <a class="btn" href="/keymaster" target="_blank" rel="noopener">AFX Portal (Keymaster)</a>
+          <a class="btn primary" href="/servers">Open Fullscreen Server Browser &rarr;</a>
+          <a class="btn" href="/keymaster">AFX Portal (Keymaster)</a>
         </div>
       </div>
       <div class="nsm-embedded-mp-frame">
@@ -178,8 +177,8 @@
         <h2>Create a server</h2>
         <p>Find out how to start your own NSM server! Issue a license key in AFX Portal and launch <code>NSM-Server.exe</code>.</p>
         <div class="btnpadder">
-          <a class="btn primary" href="/keymaster" target="_blank" rel="noopener">Create a server</a>
-          <a class="btn" href="/docs#server-setup" target="_blank" rel="noopener">Setting up a server</a>
+          <a class="btn primary" href="/keymaster">Create a server</a>
+          <a class="btn" href="/docs#server-setup">Setting up a server</a>
         </div>
       </article>
       <article>
@@ -187,7 +186,7 @@
         <p>Write server and client resources using any of NSM's first-class scripting runtimes:</p>
         <div class="fx langs">
           <div class="c-lg-4 c-md-4 c-xs-12">
-            <a class="lang lua" href="/docs#scripting" target="_blank" rel="noopener">
+            <a class="lang lua" href="/docs#scripting">
               <div class="text">
                 <h3>Lua</h3>
                 <p>Lightweight, fast scripting with immediate access to all GTA V &amp; AFX natives.</p>
@@ -195,7 +194,7 @@
             </a>
           </div>
           <div class="c-lg-4 c-md-4 c-xs-12">
-            <a class="lang cs" href="/docs#scripting" target="_blank" rel="noopener">
+            <a class="lang cs" href="/docs#scripting">
               <div class="text">
                 <h3>C#</h3>
                 <p>Strongly-typed .NET runtime for structured client and server resource development.</p>
@@ -203,7 +202,7 @@
             </a>
           </div>
           <div class="c-lg-4 c-md-4 c-xs-12">
-            <a class="lang js" href="/docs#scripting" target="_blank" rel="noopener">
+            <a class="lang js" href="/docs#scripting">
               <div class="text">
                 <h3>JavaScript</h3>
                 <p>Modern V8 / Node.js runtime with TypeScript definitions and NUI integration.</p>
@@ -230,7 +229,7 @@
       </div>
       <div id="q3">
         <h3><a href="#q3">How do I create a server and register a license key?</a></h3>
-        <p>Open <a href="/keymaster" target="_blank" rel="noopener">AFX Portal</a>, sign in to your account, generate a <code>cfxk_...</code> license key, and paste <code>sv_licenseKey</code> into your server's <code>server.cfg</code>.</p>
+        <p>Open <a href="/keymaster">AFX Portal</a>, sign in to your account, generate a <code>cfxk_...</code> license key, and paste <code>sv_licenseKey</code> into your server's <code>server.cfg</code>.</p>
       </div>
       <div id="q4">
         <h3><a href="#q4">Why does Steam show me playing Source SDK Base 2007?</a></h3>

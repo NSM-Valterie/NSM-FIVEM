@@ -1,101 +1,366 @@
-{{template "head" .}}
-
-<section class="wrap section">
-  <div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <div>
-      <a href="/forum" class="muted">&larr; Forum</a>
-      <span class="muted"> / </span>
-      <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
-    </div>
-    {{if .CanMod}}
-    <div style="display:flex;gap:6px">
-      {{if or (eq .User.Role "staff") (eq .User.Role "admin") (eq .User.Role "owner")}}
-      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/pin" style="display:inline">
-        <button type="submit" class="btn btn-ghost btn-xs">{{if .Topic.Pinned}}Unpin{{else}}Pin Topic{{end}}</button>
-      </form>
-      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/lock" style="display:inline">
-        <button type="submit" class="btn btn-ghost btn-xs">{{if .Topic.Locked}}Unlock{{else}}Lock Topic{{end}}</button>
-      </form>
-      {{end}}
-      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/delete" style="display:inline" onsubmit="return confirm('Delete this topic?');">
-        <button type="submit" class="btn btn-ghost btn-xs" style="color:#f87171">Delete Topic</button>
-      </form>
-    </div>
-    {{end}}
-  </div>
-
-  <div class="topic-header-box">
-    <h1>
-      {{if .Topic.Pinned}}<span title="Pinned">&#128204;</span> {{end}}
-      {{if .Topic.Locked}}<span title="Locked">&#128274;</span> {{end}}
-      {{.Topic.Title}}
-    </h1>
-    <div class="topic-sub-line" style="margin-top:8px">
-      <span class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</span>
-      {{range .Topic.Tags}}<span class="tag">#{{.}}</span>{{end}}
-      <span class="muted">&bull; {{.Topic.Views}} views &bull; {{len .Posts}} posts</span>
-    </div>
-  </div>
-
-  <div class="post-stream">
-    {{range .Posts}}
-    <article class="forum-post-card" id="post-{{.PostNumber}}">
-      <div class="post-sidebar">
-        <a href="/u/{{.AuthorUsername}}">
-          <img src="{{.AuthorAvatar}}" alt="{{.AuthorUsername}}" class="post-avatar">
+<!DOCTYPE html>
+<html lang="en" class="discourse-dark-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Topic.Title}} - {{.Category.Name}} - AFX Forum</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
+</head>
+<body class="dc-ember-body archetype-regular">
+  <!-- Discourse d-header -->
+  <header class="d-header">
+    <div class="d-header-wrap">
+      <div class="d-header-left">
+        <button type="button" class="btn-sidebar-toggle" onclick="document.getElementById('d-sidebar').classList.toggle('collapsed')" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <a href="/forum" class="d-logo-link">
+          <img src="/img/nsm-icon.png" alt="NSM" class="d-logo-mark">
+          <span class="d-logo-text">AFX <strong>Forum</strong></span>
         </a>
+        <nav class="d-top-links">
+          <a href="/">NSM.net</a>
+          <a href="/servers">Server List</a>
+          <a href="/keymaster">AFX Portal</a>
+          <a href="/marketplace">Marketplace</a>
+          <a href="/docs">Docs</a>
+          <a href="/support">Support</a>
+        </nav>
       </div>
-      <div class="post-body-col">
-        <div class="post-meta-bar">
-          <div>
-            <a href="/u/{{.AuthorUsername}}" class="post-author-name">{{.AuthorDisplay}}</a>
-            <span class="muted">@{{.AuthorUsername}}</span>
-            <span class="role role-{{.AuthorRole}}">{{.AuthorRole}}</span>
-            <span class="post-author-title">{{.AuthorTitle}}</span>
-          </div>
-          <div class="muted" style="font-size:12px">
-            <span title="{{.CreatedAtStr}}">{{.RelativeStr}}</span> &bull; #{{.PostNumber}}
-          </div>
+
+      <div class="d-header-icons">
+        <form method="get" action="/forum" class="d-header-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" name="q" placeholder="Search AFX Forum...">
+        </form>
+
+        {{if .User}}
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="@{{.User.Username}}">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
+          <span class="d-header-username">{{.User.Username}}</span>
+        </a>
+        {{else}}
+        <a href="/register?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-primary">Sign Up</a>
+        <a href="/login?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-default">Log In</a>
+        {{end}}
+      </div>
+    </div>
+  </header>
+
+  <div id="main-outlet-wrapper" class="d-outlet-wrapper">
+    <!-- Left Discourse Sidebar -->
+    <aside id="d-sidebar" class="sidebar-wrapper">
+      <div class="sidebar-sections">
+        <div class="sidebar-section">
+          <ul class="sidebar-section-content">
+            <li>
+              <a href="/forum" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Topics</span>
+              </a>
+            </li>
+            <li>
+              <a href="/forum?tab=categories" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Categories</span>
+              </a>
+            </li>
+            <li>
+              <a href="/forum?tab=top" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Top</span>
+              </a>
+            </li>
+          </ul>
         </div>
-        <div class="post-content">
-          {{range .Paragraphs}}
-          <p>{{.}}</p>
-          {{end}}
-        </div>
-        <div class="post-actions-bar">
-          <form method="post" action="/forum/t/{{$.Topic.ID}}/like/{{.ID}}" style="display:inline">
-            <button type="submit" class="like-btn {{if .Liked}}liked{{end}}">
-              &#9829; {{.LikesCount}} {{if .Liked}}Liked{{else}}Like{{end}}
-            </button>
-          </form>
-          <a href="/u/{{.AuthorUsername}}" class="muted" style="font-size:12px">View Profile</a>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">CATEGORIES</div>
+          <ul class="sidebar-section-content">
+            {{range .Categories}}
+            <li>
+              <a href="/forum/c/{{.Slug}}" class="sidebar-section-link {{if eq $.Category.Slug .Slug}}active{{end}}">
+                <span class="sidebar-section-link-prefix">
+                  <span class="prefix-square" style="background:{{.Color}}"></span>
+                </span>
+                <span class="sidebar-section-link-content-text">{{.Name}}</span>
+                <span class="sidebar-section-link-suffix">{{.TopicCount}}</span>
+              </a>
+            </li>
+            {{end}}
+          </ul>
         </div>
       </div>
-    </article>
-    {{end}}
+    </aside>
+
+    <!-- Main Discourse Topic Outlet -->
+    <main id="main-outlet" class="d-main-outlet">
+      <!-- #topic-title -->
+      <div id="topic-title" class="d-topic-title">
+        <div class="title-wrapper">
+          <h1 class="d-topic-h1">
+            {{if .Topic.Pinned}}
+            <span class="topic-status" title="Pinned">
+              <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+            </span>
+            {{end}}
+            {{if .Topic.Locked}}
+            <span class="topic-status" title="Closed">
+              <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            {{end}}
+            <a href="/forum/t/{{.Topic.ID}}" class="fancy-title">{{.Topic.Title}}</a>
+          </h1>
+
+          <div class="topic-category">
+            <a class="badge-category__wrapper" href="/forum/c/{{.Category.Slug}}">
+              <span class="badge-category-bg" style="background-color: {{.Category.Color}}"></span>
+              <span class="badge-category__name">{{.Category.Name}}</span>
+            </a>
+            <div class="discourse-tags">
+              {{range .Topic.Tags}}
+              <a href="/forum?q={{.}}" class="discourse-tag box">{{.}}</a>
+              {{end}}
+            </div>
+
+            {{if .CanMod}}
+            <div class="d-topic-mod-actions">
+              {{if or (eq .User.Role "staff") (eq .User.Role "admin") (eq .User.Role "owner")}}
+              <form method="post" action="/forum/t/{{.Topic.ID}}/mod/pin" style="display:inline">
+                <button type="submit" class="d-btn d-btn-flat d-btn-xs">{{if .Topic.Pinned}}Unpin{{else}}Pin{{end}}</button>
+              </form>
+              <form method="post" action="/forum/t/{{.Topic.ID}}/mod/lock" style="display:inline">
+                <button type="submit" class="d-btn d-btn-flat d-btn-xs">{{if .Topic.Locked}}Unlock{{else}}Close Topic{{end}}</button>
+              </form>
+              {{end}}
+              <form method="post" action="/forum/t/{{.Topic.ID}}/mod/delete" style="display:inline" onsubmit="return confirm('Delete this topic?');">
+                <button type="submit" class="d-btn d-btn-flat d-btn-xs" style="color:#ff5252">Delete</button>
+              </form>
+            </div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Discourse .container.posts (Left: .post-stream + Right: .timeline-container) -->
+      <div class="container posts">
+        <div class="row">
+          <!-- Left: Post Stream -->
+          <div class="topic-area" id="topic">
+            <div class="post-stream">
+              {{range $idx, $p := .Posts}}
+              <div class="topic-post clearfix regular" id="post-{{$p.PostNumber}}">
+                <article class="boxed onscreen-post">
+                  <div class="row">
+                    <!-- Left Avatar Column -->
+                    <div class="topic-avatar">
+                      <div class="main-avatar">
+                        <a class="trigger-user-card" href="/u/{{$p.AuthorUsername}}">
+                          <img alt="{{$p.AuthorUsername}}" width="45" height="45" src="{{$p.AuthorAvatar}}" class="avatar">
+                        </a>
+                        {{if or (eq $p.AuthorRole "owner") (eq $p.AuthorRole "admin") (eq $p.AuthorRole "staff")}}
+                        <div class="avatar-flair" title="AFX Staff">&#9733;</div>
+                        {{end}}
+                      </div>
+                    </div>
+
+                    <!-- Right Post Body Column -->
+                    <div class="topic-body clearfix">
+                      <div class="topic-meta-data">
+                        <div class="names trigger-user-card">
+                          <span class="first username {{if or (eq $p.AuthorRole "owner") (eq $p.AuthorRole "admin") (eq $p.AuthorRole "staff")}}staff{{end}}">
+                            <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorUsername}}</a>
+                            {{if or (eq $p.AuthorRole "owner") (eq $p.AuthorRole "admin") (eq $p.AuthorRole "staff")}}
+                            <span class="svg-icon-title" title="AFX Moderator / Owner">
+                              <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px;color:#2F7BFF"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                            </span>
+                            {{end}}
+                          </span>
+                          <span class="second full-name">
+                            <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorDisplay}}</a>
+                          </span>
+                          <span class="user-title">{{$p.AuthorTitle}}</span>
+                        </div>
+
+                        <div class="post-infos">
+                          <div class="post-info post-date">
+                            <a class="post-date" href="#post-{{$p.PostNumber}}" title="{{$p.CreatedAtStr}}">
+                              <span class="relative-date">{{$p.RelativeStr}}</span>
+                            </a>
+                          </div>
+                          <div class="post-info">
+                            <a href="#post-{{$p.PostNumber}}" class="post-num">#{{$p.PostNumber}}</a>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="regular contents">
+                        <div class="cooked">
+                          {{range $p.Paragraphs}}
+                          {{if .}}<p>{{.}}</p>{{end}}
+                          {{end}}
+                        </div>
+
+                        <!-- Post Action Menu (nav.post-controls) -->
+                        <section class="post-menu-area clearfix">
+                          <nav class="post-controls collapsed">
+                            <div class="actions">
+                              <form method="post" action="/forum/t/{{$.Topic.ID}}/like/{{$p.ID}}" style="display:inline">
+                                <button type="submit" class="widget-button btn-flat toggle-like like {{if $p.Liked}}has-like{{end}}" title="Like this post">
+                                  {{if gt $p.LikesCount 0}}<span class="like-count">{{$p.LikesCount}}</span>{{end}}
+                                  <svg class="d-icon d-icon-heart" viewBox="0 0 24 24" fill="{{if $p.Liked}}#fa6c8d{{else}}none{{end}}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                                </button>
+                              </form>
+                              <button type="button" class="widget-button btn-flat share" onclick="navigator.clipboard&&navigator.clipboard.writeText(window.location.origin+'/forum/t/{{$.Topic.ID}}#post-{{$p.PostNumber}}')" title="Copy link to this post">
+                                <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                              </button>
+                              <a href="#reply-control" class="widget-button btn-flat reply create" onclick="var ta=document.getElementById('reply-textarea');if(ta)ta.focus()">
+                                <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                <span class="d-button-label">Reply</span>
+                              </a>
+                            </div>
+                          </nav>
+                        </section>
+                      </div>
+
+                      <!-- Discourse .topic-map below Post #1 -->
+                      {{if eq $idx 0}}
+                      <div class="topic-map">
+                        <section class="map map-collapsed">
+                          <ul class="clearfix">
+                            <li class="created-at">
+                              <h4 role="presentation">created</h4>
+                              <div class="topic-map-post created-at">
+                                <span class="relative-date">{{$.CreatedAtShort}}</span>
+                              </div>
+                            </li>
+                            <li class="last-reply">
+                              <h4 role="presentation">last reply</h4>
+                              <div class="topic-map-post last-reply">
+                                <span class="relative-date">{{$.LastReplyShort}}</span>
+                              </div>
+                            </li>
+                            <li class="replies">
+                              <span class="number">{{$.ReplyCount}}</span>
+                              <h4 role="presentation">replies</h4>
+                            </li>
+                            <li class="secondary views">
+                              <span class="number">{{$.Topic.Views}}</span>
+                              <h4 role="presentation">views</h4>
+                            </li>
+                            <li class="secondary users">
+                              <span class="number">{{$.ParticipantCnt}}</span>
+                              <h4 role="presentation">users</h4>
+                            </li>
+                            <li class="secondary likes">
+                              <span class="number">{{$.TotalLikes}}</span>
+                              <h4 role="presentation">likes</h4>
+                            </li>
+                            <li class="avatars">
+                              {{range $.Participants}}
+                              <a class="poster trigger-user-card" href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
+                                <img alt="{{.Username}}" width="32" height="32" src="{{.Avatar}}" class="avatar">
+                              </a>
+                              {{end}}
+                            </li>
+                          </ul>
+                        </section>
+                      </div>
+                      {{end}}
+                    </div>
+                  </div>
+                </article>
+              </div>
+              {{end}}
+            </div>
+
+            <!-- Discourse Topic Footer Buttons & Reply Composer (#reply-control) -->
+            <div id="post-bottom" class="topic-footer-buttons">
+              <div class="topic-footer-main-buttons">
+                <a href="#reply-control" class="d-btn d-btn-primary" onclick="var ta=document.getElementById('reply-textarea');if(ta)ta.focus()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  <span>Reply</span>
+                </a>
+                <a href="/forum" class="d-btn d-btn-default">&larr; Back to Topics</a>
+              </div>
+            </div>
+
+            <div id="reply-control" class="d-reply-control">
+              {{if .Topic.Locked}}
+              <div class="d-empty-state">
+                <p>&#128274; This topic is closed and no longer accepting new replies.</p>
+              </div>
+              {{else if .User}}
+              <div class="d-composer-header">
+                <span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  Reply to <strong>{{.Topic.Title}}</strong>
+                </span>
+              </div>
+              <form method="post" action="/forum/t/{{.Topic.ID}}/reply" class="d-composer-form">
+                <textarea id="reply-textarea" name="content" class="d-input d-textarea" rows="5" placeholder="Type here. Use Markdown, BBCode, or HTML to format." required minlength="2"></textarea>
+                <div class="d-composer-actions">
+                  <button type="submit" class="d-btn d-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                    Reply
+                  </button>
+                </div>
+              </form>
+              {{else}}
+              <div class="d-empty-state">
+                <p><a href="/login?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-primary">Log In to Reply</a> or <a href="/register?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-default">Sign Up</a> to join the conversation.</p>
+              </div>
+              {{end}}
+            </div>
+          </div>
+
+          <!-- Right: Discourse Topic Timeline Scrubber (.timeline-container) -->
+          <div class="timeline-container">
+            <div class="topic-timeline">
+              <div class="timeline-controls">
+                <button type="button" class="d-btn d-btn-default d-btn-xs" title="Topic notifications">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </button>
+              </div>
+              <div class="timeline-scrollarea-wrapper">
+                <div class="timeline-date-wrapper">
+                  <a href="#post-1" class="start-date">{{.CreatedAtShort}}</a>
+                </div>
+                <div class="timeline-scrollarea">
+                  <div class="timeline-padding" style="height: 20px"></div>
+                  <div class="timeline-handle">
+                    <div class="timeline-replies">1 / {{len .Posts}}</div>
+                    <div class="timeline-ago">{{.LastReplyShort}}</div>
+                  </div>
+                  <div class="timeline-padding" style="height: 80px"></div>
+                </div>
+                <div class="timeline-date-wrapper">
+                  <a href="#post-bottom" class="now-date">{{.LastReplyShort}}</a>
+                </div>
+              </div>
+              <div class="timeline-footer-controls">
+                <a href="#reply-control" class="d-btn d-btn-default d-btn-xs" title="Reply to topic">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  Reply
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
-  <div id="post-bottom" style="margin-top:24px">
-    {{if .Topic.Locked}}
-    <div class="empty">
-      <p>&#128274; This topic is locked and no longer accepting new replies.</p>
-    </div>
-    {{else if .User}}
-    <div class="composer-card open">
-      <h3 style="margin-bottom:10px">Reply to "{{.Topic.Title}}"</h3>
-      <form method="post" action="/forum/t/{{.Topic.ID}}/reply" class="form">
-        <textarea name="content" class="inp" rows="5" placeholder="Write your reply..." required minlength="2"></textarea>
-        <div style="display:flex;justify-content:flex-end">
-          <button type="submit" class="btn btn-primary">Post Reply</button>
-        </div>
-      </form>
-    </div>
-    {{else}}
-    <div class="empty">
-      <p><a href="/login?next=/forum/t/{{.Topic.ID}}" class="btn btn-primary btn-sm">Sign in to Reply</a> or <a href="/register?next=/forum/t/{{.Topic.ID}}">create an account</a> to join the discussion.</p>
-    </div>
-    {{end}}
-  </div>
-</section>
-
-{{template "foot" .}}
+  <script src="/js/main.js?v=078e"></script>
+</body>
+</html>

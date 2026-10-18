@@ -4,6 +4,12 @@
 (function () {
   'use strict';
 
+  try {
+    if (window.opener && !window.opener.closed && window.opener !== window && window.opener.location && window.opener.location.origin === window.location.origin) {
+      window.opener.close();
+    }
+  } catch (e) {}
+
   var COLOR_MAP = {
     '0': '#f0f4f8',
     '1': '#ff5252',

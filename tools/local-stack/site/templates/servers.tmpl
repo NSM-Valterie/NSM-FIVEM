@@ -128,11 +128,11 @@
     <!-- Right side of NavBar: External Platform Links + PlatformStats + UserBar + Settings -->
     <div class="mp-navbar-right">
       <div class="mp-ext-links">
-        <a href="/keymaster" target="_blank" rel="noopener" class="mp-ext-link" title="Open AFX Portal in new tab">AFX Portal</a>
-        <a href="/forum" target="_blank" rel="noopener" class="mp-ext-link" title="Open AFX Forum in new tab">Forum</a>
-        <a href="/marketplace" target="_blank" rel="noopener" class="mp-ext-link" title="Open AFX Marketplace in new tab">Marketplace</a>
-        <a href="/docs" target="_blank" rel="noopener" class="mp-ext-link" title="Open NSM Documentation in new tab">Docs</a>
-        <a href="/support" target="_blank" rel="noopener" class="mp-ext-link" title="Open AFX Support in new tab">Support</a>
+        <a href="/keymaster" class="mp-ext-link" title="Open AFX Portal in new tab">AFX Portal</a>
+        <a href="/forum" class="mp-ext-link" title="Open AFX Forum in new tab">Forum</a>
+        <a href="/marketplace" class="mp-ext-link" title="Open AFX Marketplace in new tab">Marketplace</a>
+        <a href="/docs" class="mp-ext-link" title="Open NSM Documentation in new tab">Docs</a>
+        <a href="/support" class="mp-ext-link" title="Open AFX Support in new tab">Support</a>
       </div>
 
       <div class="mp-platform-stats" title="Live NSM Masterlist Players &amp; Servers">
@@ -152,7 +152,7 @@
         <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
       </a>
       {{else}}
-      <a href="/login" target="_blank" rel="noopener" class="mp-user-bar mp-user-signin" title="Sign in to AFX &amp; NSM">
+      <a href="/login" class="mp-user-bar mp-user-signin" title="Sign in to AFX &amp; NSM">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span>Sign In</span>
       </a>
@@ -250,7 +250,7 @@
             <img src="/img/nsm-icon.png" alt="NSM" style="width:36px;height:36px">
           </div>
           <h3>No Live Servers Reporting Right Now</h3>
-          <p>Start <code>nsm-server.exe +exec server-local.cfg</code> or issue a server key in <a href="/keymaster" target="_blank" style="color:#00f8b9">AFX Portal</a> — live servers appear here automatically in real time.</p>
+          <p>Start <code>nsm-server.exe +exec server-local.cfg</code> or issue a server key in <a href="/keymaster" style="color:#00f8b9">AFX Portal</a> — live servers appear here automatically in real time.</p>
         </div>
       {{end}}
     </div>
@@ -331,7 +331,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:#00f8b9"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             HOST YOUR OWN NSM SERVER
           </span>
-          <a href="/keymaster" target="_blank" rel="noopener">AFX Portal &rarr;</a>
+          <a href="/keymaster">AFX Portal &rarr;</a>
         </div>
         <p style="font-size:0.8rem;color:rgba(240,244,248,0.65);margin:6px 0 10px;line-height:1.45">
           Generate a free <code>nsm_srv_...</code> license key in AFX Portal and launch <code>nsm-server.exe</code> to list your server here in real time.
@@ -383,7 +383,7 @@
           {{if .User}}
           <a href="/account" class="nsm-btn nsm-btn-primary nsm-btn-sm">@{{.User.Username}} ({{.User.Role}})</a>
           {{else}}
-          <a href="/login" target="_blank" rel="noopener" class="nsm-btn nsm-btn-primary nsm-btn-sm">Sign In via AFX Portal</a>
+          <a href="/login" class="nsm-btn nsm-btn-primary nsm-btn-sm">Sign In via AFX Portal</a>
           {{end}}
         </div>
       </div>
@@ -399,10 +399,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Server List - NSM</title>
   <link rel="icon" type="image/png" href="/img/nsm-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078c">
+  <link rel="stylesheet" href="/css/style.css?v=078e">
 </head>
 <body class="mp-standalone-body">
   {{template "nsm_server_launcher" .}}
-  <script src="/js/main.js?v=078c"></script>
+  <script src="/js/main.js?v=078e"></script>
 </body>
 </html>
