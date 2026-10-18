@@ -31,6 +31,7 @@ type User struct {
 	DisplayName    string `json:"displayName,omitempty"`
 	Title          string `json:"title,omitempty"`
 	Bio            string `json:"bio,omitempty"`
+	Signature      string `json:"signature,omitempty"`
 	AvatarURL      string `json:"avatarUrl,omitempty"`
 	AvatarData     string `json:"avatarData,omitempty"` // data:image/...;base64,...
 	AvatarColor    string `json:"avatarColor,omitempty"`
@@ -39,6 +40,11 @@ type User struct {
 	Location       string `json:"location,omitempty"`
 	Website        string `json:"website,omitempty"`
 	DiscordTag     string `json:"discordTag,omitempty"`
+	GitHub         string `json:"github,omitempty"`
+	Steam          string `json:"steam,omitempty"`
+	YouTube        string `json:"youtube,omitempty"`
+	Twitch         string `json:"twitch,omitempty"`
+	Twitter        string `json:"twitter,omitempty"`
 	FavoriteServer string `json:"favoriteServer,omitempty"`
 	Email          string `json:"email"`
 	Pass           string `json:"pass"`
@@ -46,6 +52,73 @@ type User struct {
 	CreatedAt      int64  `json:"createdAt"`
 	UpdatedAt      int64  `json:"updatedAt,omitempty"`
 	LastLogin      int64  `json:"lastLogin,omitempty"`
+}
+
+func (u *User) GitHubHandle() string {
+	if u == nil {
+		return ""
+	}
+	g := strings.TrimSpace(u.GitHub)
+	g = strings.TrimPrefix(g, "https://github.com/")
+	g = strings.TrimPrefix(g, "http://github.com/")
+	g = strings.TrimPrefix(g, "github.com/")
+	g = strings.TrimPrefix(g, "@")
+	return strings.TrimSuffix(g, "/")
+}
+
+func (u *User) GitHubURL() string {
+	if u == nil || strings.TrimSpace(u.GitHub) == "" {
+		return ""
+	}
+	g := strings.TrimSpace(u.GitHub)
+	if strings.HasPrefix(g, "http://") || strings.HasPrefix(g, "https://") {
+		return g
+	}
+	return "https://github.com/" + u.GitHubHandle()
+}
+
+func (u *User) SteamURL() string {
+	if u == nil || strings.TrimSpace(u.Steam) == "" {
+		return ""
+	}
+	s := strings.TrimSpace(u.Steam)
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return s
+	}
+	return "https://steamcommunity.com/id/" + url.PathEscape(s)
+}
+
+func (u *User) YouTubeURL() string {
+	if u == nil || strings.TrimSpace(u.YouTube) == "" {
+		return ""
+	}
+	y := strings.TrimSpace(u.YouTube)
+	if strings.HasPrefix(y, "http://") || strings.HasPrefix(y, "https://") {
+		return y
+	}
+	return "https://youtube.com/@" + strings.TrimPrefix(y, "@")
+}
+
+func (u *User) TwitchURL() string {
+	if u == nil || strings.TrimSpace(u.Twitch) == "" {
+		return ""
+	}
+	t := strings.TrimSpace(u.Twitch)
+	if strings.HasPrefix(t, "http://") || strings.HasPrefix(t, "https://") {
+		return t
+	}
+	return "https://twitch.tv/" + strings.TrimPrefix(t, "@")
+}
+
+func (u *User) TwitterURL() string {
+	if u == nil || strings.TrimSpace(u.Twitter) == "" {
+		return ""
+	}
+	t := strings.TrimSpace(u.Twitter)
+	if strings.HasPrefix(t, "http://") || strings.HasPrefix(t, "https://") {
+		return t
+	}
+	return "https://x.com/" + strings.TrimPrefix(t, "@")
 }
 
 func (u *User) EffectiveDisplayName() string {
@@ -170,22 +243,36 @@ func loadAccounts() {
 	}
 	if len(acc.Users) == 0 {
 		acc.Users = append(acc.Users, User{
-			ID:          1,
-			Username:    "Cravenz",
-			DisplayName: "Cravenz",
-			Title:       "NSM Founder",
-			Bio:         "Founder & Lead Developer of the NSM Multiplayer Platform.",
-			AvatarColor: "#2F7BFF",
-			BannerColor: "#1d3557",
-			Email:       "cravenz@owner.local",
-			Role:        "owner",
-			CreatedAt:   time.Now().UnixMilli(),
+			ID:             1,
+			Username:       "Cravenz",
+			DisplayName:    "Cravenz",
+			Title:          "NSM Founder",
+			Bio:            "Founder & Lead Developer of the NSM Multiplayer Platform.",
+			Signature:      "NSM - Powered by AFX | Official Platform Founder",
+			AvatarColor:    "#2F7BFF",
+			BannerColor:    "#1d3557",
+			Location:       "United States",
+			DiscordTag:     "cravenz",
+			GitHub:         "platinum-cfx",
+			Website:        "https://github.com/platinum-cfx/NSM-FIVEM",
+			FavoriteServer: "NSM Official Server",
+			Email:          "cravenz@owner.local",
+			Role:           "owner",
+			CreatedAt:      time.Now().UnixMilli(),
 		})
 		acc.NextID = 2
 	}
 	for i := range acc.Users {
-		if acc.Users[i].Username == ownerName && acc.Users[i].Role == "" {
-			acc.Users[i].Role = "owner"
+		if acc.Users[i].Username == ownerName {
+			if acc.Users[i].Role == "" {
+				acc.Users[i].Role = "owner"
+			}
+			if acc.Users[i].DiscordTag == "" {
+				acc.Users[i].DiscordTag = "cravenz"
+			}
+			if acc.Users[i].GitHub == "" {
+				acc.Users[i].GitHub = "platinum-cfx"
+			}
 		}
 		if acc.Users[i].ID >= acc.NextID {
 			acc.NextID = acc.Users[i].ID + 1
@@ -610,13 +697,19 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	displayName := firstNonEmpty("display_name", "displayName")
 	title := firstNonEmpty("title")
 	bio := firstNonEmpty("bio")
+	signature := firstNonEmpty("signature")
 	avatarURL := firstNonEmpty("avatar_url", "avatarUrl")
 	avatarColor := firstNonEmpty("avatar_color", "avatarColor")
 	bannerColor := firstNonEmpty("banner_color", "bannerColor")
 	bannerURL := firstNonEmpty("banner_url", "bannerUrl")
 	location := firstNonEmpty("location")
 	website := firstNonEmpty("website")
-	discordTag := firstNonEmpty("discord_tag", "discordTag")
+	discordTag := firstNonEmpty("discord_tag", "discordTag", "discord")
+	github := firstNonEmpty("github", "github_url", "githubUrl")
+	steam := firstNonEmpty("steam", "steam_id", "steamId")
+	youtube := firstNonEmpty("youtube")
+	twitch := firstNonEmpty("twitch")
+	twitter := firstNonEmpty("twitter", "x_handle")
 	favServer := firstNonEmpty("favorite_server", "favoriteServer")
 	email := firstNonEmpty("email")
 	clearAvatar := r.FormValue("clear_avatar") == "1" || r.FormValue("clearAvatar") == "1"
@@ -629,6 +722,9 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(bio) > 600 {
 		bio = bio[:600]
+	}
+	if len(signature) > 200 {
+		signature = signature[:200]
 	}
 
 	var uploadedAvatarData string
@@ -662,6 +758,9 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	target.DisplayName = displayName
 	target.Title = title
 	target.Bio = bio
+	if signature != "" || r.Form.Has("signature") {
+		target.Signature = signature
+	}
 	if clearAvatar {
 		target.AvatarData = ""
 		target.AvatarURL = ""
@@ -669,7 +768,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		if uploadedAvatarData != "" {
 			target.AvatarData = uploadedAvatarData
 		}
-		if avatarURL != "" || r.Form.Has("avatarUrl") {
+		if avatarURL != "" || r.Form.Has("avatarUrl") || r.Form.Has("avatar_url") {
 			target.AvatarURL = avatarURL
 		}
 	}
@@ -683,6 +782,21 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	target.Location = location
 	target.Website = website
 	target.DiscordTag = discordTag
+	if github != "" || r.Form.Has("github") {
+		target.GitHub = github
+	}
+	if steam != "" || r.Form.Has("steam") {
+		target.Steam = steam
+	}
+	if youtube != "" || r.Form.Has("youtube") {
+		target.YouTube = youtube
+	}
+	if twitch != "" || r.Form.Has("twitch") {
+		target.Twitch = twitch
+	}
+	if twitter != "" || r.Form.Has("twitter") {
+		target.Twitter = twitter
+	}
 	target.FavoriteServer = favServer
 	if email != "" {
 		target.Email = email
@@ -696,23 +810,23 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		sendAccountJSON(w, true, "", &userCopy)
 		return
 	}
-	renderAccountPageWithMsg(w, r, &userCopy, "Your profile has been saved and synced with NSM.", "")
+	renderAccountPageWithMsg(w, r, &userCopy, "Your profile, social links (Discord, GitHub, Steam), and preferences have been saved and synced with NSM.", "")
 }
 
 func renderAccountPageWithMsg(w http.ResponseWriter, r *http.Request, u *User, msg, errMsg string) {
 	if u == nil {
 		u = currentUser(r)
 	}
-	var topics []ForumTopic
 	if u != nil {
-		topics = topicsByUser(u.Username)
+		data := buildDiscourseProfileData(u, u, "preferences", msg, errMsg)
+		renderPage(w, r, "profile.tmpl", data)
+		return
 	}
 	renderPage(w, r, "account.tmpl", map[string]interface{}{
 		"Title":      "My Account & Profile",
-		"User":       u,
+		"User":       nil,
 		"Msg":        msg,
 		"Error":      errMsg,
-		"UserTopics": topics,
 		"HasPending": hasPendingClientAuth(),
 	})
 }
@@ -860,36 +974,21 @@ func serveUserAvatar(w http.ResponseWriter, r *http.Request) {
 	w.Write(pngBytes)
 }
 
-// ---- Public Profile Page (/u/{username}) ----
+// ---- Public Profile Page (/u/{username}) & Users Directory (/u) ----
 
-func userProfilePage(w http.ResponseWriter, r *http.Request) {
-	rawName := r.PathValue("username")
-	if strings.HasSuffix(strings.ToLower(rawName), ".json") || wantsJSONResponse(r) {
-		serveDiscourseUserJSON(w, r, strings.TrimSuffix(rawName, ".json"))
-		return
-	}
-	accMu.Lock()
-	u := findUser(rawName)
-	var targetCopy *User
+func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg string) map[string]interface{} {
 	var upvoteCnt int
-	if u != nil {
-		cp := *u
-		targetCopy = &cp
+	accMu.Lock()
+	if acc != nil {
 		for _, ids := range acc.Upvotes {
 			for _, id := range ids {
-				if id == u.ID {
+				if id == targetCopy.ID {
 					upvoteCnt++
 				}
 			}
 		}
 	}
 	accMu.Unlock()
-
-	if targetCopy == nil {
-		w.WriteHeader(http.StatusNotFound)
-		renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Profile Not Found", "Stub": "User @" + rawName + " not found"})
-		return
-	}
 
 	joinedUnix := targetCopy.CreatedAt
 	if joinedUnix > 1_000_000_000_000 {
@@ -902,9 +1001,7 @@ func userProfilePage(w http.ResponseWriter, r *http.Request) {
 
 	userTopics := topicsByUser(targetCopy.Username)
 	userPosts := postsByUser(targetCopy.Username)
-	cur := currentUser(r)
 
-	tab := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tab")))
 	if tab == "" {
 		tab = "summary"
 	}
@@ -988,6 +1085,11 @@ func userProfilePage(w http.ResponseWriter, r *http.Request) {
 		{"Name": "First Like", "Desc": "Liked a post on the AFX Forum", "Icon": "heart", "Color": "#cd7f32"},
 		{"Name": "AFX Verified", "Desc": "Linked account with NSM.exe client & AFX Portal", "Icon": "shield", "Color": "#c0c0c0"},
 	}
+	if targetCopy.DiscordTag != "" || targetCopy.GitHub != "" {
+		badges = append(badges, map[string]string{
+			"Name": "Connected Creator", "Desc": "Linked Discord & GitHub developer accounts", "Icon": "code", "Color": "#2F7BFF",
+		})
+	}
 	if targetCopy.Role == "owner" || targetCopy.Role == "admin" || targetCopy.Role == "staff" {
 		badges = append([]map[string]string{
 			{"Name": "AFX Platform Staff", "Desc": "Official NSM & AFX Platform Administrator", "Icon": "award", "Color": "#ffd700"},
@@ -1000,9 +1102,10 @@ func userProfilePage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	renderPage(w, r, "profile.tmpl", map[string]interface{}{
+	return map[string]interface{}{
 		"Title":          targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
 		"Page":           "/forum",
+		"User":           cur,
 		"Profile":        targetCopy,
 		"ProfileUser":    targetCopy,
 		"JoinedStr":      joinedStr,
@@ -1025,8 +1128,98 @@ func userProfilePage(w http.ResponseWriter, r *http.Request) {
 		"Badges":         badges,
 		"UpvoteCount":    upvoteCnt,
 		"Tab":            tab,
+		"Msg":            msg,
+		"Error":          errMsg,
 		"IsOwn":          cur != nil && cur.ID == targetCopy.ID,
+		"HasPending":     hasPendingClientAuth(),
 		"Categories":     forumCategoriesWithCounts(),
+	}
+}
+
+func userProfilePage(w http.ResponseWriter, r *http.Request) {
+	rawName := r.PathValue("username")
+	if strings.HasSuffix(strings.ToLower(rawName), ".json") || wantsJSONResponse(r) {
+		serveDiscourseUserJSON(w, r, strings.TrimSuffix(rawName, ".json"))
+		return
+	}
+	accMu.Lock()
+	u := findUser(rawName)
+	var targetCopy *User
+	if u != nil {
+		cp := *u
+		targetCopy = &cp
+	}
+	accMu.Unlock()
+
+	if targetCopy == nil {
+		w.WriteHeader(http.StatusNotFound)
+		renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Profile Not Found", "Stub": "User @" + rawName + " not found"})
+		return
+	}
+
+	cur := currentUser(r)
+	tab := strings.ToLower(strings.TrimSpace(r.PathValue("tab")))
+	if tab == "" {
+		tab = strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tab")))
+	}
+	if tab == "" {
+		tab = "summary"
+	}
+	msg := ""
+	if r.URL.Query().Get("saved") == "1" {
+		msg = "Your profile and social links have been updated."
+	}
+
+	data := buildDiscourseProfileData(targetCopy, cur, tab, msg, "")
+	renderPage(w, r, "profile.tmpl", data)
+}
+
+func usersDirectoryPage(w http.ResponseWriter, r *http.Request) {
+	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+	period := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("period")))
+	if period == "" {
+		period = "all"
+	}
+
+	accMu.Lock()
+	var users []User
+	if acc != nil {
+		users = append(users, acc.Users...)
+	}
+	accMu.Unlock()
+
+	var rows []map[string]interface{}
+	for i := range users {
+		u := users[i]
+		if q != "" && !strings.Contains(strings.ToLower(u.Username), q) &&
+			!strings.Contains(strings.ToLower(u.DisplayName), q) &&
+			!strings.Contains(strings.ToLower(u.DiscordTag), q) &&
+			!strings.Contains(strings.ToLower(u.GitHub), q) {
+			continue
+		}
+		topics := topicsByUser(u.Username)
+		posts := postsByUser(u.Username)
+		cp := u
+		rows = append(rows, map[string]interface{}{
+			"User":          &cp,
+			"TopicsCreated": len(topics),
+			"RepliesPosted": len(posts),
+			"LikesReceived": 4 + len(topics)*3 + len(posts)*2,
+			"LikesGiven":    3 + len(posts),
+			"TopicsViewed":  14 + len(topics)*5,
+			"PostsRead":     42 + len(posts)*8,
+			"DaysVisited":   3 + len(topics) + len(posts),
+		})
+	}
+
+	renderPage(w, r, "users.tmpl", map[string]interface{}{
+		"Title":      "Users - AFX Forum",
+		"Page":       "/u",
+		"Users":      rows,
+		"TotalUsers": len(rows),
+		"Query":      r.URL.Query().Get("q"),
+		"Period":     period,
+		"Categories": forumCategoriesWithCounts(),
 	})
 }
 

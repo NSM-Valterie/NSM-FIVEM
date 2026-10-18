@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=078e">
+  <link rel="stylesheet" href="/css/style.css?v=078f">
 </head>
 <body class="dc-ember-body archetype-regular">
   <!-- Discourse d-header -->
@@ -43,6 +43,7 @@
           <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
           <span class="d-header-username">{{.User.Username}}</span>
         </a>
+        <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat">Preferences</a>
         {{else}}
         <a href="/register?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-primary">Sign Up</a>
         <a href="/login?next=/forum/t/{{.Topic.ID}}" class="d-btn d-btn-default">Log In</a>
@@ -74,11 +75,11 @@
               </a>
             </li>
             <li>
-              <a href="/forum?tab=top" class="sidebar-section-link">
+              <a href="/u" class="sidebar-section-link">
                 <span class="sidebar-section-link-prefix">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </span>
-                <span class="sidebar-section-link-content-text">Top</span>
+                <span class="sidebar-section-link-content-text">Users</span>
               </a>
             </li>
           </ul>
@@ -190,6 +191,12 @@
                             <a href="/u/{{$p.AuthorUsername}}">{{$p.AuthorDisplay}}</a>
                           </span>
                           <span class="user-title">{{$p.AuthorTitle}}</span>
+                          {{if $p.AuthorDiscord}}
+                          <span class="d-social-pill d-social-discord" title="Discord">Discord: {{$p.AuthorDiscord}}</span>
+                          {{end}}
+                          {{if $p.AuthorGitHub}}
+                          <a href="{{$p.AuthorGitHubURL}}" class="d-social-pill d-social-github" rel="noopener" title="GitHub">GitHub: {{$p.AuthorGitHub}}</a>
+                          {{end}}
                         </div>
 
                         <div class="post-infos">
@@ -208,6 +215,9 @@
                         <div class="cooked">
                           {{range $p.Paragraphs}}
                           {{if .}}<p>{{.}}</p>{{end}}
+                          {{end}}
+                          {{if $p.AuthorSignature}}
+                          <div class="d-post-signature">{{$p.AuthorSignature}}</div>
                           {{end}}
                         </div>
 
@@ -322,6 +332,62 @@
               </div>
               {{end}}
             </div>
+
+            <!-- 1:1 forum.cfx.re Suggested Topics (#suggested-topics) -->
+            {{if .SuggestedTopics}}
+            <div id="suggested-topics" class="suggested-topics">
+              <h3 class="suggested-topics-title">Suggested Topics</h3>
+              <div class="topics">
+                <table class="topic-list">
+                  <thead class="topic-list-header">
+                    <tr>
+                      <th class="default topic-list-data"><span>Topic</span></th>
+                      <th class="posters topic-list-data"><span>Posters</span></th>
+                      <th class="posts num topic-list-data"><span>Replies</span></th>
+                      <th class="views num topic-list-data"><span>Views</span></th>
+                      <th class="activity num topic-list-data"><span>Activity</span></th>
+                    </tr>
+                  </thead>
+                  <tbody class="topic-list-body">
+                    {{range .SuggestedTopics}}
+                    <tr class="topic-list-item">
+                      <td class="main-link clearfix topic-list-data">
+                        <span class="link-top-line">
+                          <a href="/forum/t/{{.ID}}" class="title">{{.Title}}</a>
+                        </span>
+                        <div class="link-bottom-line">
+                          <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                            <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                            <span class="badge-category__name">{{.CategoryName}}</span>
+                          </a>
+                          <div class="discourse-tags">
+                            {{range .Tags}}
+                            <a href="/forum?q={{.}}" class="discourse-tag box">{{.}}</a>
+                            {{end}}
+                          </div>
+                        </div>
+                      </td>
+                      <td class="posters topic-list-data">
+                        {{range $i, $p := .Posters}}
+                        <a href="/u/{{$p.Username}}" title="{{$p.Display}} (@{{$p.Username}})">
+                          <img alt="{{$p.Username}}" width="25" height="25" src="{{$p.Avatar}}" class="avatar {{if eq $i 0}}latest{{end}}">
+                        </a>
+                        {{end}}
+                      </td>
+                      <td class="num posts-map posts topic-list-data">
+                        <a class="badge-posts" href="/forum/t/{{.ID}}"><span class="number">{{.ReplyCount}}</span></a>
+                      </td>
+                      <td class="num views topic-list-data"><span class="number">{{.Views}}</span></td>
+                      <td class="num topic-list-data age activity">
+                        <a class="post-activity" href="/forum/t/{{.ID}}"><span class="relative-date">{{.UpdatedAtStr}}</span></a>
+                      </td>
+                    </tr>
+                    {{end}}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {{end}}
           </div>
 
           <!-- Right: Discourse Topic Timeline Scrubber (.timeline-container) -->
@@ -361,6 +427,6 @@
     </main>
   </div>
 
-  <script src="/js/main.js?v=078e"></script>
+  <script src="/js/main.js?v=078f"></script>
 </body>
 </html>

@@ -4584,3 +4584,244 @@ nav.post-controls .actions {
   width: 100% !important;
   height: 100% !important;
 }
+
+/* ==========================================================================
+   DISCOURSE ISOLATION, SOCIAL PILLS (DISCORD / GITHUB / STEAM), PREFERENCES,
+   SUGGESTED TOPICS & USERS DIRECTORY (/u)
+   ========================================================================== */
+body.dc-ember-body h1,
+body.dc-ember-body h2,
+body.dc-ember-body h3,
+body.dc-ember-body h4,
+body.dc-ember-body h5,
+body.dc-ember-body h6 {
+  font-family: 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  line-height: 1.3;
+}
+body.dc-ember-body header.d-header {
+  padding: 0 !important;
+}
+body.dc-ember-body .container {
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Global Pinned Banner on /forum */
+.d-global-banner {
+  background: linear-gradient(135deg, rgba(47, 123, 255, 0.14) 0%, rgba(28, 31, 38, 0.96) 100%);
+  border: 1px solid #2d3546;
+  border-left: 5px solid #2F7BFF;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.d-global-banner-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.d-global-banner h2 {
+  font-size: 17.5px;
+  font-weight: 700 !important;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+.d-global-banner p {
+  font-size: 13.5px;
+  color: #b0b7c3;
+  margin: 0;
+}
+.d-global-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Social & Developer Pills (Discord, GitHub, Steam, YouTube, Twitch, X, Website) */
+.d-social-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px !important;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: #232731 !important;
+  border: 1px solid #323846;
+  color: #e2e6ee !important;
+  line-height: 1.4;
+}
+.d-social-pill .d-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.d-social-discord {
+  background: rgba(88, 101, 242, 0.18) !important;
+  border-color: rgba(88, 101, 242, 0.45);
+  color: #a5b4fc !important;
+}
+.d-social-github {
+  background: rgba(240, 246, 252, 0.08) !important;
+  border-color: rgba(240, 246, 252, 0.24);
+  color: #f0f6fc !important;
+}
+.d-social-github:hover {
+  background: rgba(240, 246, 252, 0.16) !important;
+  color: #ffffff !important;
+}
+.d-social-steam {
+  background: rgba(102, 192, 244, 0.15) !important;
+  border-color: rgba(102, 192, 244, 0.4);
+  color: #66c0f4 !important;
+}
+.d-social-youtube {
+  background: rgba(255, 0, 0, 0.14) !important;
+  border-color: rgba(255, 0, 0, 0.35);
+  color: #ff8080 !important;
+}
+.d-social-twitch {
+  background: rgba(145, 70, 255, 0.16) !important;
+  border-color: rgba(145, 70, 255, 0.4);
+  color: #c4b5fd !important;
+}
+
+/* Discourse User Preferences & Social Connections Form */
+.d-preferences-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .d-preferences-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.d-pref-card {
+  background: #1c1f26;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  padding: 20px;
+}
+.d-pref-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.d-form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.d-form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .d-form-row-2,
+  .d-form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+.d-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #b8bec9;
+}
+.d-sub-heading {
+  margin: 10px 0 2px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2f3a;
+  font-size: 13.5px;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2F7BFF;
+}
+.d-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #dddddd;
+  cursor: pointer;
+}
+.d-alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.d-alert-success {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+}
+.d-alert-error {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+.d-muted {
+  color: #9197a3;
+}
+
+/* Post Signature & Suggested Topics */
+.d-post-signature {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px dashed #2a2f3a;
+  font-size: 12.5px;
+  color: #7c8391;
+}
+.suggested-topics {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid #262a34;
+}
+.suggested-topics-title {
+  font-size: 18px;
+  font-weight: 700 !important;
+  color: #f0f2f5;
+  margin: 0 0 12px;
+}
+
+/* Discourse Users Directory (/u) */
+.d-user-dir-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.d-user-dir-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.d-user-dir-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.d-user-dir-name a {
+  color: #f0f2f5 !important;
+  font-size: 15px;
+}
+.d-user-dir-title {
+  font-size: 12.5px;
+  color: #9197a3;
+}
+.d-user-dir-socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}

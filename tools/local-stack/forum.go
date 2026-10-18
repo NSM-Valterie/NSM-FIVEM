@@ -744,11 +744,23 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 		dn := p.AuthorUsername
 		role := "user"
 		title := "NSM Community Member"
+		var discord, github, githubURL, steam, steamURL, website, location, bio, signature, bannerColor string
+		bannerColor = "#1e293b"
 		if pu != nil {
 			av = pu.AvatarPath()
 			dn = pu.EffectiveDisplayName()
 			role = pu.Role
 			title = pu.EffectiveTitle()
+			discord = pu.DiscordTag
+			github = pu.GitHubHandle()
+			githubURL = pu.GitHubURL()
+			steam = pu.Steam
+			steamURL = pu.SteamURL()
+			website = pu.Website
+			location = pu.Location
+			bio = pu.Bio
+			signature = pu.Signature
+			bannerColor = pu.EffectiveBannerColor()
 		}
 		pKey := strings.ToLower(p.AuthorUsername)
 		if !seenParticipants[pKey] {
@@ -770,37 +782,59 @@ func forumTopicPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		postsView = append(postsView, map[string]interface{}{
-			"ID":             p.ID,
-			"PostNumber":     p.PostNumber,
-			"AuthorUsername": p.AuthorUsername,
-			"AuthorDisplay":  dn,
-			"AuthorAvatar":   av,
-			"AuthorRole":     role,
-			"AuthorTitle":    title,
-			"Content":        p.Content,
-			"Paragraphs":     strings.Split(p.Content, "\n"),
-			"CreatedAtStr":   time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
-			"RelativeStr":    formatRelativeTime(p.CreatedAt),
-			"LikesCount":     len(p.Likes),
-			"Liked":          liked,
+			"ID":              p.ID,
+			"PostNumber":      p.PostNumber,
+			"AuthorUsername":  p.AuthorUsername,
+			"AuthorDisplay":   dn,
+			"AuthorAvatar":    av,
+			"AuthorRole":      role,
+			"AuthorTitle":     title,
+			"AuthorDiscord":   discord,
+			"AuthorGitHub":    github,
+			"AuthorGitHubURL": githubURL,
+			"AuthorSteam":     steam,
+			"AuthorSteamURL":  steamURL,
+			"AuthorWebsite":   website,
+			"AuthorLocation":  location,
+			"AuthorBio":       bio,
+			"AuthorSignature": signature,
+			"AuthorBanner":    bannerColor,
+			"Content":         p.Content,
+			"Paragraphs":      strings.Split(p.Content, "\n"),
+			"CreatedAtStr":    time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
+			"RelativeStr":     formatRelativeTime(p.CreatedAt),
+			"LikesCount":      len(p.Likes),
+			"Liked":           liked,
 		})
 	}
 	accMu.Unlock()
 
+	var suggested []map[string]interface{}
+	for _, st := range recentForumTopics(7) {
+		if stID, ok := st["ID"].(int64); ok && stID == found.ID {
+			continue
+		}
+		suggested = append(suggested, st)
+		if len(suggested) >= 5 {
+			break
+		}
+	}
+
 	renderPage(w, r, "forum_topic.tmpl", map[string]interface{}{
-		"Title":          found.Title + " - AFX Forum",
-		"Page":           "/forum",
-		"Topic":          found,
-		"Category":       cat,
-		"Posts":          postsView,
-		"Participants":   participants,
-		"ParticipantCnt": len(participants),
-		"ReplyCount":     found.ReplyCount(),
-		"TotalLikes":     found.TotalLikes(),
-		"CreatedAtShort": formatRelativeTime(found.CreatedAt),
-		"LastReplyShort": formatRelativeTime(found.UpdatedAt),
-		"CanMod":         canMod,
-		"Categories":     forumCategoriesWithCounts(),
+		"Title":           found.Title + " - AFX Forum",
+		"Page":            "/forum",
+		"Topic":           found,
+		"Category":        cat,
+		"Posts":           postsView,
+		"Participants":    participants,
+		"ParticipantCnt":  len(participants),
+		"ReplyCount":      found.ReplyCount(),
+		"TotalLikes":      found.TotalLikes(),
+		"CreatedAtShort":  formatRelativeTime(found.CreatedAt),
+		"LastReplyShort":  formatRelativeTime(found.UpdatedAt),
+		"SuggestedTopics": suggested,
+		"CanMod":          canMod,
+		"Categories":      forumCategoriesWithCounts(),
 	})
 }
 

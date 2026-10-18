@@ -791,6 +791,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		`class="topic-map"`,
 		`class="timeline-container"`,
 		`id="reply-control"`,
+		`id="suggested-topics"`,
 	} {
 		if !strings.Contains(topicBody, marker) {
 			t.Fatalf("GET /forum/t/1 missing Discourse marker %q", marker)
@@ -812,6 +813,9 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		`class="top-section replies-and-topics-section"`,
 		`class="top-section top-categories-section"`,
 		`class="top-section badges-section"`,
+		`d-social-discord`,
+		`d-social-github`,
+		`github.com/platinum-cfx`,
 	} {
 		if !strings.Contains(profBody, marker) {
 			t.Fatalf("GET /u/Cravenz missing Discourse profile marker %q", marker)
@@ -819,6 +823,11 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	}
 	if strings.Contains(profBody, `target="_blank"`) {
 		t.Fatalf("GET /u/Cravenz still contains target=_blank link")
+	}
+
+	wUsersDir := request(h, "GET", "/u", "")
+	if wUsersDir.Code != http.StatusOK || !strings.Contains(wUsersDir.Body.String(), "d-users-directory-table") {
+		t.Fatalf("GET /u users directory failed: %d", wUsersDir.Code)
 	}
 }
 
