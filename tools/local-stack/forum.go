@@ -525,6 +525,7 @@ func likedPostsForProfile(username string) []map[string]interface{} {
 					"PostNumber":     p.PostNumber,
 					"AuthorUsername": p.AuthorUsername,
 					"Excerpt":        excerpt,
+					"Paragraphs":     strings.Split(p.Content, "\n"),
 					"CreatedAt":      time.Unix(p.CreatedAt, 0).Format("Jan 02, 2006 15:04"),
 					"RelativeStr":    formatRelativeTime(p.CreatedAt),
 					"Likes":          len(p.Likes),
@@ -582,6 +583,9 @@ func enrichTopicView(t ForumTopic) map[string]interface{} {
 		"Title":          t.Title,
 		"Slug":           t.Slug,
 		"Category":       cat,
+		"CategoryName":   cat.Name,
+		"CategorySlug":   cat.Slug,
+		"CategoryColor":  cat.Color,
 		"Tags":           t.Tags,
 		"AuthorUsername": t.AuthorUsername,
 		"AuthorDisplay":  authorDisplay,
@@ -596,6 +600,7 @@ func enrichTopicView(t ForumTopic) map[string]interface{} {
 		"Posters":        posters,
 		"CreatedAtStr":   time.Unix(t.CreatedAt, 0).Format("Jan 02, 2006"),
 		"UpdatedAtStr":   formatRelativeTime(t.UpdatedAt),
+		"LastActiveStr":  formatRelativeTime(t.UpdatedAt),
 		"UpdatedAt":      t.UpdatedAt,
 	}
 }

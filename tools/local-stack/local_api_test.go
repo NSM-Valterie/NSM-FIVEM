@@ -861,6 +861,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	customSess := registerTestUser(t, h, "theme_tester")
 	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&return_tab=summary"
 	reqUpd := httptest.NewRequest("POST", "/account/profile", strings.NewReader(formPayload))
+	reqUpd.RemoteAddr = "127.0.0.1:12345"
 	reqUpd.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	reqUpd.Header.Set("X-NSM-Session", customSess)
 	wUpd := httptest.NewRecorder()

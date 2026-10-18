@@ -34,7 +34,11 @@ jobs:
         run: |
           set -euo pipefail
           go vet ./...
-          go test -v ./... > /tmp/go-tests.txt
+          if ! go test -v ./... > /tmp/go-tests.txt 2>&1; then
+            cat /tmp/go-tests.txt
+            grep -E "FAIL|--- FAIL|local_api_test|panic|template:" /tmp/go-tests.txt | head -n 10 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
           cat /tmp/go-tests.txt
           go test -race -v ./... > /tmp/race-tests.txt
           mkdir -p /tmp/smoke-dir
@@ -51,6 +55,12 @@ jobs:
             curl -sf http://127.0.0.1:18089/forum > /dev/null
             curl -sf http://127.0.0.1:18089/u > /dev/null
             curl -sf http://127.0.0.1:18089/u/Cravenz > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/activity > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/topics > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/replies > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/notifications > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/messages > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/badges > /dev/null
             curl -sf http://127.0.0.1:18089/u/Cravenz/preferences > /dev/null
             kill $SMOKE_PID 2>/dev/null || true
             trap - EXIT
