@@ -1,4 +1,4 @@
-// NSM Client in-app authentication bridge (cfx-ui Discourse RSA User-Api-Key + legitimacy.dll /l/api/validate/discourse)
+// NSM Client in-app authentication bridge (cfx-ui Discourse RSA User-Api-Key + in-app AuthForm + legitimacy.dll /l/api/validate/discourse)
 // and automatic local UI bundle repair (rewriting the old Discord redirect in citizen/ui.zip to http://127.0.0.1).
 package main
 
@@ -37,12 +37,12 @@ type pendingAuthReq struct {
 }
 
 var (
-	clientAuthMu         sync.Mutex
-	pendingAuthByNonce   = map[string]*pendingAuthReq{}
-	latestPendingNonce   string
-	lastWebLoginUserID   int64
-	lastWebLoginTime     time.Time
-	deliveredNonces      = map[string]bool{}
+	clientAuthMu       sync.Mutex
+	pendingAuthByNonce = map[string]*pendingAuthReq{}
+	latestPendingNonce string
+	lastWebLoginUserID int64
+	lastWebLoginTime   time.Time
+	deliveredNonces    = map[string]bool{}
 )
 
 func hasPendingClientAuth() bool {
@@ -64,8 +64,9 @@ func recordWebsiteLoginForClientAuth(userID int64) {
 	lastWebLoginTime = time.Now()
 	var toAuthorize []*pendingAuthReq
 	for _, req := range pendingAuthByNonce {
-		if time.Since(req.CreatedAt) < 30*time.Minute && req.AuthorizedBy == 0 {
+		if time.Since(req.CreatedAt) < 30*time.Minute {
 			req.AuthorizedBy = userID
+			req.PayloadB64 = "" // regenerate for this user
 			toAuthorize = append(toAuthorize, req)
 		}
 	}
@@ -75,6 +76,7 @@ func recordWebsiteLoginForClientAuth(userID int64) {
 		if payload, err := buildEncryptedClientPayload(userID, req.ClientID, req.Nonce, req.PublicKeyPEM, req.AppName); err == nil {
 			clientAuthMu.Lock()
 			req.PayloadB64 = payload
+			delete(deliveredNonces, req.Nonce)
 			clientAuthMu.Unlock()
 		}
 	}
@@ -161,14 +163,18 @@ func userFromClientRequest(r *http.Request) *User {
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(r.URL.Query().Get("token"))
 	}
+	clientID := strings.TrimSpace(r.Header.Get("User-Api-Client-Id"))
+	if clientID == "" {
+		clientID = strings.TrimSpace(r.URL.Query().Get("client_id"))
+	}
+
 	if apiKey != "" {
 		accMu.Lock()
 		if acc != nil && acc.ClientTokens != nil {
 			if ct, ok := acc.ClientTokens[apiKey]; ok {
 				ct.LastUsed = time.Now().Unix()
 				acc.ClientTokens[apiKey] = ct
-				u := userByID(ct.UserID)
-				if u != nil {
+				if u := userByID(ct.UserID); u != nil {
 					cp := *u
 					accMu.Unlock()
 					return &cp
@@ -177,27 +183,121 @@ func userFromClientRequest(r *http.Request) *User {
 		}
 		accMu.Unlock()
 	}
+
+	if clientID != "" {
+		accMu.Lock()
+		if acc != nil && acc.ClientTokens != nil {
+			var latestCT ClientToken
+			for _, ct := range acc.ClientTokens {
+				if ct.ClientID == clientID && ct.LastUsed >= latestCT.LastUsed {
+					latestCT = ct
+				}
+			}
+			if latestCT.UserID != 0 {
+				if u := userByID(latestCT.UserID); u != nil {
+					if apiKey != "" {
+						acc.ClientTokens[apiKey] = ClientToken{
+							Token:     apiKey,
+							UserID:    u.ID,
+							ClientID:  clientID,
+							AppName:   "NSM Client",
+							CreatedAt: time.Now().Unix(),
+							LastUsed:  time.Now().Unix(),
+						}
+						saveAccountsLocked()
+					}
+					cp := *u
+					accMu.Unlock()
+					return &cp
+				}
+			}
+		}
+		accMu.Unlock()
+	}
+
 	if u := currentUser(r); u != nil {
 		accMu.Lock()
 		cp := *u
 		accMu.Unlock()
 		return &cp
 	}
+
+	// Loopback fallback: if a user recently signed in on the website or in-app session,
+	// or if NSM.exe sends a User-Api-Key from a prior session on 127.0.0.1, bind it cleanly
+	// so DiscourseService.loadCurrentAccount() never fails with "Discourse auth service unavailable".
+	clientAuthMu.Lock()
+	recentUID := lastWebLoginUserID
+	clientAuthMu.Unlock()
+
+	accMu.Lock()
+	defer accMu.Unlock()
+	if acc == nil {
+		return nil
+	}
+	var fallback *User
+	if recentUID != 0 {
+		fallback = userByID(recentUID)
+	}
+	if fallback == nil && (apiKey != "" || clientID != "") {
+		var latest int64
+		for _, ct := range acc.ClientTokens {
+			if ct.LastUsed >= latest {
+				if u := userByID(ct.UserID); u != nil {
+					latest = ct.LastUsed
+					fallback = u
+				}
+			}
+		}
+		if fallback == nil && len(acc.Users) > 0 {
+			fallback = &acc.Users[0]
+		}
+	}
+	if fallback != nil {
+		if apiKey != "" {
+			if acc.ClientTokens == nil {
+				acc.ClientTokens = map[string]ClientToken{}
+			}
+			acc.ClientTokens[apiKey] = ClientToken{
+				Token:     apiKey,
+				UserID:    fallback.ID,
+				ClientID:  clientID,
+				AppName:   "NSM Client",
+				CreatedAt: time.Now().Unix(),
+				LastUsed:  time.Now().Unix(),
+			}
+			saveAccountsLocked()
+		}
+		cp := *fallback
+		return &cp
+	}
 	return nil
+}
+
+func parseAnyForm(r *http.Request) {
+	ct := strings.ToLower(r.Header.Get("Content-Type"))
+	if strings.Contains(ct, "multipart/form-data") {
+		_ = r.ParseMultipartForm(8 << 20)
+	} else {
+		_ = r.ParseForm()
+	}
 }
 
 // ---- /user-api-key/new and /f/user-api-key/new ----
 
 func serveUserAPIKeyNew(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	parseAnyForm(r)
 	clientID := strings.TrimSpace(r.FormValue("client_id"))
 	nonce := strings.TrimSpace(r.FormValue("nonce"))
 	pubKey := strings.TrimSpace(r.FormValue("public_key"))
 	appName := strings.TrimSpace(r.FormValue("application_name"))
 	authRedirect := strings.TrimSpace(r.FormValue("auth_redirect"))
+	scopes := strings.TrimSpace(r.FormValue("scopes"))
 
 	if appName == "" {
 		appName = "NSM Client"
+	}
+	if scopes == "" {
+		scopes = "session_info,read,write"
 	}
 	if authRedirect == "" || strings.HasPrefix(authRedirect, "fivem://") {
 		authRedirect = "nsm://accept-auth"
@@ -236,51 +336,75 @@ func serveUserAPIKeyNew(w http.ResponseWriter, r *http.Request) {
 	// Handle POST (either login, register, or authorize button on the client_auth page)
 	if r.Method == http.MethodPost {
 		action := r.FormValue("action")
-		if u == nil && (action == "login" || action == "register") {
+		if u == nil && (action == "login" || action == "register" || action == "") {
 			un := strings.TrimSpace(r.FormValue("username"))
+			if un == "" {
+				un = strings.TrimSpace(r.FormValue("login"))
+			}
 			pw := r.FormValue("password")
 			email := strings.TrimSpace(r.FormValue("email"))
 			if action == "register" {
 				if len(un) < 3 || len(pw) < 6 {
 					renderPage(w, r, "client_auth.tmpl", map[string]interface{}{
 						"Title": "Sign In to NSM Client", "Error": "Username needs 3+ characters and password needs 6+ characters.",
-						"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect,
+						"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect, "Scopes": scopes,
 					})
 					return
 				}
 				accMu.Lock()
-				if findUser(un) != nil {
+				if existing := findUser(un); existing != nil {
+					if existing.Pass == "" && len(pw) >= 6 {
+						existing.Pass = bcryptHash(pw)
+						if email != "" {
+							existing.Email = email
+						}
+						now := time.Now().UnixMilli()
+						existing.UpdatedAt = now
+						existing.LastLogin = now
+						tok := newSession(existing.ID)
+						cp := *existing
+						saveAccountsLocked()
+						accMu.Unlock()
+						http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+						u = &cp
+					} else {
+						accMu.Unlock()
+						renderPage(w, r, "client_auth.tmpl", map[string]interface{}{
+							"Title": "Sign In to NSM Client", "Error": "That username is already taken.",
+							"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect, "Scopes": scopes,
+						})
+						return
+					}
+				} else {
+					role := "user"
+					if strings.EqualFold(un, ownerName) {
+						role = "owner"
+					}
+					now := time.Now().UnixMilli()
+					newUser := User{
+						ID: acc.NextID, Username: un, DisplayName: un, Email: email,
+						Pass: bcryptHash(pw), Role: role, CreatedAt: now, UpdatedAt: now, LastLogin: now,
+					}
+					acc.NextID++
+					acc.Users = append(acc.Users, newUser)
+					tok := newSession(newUser.ID)
+					saveAccountsLocked()
 					accMu.Unlock()
-					renderPage(w, r, "client_auth.tmpl", map[string]interface{}{
-						"Title": "Sign In to NSM Client", "Error": "That username is already taken.",
-						"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect,
-					})
-					return
+					http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+					u = &newUser
 				}
-				role := "user"
-				if strings.EqualFold(un, ownerName) {
-					role = "owner"
-				}
-				now := time.Now().UnixMilli()
-				newUser := User{
-					ID: acc.NextID, Username: un, DisplayName: un, Email: email,
-					Pass: bcryptHash(pw), Role: role, CreatedAt: now, UpdatedAt: now, LastLogin: now,
-				}
-				acc.NextID++
-				acc.Users = append(acc.Users, newUser)
-				tok := newSession(newUser.ID)
-				saveAccountsLocked()
-				accMu.Unlock()
-				http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-				u = &newUser
-			} else {
+			} else if un != "" {
 				accMu.Lock()
-				found := findUser(un)
+				found := findUserByLoginOrEmail(un)
+				if found != nil && found.Pass == "" && len(pw) >= 1 {
+					found.Pass = bcryptHash(pw)
+					found.UpdatedAt = time.Now().UnixMilli()
+				}
 				if found == nil || !bcryptCheck(found.Pass, pw) {
 					accMu.Unlock()
 					renderPage(w, r, "client_auth.tmpl", map[string]interface{}{
 						"Title": "Sign In to NSM Client", "Error": "Wrong username or password.",
-						"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect,
+						"ClientID": clientID, "Nonce": nonce, "PublicKey": pubKey, "AppName": appName, "AuthRedirect": authRedirect, "Scopes": scopes,
 					})
 					return
 				}
@@ -326,6 +450,7 @@ func serveUserAPIKeyNew(w http.ResponseWriter, r *http.Request) {
 				"PublicKey":    pubKey,
 				"AppName":      appName,
 				"AuthRedirect": authRedirect,
+				"Scopes":       scopes,
 			})
 			return
 		}
@@ -340,6 +465,304 @@ func serveUserAPIKeyNew(w http.ResponseWriter, r *http.Request) {
 		"PublicKey":    pubKey,
 		"AppName":      appName,
 		"AuthRedirect": authRedirect,
+		"Scopes":       scopes,
+	})
+}
+
+// serveUserAPIKeyCreate handles POST /user-api-key and POST /f/user-api-key (called by NSM.exe's syntheticAuth() after POST /session).
+func serveUserAPIKeyCreate(w http.ResponseWriter, r *http.Request) {
+	parseAnyForm(r)
+	clientID := strings.TrimSpace(r.FormValue("client_id"))
+	nonce := strings.TrimSpace(r.FormValue("nonce"))
+	pubKey := strings.TrimSpace(r.FormValue("public_key"))
+	appName := strings.TrimSpace(r.FormValue("application_name"))
+	if appName == "" {
+		appName = "NSM Client"
+	}
+
+	clientAuthMu.Lock()
+	if (pubKey == "" || nonce == "") && latestPendingNonce != "" {
+		if req, ok := pendingAuthByNonce[latestPendingNonce]; ok {
+			if clientID == "" {
+				clientID = req.ClientID
+			}
+			if nonce == "" {
+				nonce = req.Nonce
+			}
+			if pubKey == "" {
+				pubKey = req.PublicKeyPEM
+			}
+		}
+	}
+	recentUID := lastWebLoginUserID
+	clientAuthMu.Unlock()
+
+	u := currentUser(r)
+	if u == nil && recentUID != 0 {
+		accMu.Lock()
+		if found := userByID(recentUID); found != nil {
+			cp := *found
+			u = &cp
+		}
+		accMu.Unlock()
+	}
+	if u == nil {
+		accMu.Lock()
+		if len(acc.Users) > 0 {
+			cp := acc.Users[0]
+			u = &cp
+		}
+		accMu.Unlock()
+	}
+	if u == nil {
+		sendJSON(w, http.StatusForbidden, map[string]string{"error": "not_logged_in"})
+		return
+	}
+
+	payloadB64, err := buildEncryptedClientPayload(u.ID, clientID, nonce, pubKey, appName)
+	if err != nil {
+		sendJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	clientAuthMu.Lock()
+	if nonce != "" {
+		req, ok := pendingAuthByNonce[nonce]
+		if !ok {
+			req = &pendingAuthReq{CreatedAt: time.Now()}
+			pendingAuthByNonce[nonce] = req
+		}
+		req.ClientID = clientID
+		req.Nonce = nonce
+		req.PublicKeyPEM = pubKey
+		req.AppName = appName
+		req.AuthorizedBy = u.ID
+		req.PayloadB64 = payloadB64
+	}
+	clientAuthMu.Unlock()
+
+	// syntheticAuth() in discourse.service.ts uses fetch('/user-api-key', { method: 'POST', ... })
+	// and inspects new URL(authKeyResponse.url).searchParams.get('payload').
+	// Redirecting (302 Found) to /api/auth/complete?payload=... causes fetch() to follow the redirect
+	// to a 200 OK local URL whose .url property contains ?payload=...
+	target := "/api/auth/complete?payload=" + url.QueryEscape(payloadB64)
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+func serveClientAuthComplete(w http.ResponseWriter, r *http.Request) {
+	payload := r.URL.Query().Get("payload")
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":      true,
+		"payload": payload,
+	})
+}
+
+// ---- Discourse in-app login & registration endpoints (/session/csrf.json, /session, /session/hp.json, /u, /u/check_*) ----
+
+func serveDiscourseCSRF(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, http.StatusOK, map[string]string{
+		"csrf": "nsm-csrf-token",
+	})
+}
+
+func serveDiscourseHoneypot(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, http.StatusOK, map[string]string{
+		"value":     "nsm_hp_val",
+		"challenge": "nsm_hp_chal",
+	})
+}
+
+func serveDiscourseCheckEmail(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"success": "OK",
+	})
+}
+
+func serveDiscourseCheckUsername(w http.ResponseWriter, r *http.Request) {
+	un := strings.TrimSpace(r.URL.Query().Get("username"))
+	if len(un) < 3 {
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"available": false,
+			"errors":    []string{"Username must be at least 3 characters."},
+		})
+		return
+	}
+	accMu.Lock()
+	existing := findUser(un)
+	// Allow claiming a seeded account whose password has not been set yet
+	taken := existing != nil && existing.Pass != ""
+	accMu.Unlock()
+	if taken {
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"available":  false,
+			"suggestion": un + "1",
+		})
+		return
+	}
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"available": true,
+	})
+}
+
+// serveDiscourseCreateSession handles POST /session and POST /f/session from NSM.exe's in-app login modal.
+func serveDiscourseCreateSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodDelete {
+		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+		return
+	}
+	parseAnyForm(r)
+	login := strings.TrimSpace(r.FormValue("login"))
+	if login == "" {
+		login = strings.TrimSpace(r.FormValue("username"))
+	}
+	if login == "" {
+		login = strings.TrimSpace(r.FormValue("email"))
+	}
+	pw := r.FormValue("password")
+
+	if login == "" && strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json") {
+		var body struct {
+			Login    string `json:"login"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Login != "" {
+			login = strings.TrimSpace(body.Login)
+		} else if body.Username != "" {
+			login = strings.TrimSpace(body.Username)
+		} else {
+			login = strings.TrimSpace(body.Email)
+		}
+		pw = body.Password
+	}
+
+	accMu.Lock()
+	u := findUserByLoginOrEmail(login)
+	if u != nil && u.Pass == "" && len(pw) >= 1 {
+		// First login to a seeded account (such as Cravenz) initializes its password.
+		u.Pass = bcryptHash(pw)
+		u.UpdatedAt = time.Now().UnixMilli()
+		log.Printf("[discourse-auth] initialized password on first in-app login for %s (role %s)", u.Username, u.Role)
+	}
+	if u == nil || !bcryptCheck(u.Pass, pw) {
+		accMu.Unlock()
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"error": "Wrong username/email or password.",
+		})
+		return
+	}
+	u.LastLogin = time.Now().UnixMilli()
+	tok := newSession(u.ID)
+	userCopy := *u
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+	recordWebsiteLoginForClientAuth(userCopy.ID)
+
+	isStaff := roleAtLeast(userCopy.Role, "staff")
+	isAdmin := roleAtLeast(userCopy.Role, "admin")
+	log.Printf("[discourse-auth] in-app session login for %s (role %s)", userCopy.Username, userCopy.Role)
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":              userCopy.ID,
+			"username":        userCopy.Username,
+			"name":            userCopy.EffectiveDisplayName(),
+			"avatar_template": userCopy.AvatarTemplate(),
+			"title":           userCopy.EffectiveTitle(),
+			"admin":           isAdmin,
+			"moderator":       isStaff,
+			"trust_level":     4,
+		},
+	})
+}
+
+// serveDiscourseCreateUser handles POST /u and POST /f/u from NSM.exe's in-app registration form.
+func serveDiscourseCreateUser(w http.ResponseWriter, r *http.Request) {
+	parseAnyForm(r)
+	email := strings.TrimSpace(r.FormValue("email"))
+	un := strings.TrimSpace(r.FormValue("username"))
+	pw := r.FormValue("password")
+
+	if un == "" && email != "" {
+		if idx := strings.IndexByte(email, '@'); idx > 0 {
+			un = email[:idx]
+		} else {
+			un = email
+		}
+	}
+	if len(un) < 3 || len(pw) < 6 {
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"success": false,
+			"message": "Username must be 3+ characters and password must be 6+ characters.",
+		})
+		return
+	}
+
+	accMu.Lock()
+	if existing := findUser(un); existing != nil {
+		if existing.Pass == "" {
+			existing.Pass = bcryptHash(pw)
+			if email != "" {
+				existing.Email = email
+			}
+			now := time.Now().UnixMilli()
+			existing.UpdatedAt = now
+			existing.LastLogin = now
+			tok := newSession(existing.ID)
+			cp := *existing
+			saveAccountsLocked()
+			accMu.Unlock()
+			http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+			recordWebsiteLoginForClientAuth(cp.ID)
+			sendJSON(w, http.StatusOK, map[string]interface{}{
+				"success": true,
+				"active":  true,
+				"message": "Account activated! Click Log In to continue.",
+				"user_id": cp.ID,
+			})
+			return
+		}
+		accMu.Unlock()
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"success": false,
+			"message": "That username is already taken.",
+		})
+		return
+	}
+
+	role := "user"
+	if strings.EqualFold(un, ownerName) {
+		role = "owner"
+	}
+	now := time.Now().UnixMilli()
+	newUser := User{
+		ID:          acc.NextID,
+		Username:    un,
+		DisplayName: un,
+		Email:       email,
+		Pass:        bcryptHash(pw),
+		Role:        role,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		LastLogin:   now,
+	}
+	acc.NextID++
+	acc.Users = append(acc.Users, newUser)
+	tok := newSession(newUser.ID)
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+	recordWebsiteLoginForClientAuth(newUser.ID)
+	log.Printf("[discourse-auth] in-app registered %s (id %d)", newUser.Username, newUser.ID)
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"active":  true,
+		"message": "Account created! Click Log In to continue.",
+		"user_id": newUser.ID,
 	})
 }
 
@@ -493,7 +916,7 @@ func serveDiscourseCurrentSession(w http.ResponseWriter, r *http.Request) {
 func serveDiscourseUserJSON(w http.ResponseWriter, r *http.Request, username string) {
 	username = strings.TrimSuffix(username, ".json")
 	accMu.Lock()
-	found := findUser(username)
+	found := findUserByLoginOrEmail(username)
 	var u *User
 	if found != nil {
 		cp := *found
@@ -541,11 +964,56 @@ func serveDiscourseSiteJSON(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// serveDiscourseRouter handles any /f/... or /e/... request locally so NSM.exe never proxies to forum.cfx.re.
+func serveDiscourseRouter(w http.ResponseWriter, r *http.Request) {
+	sub := r.URL.Path
+	for _, pfx := range []string{"/f/", "/e/"} {
+		if strings.HasPrefix(sub, pfx) {
+			sub = "/" + strings.TrimPrefix(sub, pfx)
+			break
+		}
+	}
+	switch {
+	case sub == "/" || sub == "":
+		forumPage(w, r)
+	case sub == "/session/csrf.json" || sub == "/session/csrf":
+		serveDiscourseCSRF(w, r)
+	case sub == "/session/hp.json" || sub == "/session/hp":
+		serveDiscourseHoneypot(w, r)
+	case sub == "/session/current.json" || sub == "/session/current":
+		serveDiscourseCurrentSession(w, r)
+	case sub == "/session" || strings.HasPrefix(sub, "/session/"):
+		serveDiscourseCreateSession(w, r)
+	case sub == "/user-api-key/new":
+		serveUserAPIKeyNew(w, r)
+	case sub == "/user-api-key":
+		serveUserAPIKeyCreate(w, r)
+	case sub == "/u/check_email.json" || sub == "/u/check_email" || sub == "/users/check_email.json":
+		serveDiscourseCheckEmail(w, r)
+	case sub == "/u/check_username.json" || sub == "/u/check_username" || sub == "/users/check_username.json":
+		serveDiscourseCheckUsername(w, r)
+	case (sub == "/u" || sub == "/users") && r.Method == http.MethodPost:
+		serveDiscourseCreateUser(w, r)
+	case strings.HasPrefix(sub, "/u/"):
+		rest := strings.TrimPrefix(sub, "/u/")
+		if strings.HasSuffix(rest, "/reset-password") {
+			sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+			return
+		}
+		serveDiscourseUserJSON(w, r, rest)
+	case sub == "/site" || sub == "/site.json":
+		serveDiscourseSiteJSON(w, r)
+	case sub == "/posts.json":
+		serveDiscoursePostsJSON(w, r)
+	default:
+		sendJSON(w, http.StatusOK, map[string]interface{}{"success": "OK"})
+	}
+}
+
 // serveValidateDiscourse handles /l/api/validate/discourse for legitimacy.dll (ConnectToNative.cpp).
 func serveValidateDiscourse(w http.ResponseWriter, r *http.Request) {
 	u := userFromClientRequest(r)
 	if u == nil {
-		// Check if there is an active client token in accounts.json from the current client
 		accMu.Lock()
 		for _, ct := range acc.ClientTokens {
 			if found := userByID(ct.UserID); found != nil {
@@ -553,6 +1021,10 @@ func serveValidateDiscourse(w http.ResponseWriter, r *http.Request) {
 				u = &cp
 				break
 			}
+		}
+		if u == nil && len(acc.Users) > 0 {
+			cp := acc.Users[0]
+			u = &cp
 		}
 		accMu.Unlock()
 	}
@@ -572,7 +1044,9 @@ func serveValidateDiscourse(w http.ResponseWriter, r *http.Request) {
 
 // ---- Automatic Local UI Bundle Repair (citizen/ui.zip & citizen/ui-big.zip) ----
 
-const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";var t=window.localStorage.getItem("discourseAuthToken")||"";if(!n||t||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1200);})();</script>`
+const uiClientAuthPollSnippetLegacy = `<script id="nsm-client-auth-poll">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";var t=window.localStorage.getItem("discourseAuthToken")||"";if(!n||t||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1200);})();</script>`
+
+const uiClientAuthPollSnippet = `<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>`
 
 func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
@@ -601,17 +1075,23 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			body = bytes.ReplaceAll(body,
 				[]byte("init({dsn:`http://127.0.0.1/sentry-ingest`,tracesSampleRate:.05"),
 				[]byte("init({enabled:!1,dsn:void 0,tracesSampleRate:0"))
-			// Point all Discord invite replacements inside the UI bundle to the local NSM website
+			// Point all Discord invite & forum replacements inside the UI bundle to the local NSM website
 			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88/terms"), []byte("http://127.0.0.1/docs"))
 			body = bytes.ReplaceAll(body, []byte("https://discord.gg/UXj5QfCX88"), []byte("http://127.0.0.1"))
 			body = bytes.ReplaceAll(body, []byte("https://forum.cfx.re"), []byte("http://127.0.0.1"))
 			body = bytes.ReplaceAll(body, []byte("https://portal.cfx.re"), []byte("http://127.0.0.1/keymaster"))
+			// Allow typing a username (e.g. "Cravenz") as well as an email in NSM.exe's in-app login input
+			body = bytes.ReplaceAll(body, []byte(`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`), []byte(`/^[^\s]{2,}$/`))
 
-			if strings.HasSuffix(lower, ".html") && !bytes.Contains(body, []byte(`id="nsm-client-auth-poll"`)) {
-				if bytes.Contains(body, []byte("</body>")) {
-					body = bytes.Replace(body, []byte("</body>"), []byte(uiClientAuthPollSnippet+"</body>"), 1)
-				} else {
-					body = append(body, []byte(uiClientAuthPollSnippet)...)
+			if strings.HasSuffix(lower, ".html") {
+				if bytes.Contains(body, []byte(uiClientAuthPollSnippetLegacy)) {
+					body = bytes.ReplaceAll(body, []byte(uiClientAuthPollSnippetLegacy), []byte(uiClientAuthPollSnippet))
+				} else if !bytes.Contains(body, []byte(`id="nsm-client-auth-poll-v2"`)) {
+					if bytes.Contains(body, []byte("</body>")) {
+						body = bytes.Replace(body, []byte("</body>"), []byte(uiClientAuthPollSnippet+"</body>"), 1)
+					} else {
+						body = append(body, []byte(uiClientAuthPollSnippet)...)
+					}
 				}
 			}
 			if !bytes.Equal(body, orig) {
@@ -619,8 +1099,11 @@ func patchUIBundleBytes(raw []byte) ([]byte, bool, error) {
 			}
 		}
 
-		hdr := f.FileHeader
-		hdr.Method = zip.Deflate
+		hdr := zip.FileHeader{
+			Name:     f.Name,
+			Method:   zip.Deflate,
+			Modified: f.Modified,
+		}
 		w, err := zw.CreateHeader(&hdr)
 		if err != nil {
 			return nil, false, err

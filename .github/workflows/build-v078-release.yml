@@ -60,7 +60,7 @@ jobs:
           src_zip = Path("/tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip")
           RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
 
-          POLL_SNIPPET = b'<script id="nsm-client-auth-poll">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";var t=window.localStorage.getItem("discourseAuthToken")||"";if(!n||t||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1200);})();</script>'
+          POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v2">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1000);})();</script>'
 
           def sha(b):
               return hashlib.sha256(b).hexdigest()
@@ -82,7 +82,8 @@ jobs:
                           body = body.replace(b"https://discord.gg/UXj5QfCX88", b"http://127.0.0.1")
                           body = body.replace(b"https://forum.cfx.re", b"http://127.0.0.1")
                           body = body.replace(b"https://portal.cfx.re", b"http://127.0.0.1/keymaster")
-                          if lower.endswith(".html") and b'id="nsm-client-auth-poll"' not in body:
+                          body = body.replace(b"/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/", b"/^[^\\s]{2,}$/")
+                          if lower.endswith(".html") and b'id="nsm-client-auth-poll-v2"' not in body:
                               if b"</body>" in body:
                                   body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
                               else:
@@ -137,7 +138,7 @@ jobs:
               assert zui.testzip() is None
               ui_blob = b"".join(zui.read(n) for n in zui.namelist() if not n.endswith("/"))
               assert b"discord.gg/UXj5QfCX88" not in ui_blob
-              assert b'id="nsm-client-auth-poll"' in ui_blob
+              assert b'id="nsm-client-auth-poll-v2"' in ui_blob
               assert b"http://127.0.0.1" in ui_blob
               assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
 

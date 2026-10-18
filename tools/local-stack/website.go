@@ -317,6 +317,10 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("POST /account/password", accountChangePassword)
 	mux.HandleFunc("POST /account/profile", accountUpdateProfile)
 	mux.HandleFunc("POST /account/connect-client", accountConnectClient)
+	mux.HandleFunc("POST /account/claim-owner", accountClaimOwner)
+	mux.HandleFunc("GET /u/check_email.json", serveDiscourseCheckEmail)
+	mux.HandleFunc("GET /u/check_username.json", serveDiscourseCheckUsername)
+	mux.HandleFunc("POST /u", serveDiscourseCreateUser)
 	mux.HandleFunc("GET /u/{username}", userProfilePage)
 	mux.HandleFunc("GET /avatars/u/{username}/{size}", serveUserAvatar)
 	mux.HandleFunc("/f/avatars/u/{username}/{size}", serveUserAvatar)
@@ -342,9 +346,23 @@ func buildMux() *http.ServeMux {
 	// In-App Client Login & Discourse API Bridge
 	mux.HandleFunc("/user-api-key/new", serveUserAPIKeyNew)
 	mux.HandleFunc("/f/user-api-key/new", serveUserAPIKeyNew)
+	mux.HandleFunc("/user-api-key", serveUserAPIKeyCreate)
+	mux.HandleFunc("/f/user-api-key", serveUserAPIKeyCreate)
+	mux.HandleFunc("/api/auth/complete", serveClientAuthComplete)
 	mux.HandleFunc("/api/auth/client-poll", apiClientAuthPoll)
+	mux.HandleFunc("/session/csrf.json", serveDiscourseCSRF)
+	mux.HandleFunc("/f/session/csrf.json", serveDiscourseCSRF)
+	mux.HandleFunc("/session/hp.json", serveDiscourseHoneypot)
+	mux.HandleFunc("/f/session/hp.json", serveDiscourseHoneypot)
 	mux.HandleFunc("/session/current.json", serveDiscourseCurrentSession)
 	mux.HandleFunc("/f/session/current.json", serveDiscourseCurrentSession)
+	mux.HandleFunc("/session", serveDiscourseCreateSession)
+	mux.HandleFunc("/f/session", serveDiscourseCreateSession)
+	mux.HandleFunc("/session/{username}", serveDiscourseCreateSession)
+	mux.HandleFunc("/f/session/{username}", serveDiscourseCreateSession)
+	mux.HandleFunc("/f/u/check_email.json", serveDiscourseCheckEmail)
+	mux.HandleFunc("/f/u/check_username.json", serveDiscourseCheckUsername)
+	mux.HandleFunc("/f/u", serveDiscourseCreateUser)
 	mux.HandleFunc("/f/u/{username}", func(w http.ResponseWriter, r *http.Request) {
 		serveDiscourseUserJSON(w, r, r.PathValue("username"))
 	})
@@ -378,9 +396,13 @@ func buildMux() *http.ServeMux {
 		http.Error(w, "no updates (NSM local stack - keeping current build)", http.StatusNotFound)
 	})
 
-	// game-cache proxy routes
+	// game-cache proxy routes (/f/ and /e/ are handled locally by our Discourse & Forum service)
 	for route, upstream := range proxyRoutes {
 		rt, up := route, upstream
+		if rt == "f" || rt == "e" {
+			mux.HandleFunc("/"+rt+"/", serveDiscourseRouter)
+			continue
+		}
 		mux.HandleFunc("/"+rt+"/", func(w http.ResponseWriter, r *http.Request) {
 			serveProxy(w, r, rt, up)
 		})

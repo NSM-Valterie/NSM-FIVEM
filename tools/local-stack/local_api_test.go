@@ -590,9 +590,113 @@ func TestForumProfilesAndInAppClientLogin(t *testing.T) {
 		if zf.Name == "mpMenu.js" && !strings.Contains(string(b), `http://127.0.0.1`) {
 			t.Fatalf("mpMenu.js was not rewritten: %s", string(b))
 		}
-		if zf.Name == "index.html" && !strings.Contains(string(b), `id="nsm-client-auth-poll"`) {
+		if zf.Name == "index.html" && !strings.Contains(string(b), `id="nsm-client-auth-poll-v2"`) {
 			t.Fatalf("index.html did not get auth poller injected: %s", string(b))
 		}
+	}
+}
+
+func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
+	h := setupTest(t)
+
+	// 1. Cravenz owner account is seeded with Pass == "" and initializes its password on first in-app /session login
+	wCSRF := request(h, "GET", "/session/csrf.json", "")
+	if wCSRF.Code != 200 || !strings.Contains(wCSRF.Body.String(), `"csrf"`) {
+		t.Fatalf("GET /session/csrf.json failed: %d %s", wCSRF.Code, wCSRF.Body.String())
+	}
+
+	sessForm := url.Values{
+		"login":    {"Cravenz"},
+		"password": {"OwnerChosenPass!2026"},
+	}
+	rLogin := httptest.NewRequest("POST", "/session", strings.NewReader(sessForm.Encode()))
+	rLogin.RemoteAddr = "127.0.0.1:12345"
+	rLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	wLogin := httptest.NewRecorder()
+	h.ServeHTTP(wLogin, rLogin)
+	if wLogin.Code != 200 || !strings.Contains(wLogin.Body.String(), `"username":"Cravenz"`) {
+		t.Fatalf("POST /session for Cravenz failed: %d %s", wLogin.Code, wLogin.Body.String())
+	}
+
+	// 2. syntheticAuth() inside NSM.exe fetches /user-api-key/new and parses hidden inputs, then POSTs /user-api-key
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubDER, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER}))
+	nonce := "aabbccddeeff00112233445566778899"
+	clientID := "11223344556677889900aabbccddeeff"
+
+	qNew := url.Values{
+		"scopes":           {"session_info,read,write"},
+		"client_id":        {clientID},
+		"nonce":            {nonce},
+		"public_key":       {pubPEM},
+		"application_name": {"NSM client"},
+		"auth_redirect":    {"fivem://accept-auth"},
+	}
+	wNew := request(h, "GET", "/user-api-key/new?"+qNew.Encode(), "")
+	if wNew.Code != 200 {
+		t.Fatalf("GET /user-api-key/new failed: %d", wNew.Code)
+	}
+	for _, field := range []string{`name="authenticity_token"`, `name="application_name"`, `name="nonce"`, `name="client_id"`, `name="public_key"`, `name="scopes"`} {
+		if !strings.Contains(wNew.Body.String(), field) {
+			t.Fatalf("GET /user-api-key/new missing required DOM input %s", field)
+		}
+	}
+
+	rKey := httptest.NewRequest("POST", "/user-api-key", strings.NewReader(qNew.Encode()))
+	rKey.RemoteAddr = "127.0.0.1:12345"
+	rKey.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	wKey := httptest.NewRecorder()
+	h.ServeHTTP(wKey, rKey)
+	if wKey.Code != http.StatusFound {
+		t.Fatalf("POST /user-api-key expected 302 Found, got %d (%s)", wKey.Code, wKey.Body.String())
+	}
+	loc := wKey.Header().Get("Location")
+	uLoc, err := url.Parse(loc)
+	if err != nil || uLoc.Query().Get("payload") == "" {
+		t.Fatalf("POST /user-api-key redirect missing payload: %s", loc)
+	}
+
+	cipherBytes, err := base64.StdEncoding.DecodeString(uLoc.Query().Get("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plainBytes, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, cipherBytes)
+	if err != nil {
+		t.Fatalf("RSA decrypt failed: %v", err)
+	}
+	var dec struct {
+		Key   string `json:"key"`
+		Nonce string `json:"nonce"`
+	}
+	if err := json.Unmarshal(plainBytes, &dec); err != nil || dec.Nonce != nonce || !strings.HasPrefix(dec.Key, "nsm_uapi_") {
+		t.Fatalf("unexpected decrypted payload: %s", string(plainBytes))
+	}
+
+	// 3. loadCurrentAccount(true) calls /session/current.json and /u/Cravenz.json (and /f/... variants)
+	for _, p := range []string{"/session/current.json", "/f/session/current.json", "/u/Cravenz.json", "/f/u/Cravenz.json"} {
+		w := requestAuth(h, "GET", p, "", map[string]string{"User-Api-Key": dec.Key, "User-Api-Client-Id": clientID})
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"Cravenz"`) {
+			t.Fatalf("GET %s failed: %d %s", p, w.Code, w.Body.String())
+		}
+	}
+
+	// 4. Local owner can also reset/claim Cravenz via POST /account/claim-owner
+	claimForm := url.Values{"password": {"UpdatedOwnerPass!2026"}}
+	rClaim := httptest.NewRequest("POST", "/account/claim-owner", strings.NewReader(claimForm.Encode()))
+	rClaim.RemoteAddr = "127.0.0.1:12345"
+	rClaim.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rClaim.Header.Set("Accept", "application/json")
+	wClaim := httptest.NewRecorder()
+	h.ServeHTTP(wClaim, rClaim)
+	if wClaim.Code != 200 || !strings.Contains(wClaim.Body.String(), `"role":"owner"`) {
+		t.Fatalf("POST /account/claim-owner failed: %d %s", wClaim.Code, wClaim.Body.String())
 	}
 }
 

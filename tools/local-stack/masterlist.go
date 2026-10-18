@@ -536,8 +536,8 @@ type handler struct{}
 
 func setCors(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization, User-Api-Key, User-Api-Client-Id, X-CSRF-Token, X-Requested-With, Discourse-Present, Discourse-Logged-In, Discourse-Visible, Ownership-Ticket, Cfx-Entitlement-Ticket, X-NSM-Session, *")
 }
 
 func sendJSON(w http.ResponseWriter, code int, v interface{}) {

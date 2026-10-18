@@ -1,21 +1,36 @@
 {{template "head" .}}
 
-<section class="wrap section auth-wrap">
+<section class="wrap section auth-wrap" style="max-width:520px">
   <div class="auth-card">
     <h1>Sign in to NSM</h1>
     <p class="muted">Use your NSM account for the website, community forum, Keymaster, and NSM desktop client.</p>
     {{if .Error}}<div class="alert alert-err" style="margin-bottom:12px">{{.Error}}</div>{{end}}
     <form method="post" action="/login" class="form">
       <input type="hidden" name="next" value="{{.Next}}">
-      <label>Username
-        <input type="text" name="username" class="inp" required autofocus>
+      <label>Username or Email
+        <input type="text" name="username" class="inp" value="{{.PrefillUser}}" placeholder="e.g. Cravenz or cravenz@owner.local" required autofocus>
       </label>
       <label>Password
-        <input type="password" name="password" class="inp" required>
+        <input type="password" name="password" class="inp" placeholder="Enter your password" required>
       </label>
       <button type="submit" class="btn btn-primary btn-block">Sign in</button>
     </form>
     <p class="auth-foot">No account yet? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create one</a> &bull; <a href="/user-api-key/new">Sign in for NSM App</a></p>
+
+    <div class="owner-claim-box" style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+        <strong style="font-size:14px;color:var(--fg)">Owner Account (<code style="color:var(--accent-light)">Cravenz</code>)</strong>
+        <span class="role role-owner">owner</span>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.5">
+        Running on local machine (<code>127.0.0.1</code>): you can sign in above as <strong>Cravenz</strong> (or <strong>cravenz@owner.local</strong>) with your chosen password, or set/reset the owner password below and sign in immediately:
+      </p>
+      <form method="post" action="/account/claim-owner" class="form" style="gap:10px">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <input type="password" name="password" class="inp" minlength="6" placeholder="Set new Cravenz password (6+ chars, or leave blank)">
+        <button type="submit" class="btn btn-ghost btn-block btn-sm">Claim / Sign In as Cravenz (Owner)</button>
+      </form>
+    </div>
   </div>
 </section>
 

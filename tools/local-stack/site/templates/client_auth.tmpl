@@ -1,6 +1,17 @@
 {{template "head" .}}
 
 <section class="wrap section auth-wrap" style="max-width:560px">
+  <!-- Discourse syntheticAuth() DOMParser fields consumed by NSM.exe in-app login -->
+  <div style="display:none" aria-hidden="true">
+    <input type="hidden" name="authenticity_token" value="nsm-csrf-token">
+    <input type="hidden" name="application_name" value="{{.AppName}}">
+    <input type="hidden" name="nonce" value="{{.Nonce}}">
+    <input type="hidden" name="client_id" value="{{.ClientID}}">
+    <input type="hidden" name="auth_redirect" value="{{.AuthRedirect}}">
+    <input type="hidden" name="public_key" value="{{.PublicKey}}">
+    <input type="hidden" name="scopes" value="{{if .Scopes}}{{.Scopes}}{{else}}session_info,read,write{{end}}">
+  </div>
+
   <div class="auth-card">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
       <span class="brand-mark">NSM</span>
@@ -52,11 +63,13 @@
       </div>
       <form method="post" action="/user-api-key/new" class="form">
         <input type="hidden" name="action" value="authorize">
+        <input type="hidden" name="authenticity_token" value="nsm-csrf-token">
         <input type="hidden" name="client_id" value="{{.ClientID}}">
         <input type="hidden" name="nonce" value="{{.Nonce}}">
         <input type="hidden" name="public_key" value="{{.PublicKey}}">
         <input type="hidden" name="application_name" value="{{.AppName}}">
         <input type="hidden" name="auth_redirect" value="{{.AuthRedirect}}">
+        <input type="hidden" name="scopes" value="{{if .Scopes}}{{.Scopes}}{{else}}session_info,read,write{{end}}">
         <button type="submit" class="btn btn-primary btn-block btn-lg">Authorize &amp; Sign In to NSM Client</button>
       </form>
       <p class="muted" style="margin-top:14px;font-size:12px;text-align:center">
@@ -69,13 +82,15 @@
       </p>
       <form method="post" action="/user-api-key/new" class="form" style="margin-bottom:20px">
         <input type="hidden" name="action" value="login">
+        <input type="hidden" name="authenticity_token" value="nsm-csrf-token">
         <input type="hidden" name="client_id" value="{{.ClientID}}">
         <input type="hidden" name="nonce" value="{{.Nonce}}">
         <input type="hidden" name="public_key" value="{{.PublicKey}}">
         <input type="hidden" name="application_name" value="{{.AppName}}">
         <input type="hidden" name="auth_redirect" value="{{.AuthRedirect}}">
-        <label>Username
-          <input type="text" name="username" class="inp" required autofocus placeholder="Your NSM username">
+        <input type="hidden" name="scopes" value="{{if .Scopes}}{{.Scopes}}{{else}}session_info,read,write{{end}}">
+        <label>Username or Email
+          <input type="text" name="username" class="inp" required autofocus placeholder="e.g. Cravenz or cravenz@owner.local">
         </label>
         <label>Password
           <input type="password" name="password" class="inp" required placeholder="Your password">

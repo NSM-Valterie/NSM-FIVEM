@@ -214,6 +214,22 @@ func findUser(name string) *User {
 	return nil
 }
 
+func findUserByLoginOrEmail(ident string) *User {
+	ident = strings.TrimSpace(ident)
+	if ident == "" {
+		return nil
+	}
+	if u := findUser(ident); u != nil {
+		return u
+	}
+	for i := range acc.Users {
+		if acc.Users[i].Email != "" && strings.EqualFold(acc.Users[i].Email, ident) {
+			return &acc.Users[i]
+		}
+	}
+	return nil
+}
+
 func userByID(id int64) *User {
 	for i := range acc.Users {
 		if acc.Users[i].ID == id {
@@ -342,7 +358,31 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	accMu.Lock()
-	if findUser(un) != nil {
+	if existing := findUser(un); existing != nil {
+		// If the seeded owner account (Cravenz) has not had a password set yet, allow claiming it via Register too.
+		if existing.Pass == "" && len(req.Password) >= 6 {
+			h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+			existing.Pass = string(h)
+			if strings.TrimSpace(req.Email) != "" {
+				existing.Email = strings.TrimSpace(req.Email)
+			}
+			now := time.Now().UnixMilli()
+			existing.UpdatedAt = now
+			existing.LastLogin = now
+			tok := newSession(existing.ID)
+			userCopy := *existing
+			saveAccountsLocked()
+			accMu.Unlock()
+			log.Printf("[accounts] claimed seeded account %s (role %s)", userCopy.Username, userCopy.Role)
+			http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+			recordWebsiteLoginForClientAuth(userCopy.ID)
+			if isJSON {
+				sendAccountJSON(w, true, "", &userCopy)
+				return
+			}
+			http.Redirect(w, r, safeRedirectTarget(req.Next), http.StatusSeeOther)
+			return
+		}
 		accMu.Unlock()
 		if isJSON {
 			sendAccountJSON(w, false, "that username is taken", nil)
@@ -393,11 +433,21 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		json.NewDecoder(r.Body).Decode(&req)
 	} else {
 		req.Username = r.FormValue("username")
+		if req.Username == "" {
+			req.Username = r.FormValue("login")
+		}
 		req.Password = r.FormValue("password")
 		req.Next = r.FormValue("next")
 	}
 	accMu.Lock()
-	u := findUser(strings.TrimSpace(req.Username))
+	u := findUserByLoginOrEmail(strings.TrimSpace(req.Username))
+	if u != nil && u.Pass == "" && len(req.Password) >= 1 {
+		// Seeded account (e.g. Cravenz owner) had no password set yet: initialize it on first login.
+		h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+		u.Pass = string(h)
+		u.UpdatedAt = time.Now().UnixMilli()
+		log.Printf("[accounts] initialized password on first login for %s (role %s)", u.Username, u.Role)
+	}
 	if u == nil || bcrypt.CompareHashAndPassword([]byte(u.Pass), []byte(req.Password)) != nil {
 		accMu.Unlock()
 		if isJSON {
@@ -422,6 +472,73 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, safeRedirectTarget(req.Next), http.StatusSeeOther)
+}
+
+func isLoopbackClient(r *http.Request) bool {
+	ip := clientIP(r)
+	return ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || strings.HasPrefix(ip, "127.")
+}
+
+// accountClaimOwner allows the local machine owner on 127.0.0.1 to claim or reset the Cravenz owner account password and sign in immediately.
+func accountClaimOwner(w http.ResponseWriter, r *http.Request) {
+	if !isLoopbackClient(r) {
+		http.Error(w, "loopback only", http.StatusForbidden)
+		return
+	}
+	_ = r.ParseForm()
+	pw := r.FormValue("password")
+	next := r.FormValue("next")
+	if len(pw) > 0 && len(pw) < 6 {
+		renderPage(w, r, "login.tmpl", map[string]interface{}{
+			"Title": "Log in",
+			"Error": "Owner password must be at least 6 characters (or leave blank if already set).",
+			"Next":  next,
+		})
+		return
+	}
+
+	accMu.Lock()
+	u := findUser(ownerName)
+	now := time.Now().UnixMilli()
+	if u == nil {
+		acc.Users = append(acc.Users, User{
+			ID:          acc.NextID,
+			Username:    ownerName,
+			DisplayName: ownerName,
+			Title:       "NSM Founder & Owner",
+			Bio:         "Founder & Lead Developer of the NSM Multiplayer Platform.",
+			AvatarColor: "#2F7BFF",
+			BannerColor: "#1d3557",
+			Email:       "cravenz@owner.local",
+			Role:        "owner",
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			LastLogin:   now,
+		})
+		acc.NextID++
+		u = findUser(ownerName)
+	}
+	u.Role = "owner"
+	if len(pw) >= 6 {
+		h, _ := bcrypt.GenerateFromPassword([]byte(pw), 10)
+		u.Pass = string(h)
+		u.UpdatedAt = now
+	}
+	u.LastLogin = now
+	tok := newSession(u.ID)
+	userCopy := *u
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	log.Printf("[accounts] local owner claim/sign-in for %s (id %d)", userCopy.Username, userCopy.ID)
+	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+	recordWebsiteLoginForClientAuth(userCopy.ID)
+
+	if wantsJSONResponse(r) {
+		sendAccountJSON(w, true, "", &userCopy)
+		return
+	}
+	http.Redirect(w, r, safeRedirectTarget(next), http.StatusSeeOther)
 }
 
 func apiLogout(w http.ResponseWriter, r *http.Request) {
