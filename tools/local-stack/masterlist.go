@@ -987,16 +987,35 @@ func stopPreviousMasterlistInstances(addr string, port int) {
 		return
 	}
 
-	// 2. Kill any previous NSM-Masterlist.exe (or NSM-Masterlist (1).exe) process except our own PID
-	_ = exec.Command("taskkill", "/F", "/IM", "NSM-Masterlist.exe", "/FI", fmt.Sprintf("PID ne %d", pid)).Run()
-	if exe, err := os.Executable(); err == nil {
-		base := filepath.Base(exe)
-		if base != "" && !strings.EqualFold(base, "NSM-Masterlist.exe") {
-			_ = exec.Command("taskkill", "/F", "/IM", base, "/FI", fmt.Sprintf("PID ne %d", pid)).Run()
+	killPID := func(targetPID int) {
+		if targetPID <= 4 || targetPID == pid {
+			return
+		}
+		if proc, err := os.FindProcess(targetPID); err == nil && proc != nil {
+			_ = proc.Kill()
+		}
+		_ = exec.Command("taskkill", "/F", "/PID", strconv.Itoa(targetPID)).Run()
+	}
+
+	// 2. Find any NSM-Masterlist*.exe process via tasklist CSV output and terminate it without touching the console window
+	if out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output(); err == nil {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			parts := strings.Split(line, ",")
+			if len(parts) >= 2 {
+				imgName := strings.ToLower(strings.Trim(parts[0], `"`))
+				pidStr := strings.Trim(parts[1], `"`)
+				if strings.HasPrefix(imgName, "nsm-masterlist") {
+					if otherPID, err := strconv.Atoi(pidStr); err == nil {
+						killPID(otherPID)
+					}
+				}
+			}
 		}
 	}
-	psCmd := fmt.Sprintf("Get-Process | Where-Object { ($_.ProcessName -like 'NSM-Masterlist*' -or $_.ProcessName -like 'nsm-masterlist*') -and $_.Id -ne %d } | Stop-Process -Force -ErrorAction SilentlyContinue", pid)
-	_ = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psCmd).Run()
 
 	// 3. Also check netstat for any user process holding 127.0.0.1:<port>
 	if out, err := exec.Command("netstat", "-ano", "-p", "tcp").Output(); err == nil {
@@ -1006,9 +1025,8 @@ func stopPreviousMasterlistInstances(addr string, port int) {
 			if len(fields) >= 5 && strings.EqualFold(fields[0], "TCP") && strings.EqualFold(fields[3], "LISTENING") {
 				localAddr := fields[1]
 				if strings.HasSuffix(localAddr, targetSuffix) {
-					otherPID, err := strconv.Atoi(fields[4])
-					if err == nil && otherPID > 4 && otherPID != pid {
-						_ = exec.Command("taskkill", "/F", "/PID", strconv.Itoa(otherPID)).Run()
+					if otherPID, err := strconv.Atoi(fields[4]); err == nil {
+						killPID(otherPID)
 					}
 				}
 			}
@@ -1022,12 +1040,20 @@ func pauseBeforeExitOnWindows(format string, args ...interface{}) {
 	if runtime.GOOS == "windows" {
 		fmt.Println("\n------------------------------------------------------------")
 		fmt.Println("Press Enter to close this window...")
-		_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+		if _, err := bufio.NewReader(os.Stdin).ReadBytes('\n'); err != nil {
+			time.Sleep(30 * time.Second)
+		}
 	}
 	os.Exit(1)
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			pauseBeforeExitOnWindows("PANIC in NSM-Masterlist: %v", r)
+		}
+	}()
+
 	// Ensure working directory is the executable's directory when launched by double-click on Windows
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
