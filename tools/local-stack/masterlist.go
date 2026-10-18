@@ -44,6 +44,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -54,6 +55,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -970,7 +974,69 @@ var stateFile = flag.String("state", "state.json", "path to persistent state fil
 
 var ownerName = "Cravenz"
 
+func stopPreviousMasterlistInstances(addr string, port int) {
+	pid := os.Getpid()
+	// 1. Politely ask any running NSM-Masterlist on this address to exit
+	cl := &http.Client{Timeout: 400 * time.Millisecond}
+	resp, err := cl.Post("http://"+addr+"/api/nsm/internal-restart", "application/json", strings.NewReader(`{}`))
+	if err == nil && resp != nil {
+		resp.Body.Close()
+	}
+
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	// 2. Kill any previous NSM-Masterlist.exe (or NSM-Masterlist (1).exe) process except our own PID
+	_ = exec.Command("taskkill", "/F", "/IM", "NSM-Masterlist.exe", "/FI", fmt.Sprintf("PID ne %d", pid)).Run()
+	if exe, err := os.Executable(); err == nil {
+		base := filepath.Base(exe)
+		if base != "" && !strings.EqualFold(base, "NSM-Masterlist.exe") {
+			_ = exec.Command("taskkill", "/F", "/IM", base, "/FI", fmt.Sprintf("PID ne %d", pid)).Run()
+		}
+	}
+	psCmd := fmt.Sprintf("Get-Process | Where-Object { ($_.ProcessName -like 'NSM-Masterlist*' -or $_.ProcessName -like 'nsm-masterlist*') -and $_.Id -ne %d } | Stop-Process -Force -ErrorAction SilentlyContinue", pid)
+	_ = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psCmd).Run()
+
+	// 3. Also check netstat for any user process holding 127.0.0.1:<port>
+	if out, err := exec.Command("netstat", "-ano", "-p", "tcp").Output(); err == nil {
+		targetSuffix := ":" + strconv.Itoa(port)
+		for _, line := range strings.Split(string(out), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) >= 5 && strings.EqualFold(fields[0], "TCP") && strings.EqualFold(fields[3], "LISTENING") {
+				localAddr := fields[1]
+				if strings.HasSuffix(localAddr, targetSuffix) {
+					otherPID, err := strconv.Atoi(fields[4])
+					if err == nil && otherPID > 4 && otherPID != pid {
+						_ = exec.Command("taskkill", "/F", "/PID", strconv.Itoa(otherPID)).Run()
+					}
+				}
+			}
+		}
+	}
+}
+
+func pauseBeforeExitOnWindows(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	log.Println(msg)
+	if runtime.GOOS == "windows" {
+		fmt.Println("\n------------------------------------------------------------")
+		fmt.Println("Press Enter to close this window...")
+		_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
+	os.Exit(1)
+}
+
 func main() {
+	// Ensure working directory is the executable's directory when launched by double-click on Windows
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		base := strings.ToLower(filepath.Base(exe))
+		if exeDir != "" && !strings.Contains(base, ".test") {
+			_ = os.Chdir(exeDir)
+		}
+	}
+
 	bind := flag.String("bind", "127.0.0.1", "loopback address for local-only service")
 	port := flag.Int("port", 80, "port to listen on")
 	owner := flag.String("owner-token", os.Getenv("OWNER_TOKEN"), "owner admin API bearer token")
@@ -981,16 +1047,16 @@ func main() {
 	flag.Parse()
 	requireKeys = *reqKeys
 	if ip := net.ParseIP(*bind); ip == nil || !ip.IsLoopback() {
-		log.Fatal("local-first backend requires a loopback bind address")
+		pauseBeforeExitOnWindows("local-first backend requires a loopback bind address")
 	}
 	if *port < 1 || *port > 65535 {
-		log.Fatal("invalid HTTP port")
+		pauseBeforeExitOnWindows("invalid HTTP port")
 	}
 	if *keyPath != "" {
 		var err error
 		ticketPublicKey, err = readTicketPublicKey(*keyPath)
 		if err != nil {
-			log.Fatal(err)
+			pauseBeforeExitOnWindows("ticket public key error: %v", err)
 		}
 	}
 
@@ -1013,6 +1079,23 @@ func main() {
 	patchLocalUIBundlesOnDisk()
 
 	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Printf("Port %s is currently in use — stopping previous NSM-Masterlist instance...", addr)
+		stopPreviousMasterlistInstances(addr, *port)
+		for attempt := 0; attempt < 20; attempt++ {
+			time.Sleep(250 * time.Millisecond)
+			ln, err = net.Listen("tcp", addr)
+			if err == nil {
+				log.Printf("Successfully took over %s from previous instance.", addr)
+				break
+			}
+		}
+	}
+	if err != nil {
+		pauseBeforeExitOnWindows("Could not bind http://%s: %v\nTip: Try right-clicking NSM-Masterlist.exe and choosing 'Run as administrator'.", addr, err)
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           localHandler(),
@@ -1020,12 +1103,16 @@ func main() {
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("NSM Masterlist + Website + Accounts - listening on http://%s", addr)
-	log.Printf("  website:   /            accounts: /login /register   staff: /admin/users")
-	log.Printf("  masterlist: /api/servers/streamRedir/  server heartbeat: POST /api/serverlist/ingress")
-	log.Printf("  game cache proxy: %s", proxyRouteList())
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("listen error: %v", err)
-		os.Exit(1)
+	log.Printf("================================================================")
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-f)")
+	log.Printf("Listening on: http://%s", addr)
+	log.Printf("  Homepage:    http://%s/", addr)
+	log.Printf("  Server List: http://%s/servers", addr)
+	log.Printf("  AFX Forum:   http://%s/forum", addr)
+	log.Printf("  Your Profile:http://%s/u/Cravenz", addr)
+	log.Printf("  Edit Socials:http://%s/u/Cravenz?tab=preferences", addr)
+	log.Printf("================================================================")
+	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		pauseBeforeExitOnWindows("listen error: %v", err)
 	}
 }

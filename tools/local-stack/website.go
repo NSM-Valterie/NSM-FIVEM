@@ -462,6 +462,14 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("POST /api/keymaster/issue", apiKeymasterIssue)
 	mux.HandleFunc("POST /api/keymaster/revoke", apiKeymasterRevoke)
 	mux.HandleFunc("POST /api/nsm/servers/register", apiServerRegister)
+	mux.HandleFunc("POST /api/nsm/internal-restart", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		go func() {
+			time.Sleep(80 * time.Millisecond)
+			log.Printf("[restart] New NSM-Masterlist instance requested port takeover — exiting old instance.")
+			os.Exit(0)
+		}()
+	})
 
 	// updater: no updates in local mode
 	mux.HandleFunc("/updates/", func(w http.ResponseWriter, r *http.Request) {
