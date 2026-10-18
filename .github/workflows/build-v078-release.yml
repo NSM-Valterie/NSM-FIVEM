@@ -69,6 +69,8 @@ jobs:
               buf = io.BytesIO()
               with zipfile.ZipFile(io.BytesIO(raw_bytes), "r") as zin, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zout:
                   for info in zin.infolist():
+                      if info.is_dir():
+                          continue
                       body = zin.read(info.filename)
                       lower = info.filename.lower()
                       if lower.endswith((".js", ".html", ".json")):
@@ -85,7 +87,7 @@ jobs:
                                   body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
                               else:
                                   body += POLL_SNIPPET
-                      zout.writestr(info, body)
+                      zout.writestr(info.filename, body)
               return buf.getvalue()
 
           overlay = {
@@ -97,16 +99,20 @@ jobs:
               if p.is_file() and "__pycache__" not in p.parts:
                   overlay["NSM-Client/repair-info/source/" + p.relative_to("tools/local-stack").as_posix()] = p.read_bytes()
 
+          with zipfile.ZipFile(base_zip, "r") as zin:
+              for ui_name in ("NSM-Client/citizen/ui.zip", "NSM-Client/citizen/ui-big.zip"):
+                  if ui_name in zin.namelist():
+                      patched_ui = patch_ui_archive(zin.read(ui_name))
+                      overlay[ui_name] = patched_ui
+                      if ui_name == "NSM-Client/citizen/ui.zip":
+                          Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
+
           sums = {}
           with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
               for info in zin.infolist():
                   if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt" or info.filename in overlay:
                       continue
                   data = zin.read(info.filename)
-                  if info.filename in ("NSM-Client/citizen/ui.zip", "NSM-Client/citizen/ui-big.zip"):
-                      data = patch_ui_archive(data)
-                      if info.filename == "NSM-Client/citizen/ui.zip":
-                          Path("/tmp/patched-ui.zip").write_bytes(data)
                   zout.writestr(info, data)
                   sums[info.filename] = sha(data)
               for name, data in sorted(overlay.items()):
