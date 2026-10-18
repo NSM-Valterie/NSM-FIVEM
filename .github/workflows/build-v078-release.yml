@@ -29,12 +29,32 @@ jobs:
           go-version: "1.22"
           cache-dependency-path: tools/local-stack/go.sum
 
-      - name: Run Go tests, race detector, and vet on tools/local-stack
+      - name: Run Go tests, race detector, vet, and live main() startup smoke test on tools/local-stack
         working-directory: tools/local-stack
         run: |
+          set -euo pipefail
           go vet ./...
-          go test -v ./... | tee /tmp/go-tests.txt
-          go test -race -v ./... | tee /tmp/race-tests.txt
+          go test -v ./... > /tmp/go-tests.txt
+          cat /tmp/go-tests.txt
+          go test -race -v ./... > /tmp/race-tests.txt
+          mkdir -p /tmp/smoke-dir
+          go build -o /tmp/smoke-dir/nsm-masterlist-smoke .
+          (
+            cd /tmp/smoke-dir
+            /tmp/smoke-dir/nsm-masterlist-smoke -bind 127.0.0.1 -port 18089 &
+            SMOKE_PID=$!
+            trap "kill $SMOKE_PID 2>/dev/null || true" EXIT
+            sleep 1
+            curl -sf http://127.0.0.1:18089/health | grep -q "0.7.7-local"
+            curl -sf http://127.0.0.1:18089/ > /dev/null
+            curl -sf http://127.0.0.1:18089/servers > /dev/null
+            curl -sf http://127.0.0.1:18089/forum > /dev/null
+            curl -sf http://127.0.0.1:18089/u > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/preferences > /dev/null
+            kill $SMOKE_PID 2>/dev/null || true
+            trap - EXIT
+          )
 
       - name: Cross-compile Windows x64 NSM-Masterlist.exe
         working-directory: tools/local-stack

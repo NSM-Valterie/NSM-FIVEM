@@ -385,12 +385,13 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /u", usersDirectoryPage)
 	mux.HandleFunc("GET /users", usersDirectoryPage)
 	mux.HandleFunc("POST /u", serveDiscourseCreateUser)
-	mux.HandleFunc("/u/action/send_activation_email", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /u/action/send_activation_email", func(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
 	})
 	mux.HandleFunc("GET /u/{username}", userProfilePage)
 	mux.HandleFunc("GET /u/{username}/{tab}", userProfilePage)
 	mux.HandleFunc("GET /users/{username}", userProfilePage)
+	mux.HandleFunc("GET /users/{username}/{tab}", userProfilePage)
 	mux.HandleFunc("GET /avatars/u/{username}/{size}", serveUserAvatar)
 	mux.HandleFunc("/f/avatars/u/{username}/{size}", serveUserAvatar)
 

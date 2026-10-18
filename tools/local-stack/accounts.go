@@ -1138,6 +1138,10 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 
 func userProfilePage(w http.ResponseWriter, r *http.Request) {
 	rawName := r.PathValue("username")
+	if rawName == "action" && r.PathValue("tab") == "send_activation_email" {
+		sendJSON(w, http.StatusOK, map[string]string{"success": "OK"})
+		return
+	}
 	if strings.HasSuffix(strings.ToLower(rawName), ".json") || wantsJSONResponse(r) {
 		serveDiscourseUserJSON(w, r, strings.TrimSuffix(rawName, ".json"))
 		return

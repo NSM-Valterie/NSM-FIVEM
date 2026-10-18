@@ -44,7 +44,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -1097,27 +1096,7 @@ func stopPreviousMasterlistInstances(addr string, port int) {
 	}
 }
 
-func pauseBeforeExitOnWindows(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	log.Println(msg)
-	if runtime.GOOS == "windows" {
-		fmt.Println("\nERROR:", msg)
-		fmt.Println("------------------------------------------------------------")
-		fmt.Println("Press Enter to close this window...")
-		if _, err := bufio.NewReader(os.Stdin).ReadBytes('\n'); err != nil {
-			time.Sleep(30 * time.Second)
-		}
-	}
-	os.Exit(1)
-}
-
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			pauseBeforeExitOnWindows("PANIC in NSM-Masterlist: %v", r)
-		}
-	}()
-
 	// Ensure working directory is the executable's directory when launched by double-click on Windows
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
@@ -1137,16 +1116,16 @@ func main() {
 	flag.Parse()
 	requireKeys = *reqKeys
 	if ip := net.ParseIP(*bind); ip == nil || !ip.IsLoopback() {
-		pauseBeforeExitOnWindows("local-first backend requires a loopback bind address")
+		log.Fatal("local-first backend requires a loopback bind address")
 	}
 	if *port < 1 || *port > 65535 {
-		pauseBeforeExitOnWindows("invalid HTTP port")
+		log.Fatal("invalid HTTP port")
 	}
 	if *keyPath != "" {
 		var err error
 		ticketPublicKey, err = readTicketPublicKey(*keyPath)
 		if err != nil {
-			pauseBeforeExitOnWindows("ticket public key error: %v", err)
+			log.Fatalf("ticket public key error: %v", err)
 		}
 	}
 
@@ -1189,7 +1168,7 @@ func main() {
 		}
 	}
 	if err != nil {
-		pauseBeforeExitOnWindows("Could not bind http://%s: %v\nTip: Try right-clicking NSM-Masterlist.exe and choosing 'Run as administrator'.", addr, err)
+		log.Fatalf("listen error on %s: %v", addr, err)
 	}
 
 	loadState()
@@ -1214,7 +1193,7 @@ func main() {
 	activeSrvMu.Unlock()
 
 	log.Printf("================================================================")
-	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-g)")
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-h)")
 	log.Printf("Listening on: http://%s", addr)
 	log.Printf("  Homepage:    http://%s/", addr)
 	log.Printf("  Server List: http://%s/servers", addr)
@@ -1223,6 +1202,6 @@ func main() {
 	log.Printf("  Edit Socials:http://%s/u/Cravenz?tab=preferences", addr)
 	log.Printf("================================================================")
 	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		pauseBeforeExitOnWindows("listen error: %v", err)
+		log.Fatalf("listen error: %v", err)
 	}
 }
