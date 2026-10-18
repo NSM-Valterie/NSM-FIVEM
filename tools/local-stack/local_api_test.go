@@ -970,8 +970,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	reqDMBlocked.Header.Set("X-NSM-Session", customSess)
 	wDMBlocked := httptest.NewRecorder()
 	h.ServeHTTP(wDMBlocked, reqDMBlocked)
-	if !strings.Contains(wDMBlocked.Header().Get("Location"), "err=") {
-		t.Fatalf("expected DM before adding friend to redirect with err=, got %s", wDMBlocked.Header().Get("Location"))
+	if !strings.Contains(wDMBlocked.Body.String(), "You must add @nta~ as a friend before you can text them") {
+		t.Fatalf("expected DM before adding friend to be blocked, got status %d", wDMBlocked.Code)
 	}
 
 	// Now add nta~ via POST /account/friends and verify DM succeeds
