@@ -5254,3 +5254,515 @@ body.dc-ember-body .container {
   color: #d6dce8;
 }
 
+/* ==========================================================================
+   FULL-PAGE USER PROFILE COLOR TRANSFORMATION (/u/<username>)
+   Transforms the entire /u/ page (background, header, sidebar, cards, tabs)
+   to the user's chosen --prof-primary, --prof-accent, --prof-banner colors!
+   ========================================================================== */
+body.user-full-themed-page {
+  position: relative;
+  min-height: 100vh;
+  background-color: #0d1017 !important;
+  background-image:
+    radial-gradient(circle at 14% 8%, rgba(var(--prof-primary-rgb), 0.36) 0%, transparent 46%),
+    radial-gradient(circle at 86% 16%, rgba(var(--prof-accent-rgb), 0.34) 0%, transparent 48%),
+    radial-gradient(circle at 50% 92%, rgba(var(--prof-primary-rgb), 0.24) 0%, transparent 55%),
+    linear-gradient(165deg, rgba(var(--prof-primary-rgb), 0.20) 0%, rgba(13, 16, 23, 0.94) 48%, rgba(var(--prof-accent-rgb), 0.22) 100%) !important;
+  background-attachment: fixed !important;
+  transition: background 0.25s ease;
+}
+
+body.user-full-themed-page .d-header {
+  background: linear-gradient(90deg, rgba(14, 17, 24, 0.88) 0%, rgba(var(--prof-primary-rgb), 0.26) 50%, rgba(var(--prof-accent-rgb), 0.24) 100%) !important;
+  border-bottom: 1px solid rgba(var(--prof-primary-rgb), 0.48) !important;
+  box-shadow: 0 6px 26px rgba(var(--prof-primary-rgb), 0.22) !important;
+  backdrop-filter: blur(14px);
+}
+
+body.user-full-themed-page .sidebar-wrapper {
+  background: linear-gradient(180deg, rgba(var(--prof-primary-rgb), 0.16) 0%, rgba(15, 18, 26, 0.86) 65%, rgba(var(--prof-accent-rgb), 0.14) 100%) !important;
+  border-right: 1px solid rgba(var(--prof-primary-rgb), 0.36) !important;
+  backdrop-filter: blur(12px);
+}
+
+body.user-full-themed-page .sidebar-section-link.active,
+body.user-full-themed-page .sidebar-section-link:hover {
+  background: linear-gradient(90deg, rgba(var(--prof-primary-rgb), 0.32), rgba(var(--prof-accent-rgb), 0.20)) !important;
+  color: #ffffff !important;
+  border-left: 3px solid var(--prof-primary);
+}
+
+body.user-full-themed-page .user-main .about.has-background .details {
+  background:
+    linear-gradient(145deg, rgba(var(--prof-primary-rgb), 0.24) 0%, rgba(18, 21, 30, 0.92) 55%, rgba(var(--prof-accent-rgb), 0.22) 100%) !important;
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.48) !important;
+  border-top: none !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 32px rgba(var(--prof-primary-rgb), 0.18) !important;
+}
+
+body.user-full-themed-page .user-main .about .secondary {
+  background: linear-gradient(90deg, rgba(var(--prof-primary-rgb), 0.22) 0%, rgba(14, 16, 24, 0.92) 50%, rgba(var(--prof-accent-rgb), 0.22) 100%) !important;
+  border-top: 1px solid rgba(var(--prof-primary-rgb), 0.38) !important;
+}
+
+body.user-full-themed-page .user-primary-navigation {
+  background: linear-gradient(90deg, rgba(var(--prof-primary-rgb), 0.18), rgba(var(--prof-accent-rgb), 0.15)) !important;
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.38) !important;
+  border-radius: 10px;
+  padding: 8px 12px !important;
+  margin-bottom: 18px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+body.user-full-themed-page .top-section,
+body.user-full-themed-page .d-pref-card,
+body.user-full-themed-page .user-stream-item,
+body.user-full-themed-page .d-profile-topic-list {
+  background: linear-gradient(145deg, rgba(20, 24, 34, 0.88) 0%, rgba(var(--prof-primary-rgb), 0.14) 100%) !important;
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.36) !important;
+  border-radius: 10px !important;
+  padding: 18px 20px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32), 0 0 20px rgba(var(--prof-primary-rgb), 0.08);
+}
+
+body.user-full-themed-page .stats-section li {
+  background: linear-gradient(135deg, rgba(var(--prof-primary-rgb), 0.20) 0%, rgba(var(--prof-accent-rgb), 0.14) 100%) !important;
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.42) !important;
+}
+
+/* ==========================================================================
+   MOVING PROFILE EFFECTS (Full-Page Ambient + Banner Animations)
+   ========================================================================== */
+.fx-page-ambient-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.d-header,
+.d-outlet-wrapper {
+  position: relative;
+  z-index: 1;
+}
+.fx-layer {
+  position: absolute;
+  inset: -20%;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+@keyframes nsmAuroraDrift {
+  0% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(4%, 3%, 0) rotate(4deg) scale(1.06); }
+  100% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
+}
+@keyframes nsmGridScroll {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 0 60px, 60px 0; }
+}
+@keyframes nsmStarTwinkle {
+  0%, 100% { transform: translateY(0px) scale(1); opacity: 0.45; }
+  50% { transform: translateY(-18px) scale(1.04); opacity: 0.85; }
+}
+@keyframes nsmVoltFlash {
+  0%, 88%, 100% { opacity: 0.22; }
+  90% { opacity: 0.72; }
+  92% { opacity: 0.28; }
+  94% { opacity: 0.85; }
+}
+@keyframes nsmPrismHue {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+body.fx-effect-aurora_waves .fx-layer-aurora {
+  opacity: 1;
+  background:
+    radial-gradient(ellipse at 25% 20%, rgba(var(--prof-primary-rgb), 0.34), transparent 55%),
+    radial-gradient(ellipse at 75% 35%, rgba(var(--prof-accent-rgb), 0.32), transparent 55%),
+    radial-gradient(ellipse at 50% 80%, rgba(var(--prof-primary-rgb), 0.24), transparent 60%);
+  animation: nsmAuroraDrift 11s ease-in-out infinite;
+}
+
+body.fx-effect-cyber_matrix .fx-layer-grid {
+  opacity: 0.42;
+  background-image:
+    linear-gradient(to bottom, rgba(var(--prof-primary-rgb), 0.26) 1px, transparent 1px),
+    linear-gradient(to right, rgba(var(--prof-accent-rgb), 0.26) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: nsmGridScroll 4.5s linear infinite;
+}
+
+body.fx-effect-starlight_warp .fx-layer-stars {
+  opacity: 0.75;
+  background-image:
+    radial-gradient(2px 2px at 15% 25%, #ffffff, transparent),
+    radial-gradient(2.5px 2.5px at 35% 65%, var(--prof-primary), transparent),
+    radial-gradient(2px 2px at 55% 18%, var(--prof-accent), transparent),
+    radial-gradient(3px 3px at 78% 48%, #ffffff, transparent),
+    radial-gradient(2px 2px at 88% 82%, var(--prof-primary), transparent),
+    radial-gradient(2.5px 2.5px at 22% 85%, var(--prof-accent), transparent);
+  background-size: 320px 320px;
+  animation: nsmStarTwinkle 5s ease-in-out infinite;
+}
+
+body.fx-effect-thunder_storm .fx-layer-lightning {
+  opacity: 1;
+  background:
+    linear-gradient(125deg, transparent 42%, rgba(var(--prof-primary-rgb), 0.45) 49%, rgba(255, 255, 255, 0.75) 50%, rgba(var(--prof-accent-rgb), 0.45) 51%, transparent 58%);
+  animation: nsmVoltFlash 4.2s infinite;
+}
+
+body.fx-effect-solar_embers .fx-layer-embers {
+  opacity: 0.75;
+  background:
+    radial-gradient(circle at 20% 90%, rgba(var(--prof-primary-rgb), 0.42), transparent 40%),
+    radial-gradient(circle at 80% 85%, rgba(var(--prof-accent-rgb), 0.42), transparent 42%),
+    radial-gradient(3px 3px at 45% 60%, var(--prof-accent), transparent);
+  animation: nsmStarTwinkle 3.8s ease-in-out infinite;
+}
+
+body.fx-effect-holo_prism .fx-layer-prism {
+  opacity: 0.65;
+  background: linear-gradient(135deg, rgba(var(--prof-primary-rgb), 0.35), rgba(var(--prof-accent-rgb), 0.35), rgba(56, 189, 248, 0.3));
+  animation: nsmPrismHue 8s linear infinite;
+}
+
+.user-profile-banner-fx {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 0px, rgba(255, 255, 255, 0.04) 2px, transparent 2px, transparent 12px);
+  pointer-events: none;
+}
+
+.d-pulse-banner-tag {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(var(--prof-primary-rgb), 0.88), rgba(var(--prof-accent-rgb), 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* ==========================================================================
+   ANIMATED AVATAR DECORATIONS (Cat Ears, Sovereign Crown, Cyber Visor, etc.)
+   ========================================================================== */
+.user-profile-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-deco-layer {
+  position: absolute;
+  inset: -24px;
+  pointer-events: none;
+  z-index: 4;
+}
+.deco-svg,
+.deco-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+@keyframes nsmCatEarTwitchLeft {
+  0%, 84%, 100% { transform: rotate(0deg); }
+  88% { transform: rotate(-9deg) translateY(-2px); }
+  92% { transform: rotate(4deg); }
+}
+@keyframes nsmCatEarTwitchRight {
+  0%, 84%, 100% { transform: rotate(0deg); }
+  88% { transform: rotate(9deg) translateY(-2px); }
+  92% { transform: rotate(-4deg); }
+}
+@keyframes nsmCrownFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes nsmSpinSlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 1. Neon Cyber Cat Ears */
+.user-profile-avatar.deco-cat_ears .deco-cat-ears {
+  display: block;
+  filter: drop-shadow(0 0 10px var(--prof-primary)) drop-shadow(0 0 18px var(--prof-accent));
+}
+.user-profile-avatar.deco-cat_ears .cat-ear-left {
+  transform-origin: 38px 48px;
+  animation: nsmCatEarTwitchLeft 3.4s ease-in-out infinite;
+}
+.user-profile-avatar.deco-cat_ears .cat-ear-right {
+  transform-origin: 122px 48px;
+  animation: nsmCatEarTwitchRight 3.4s ease-in-out infinite;
+}
+
+/* 2. Sovereign Crown */
+.user-profile-avatar.deco-sovereign_crown .deco-sovereign-crown {
+  display: block;
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.85));
+  animation: nsmCrownFloat 2.8s ease-in-out infinite;
+}
+
+/* 3. Cyber Visor */
+.user-profile-avatar.deco-cyber_visor .deco-cyber-visor {
+  display: block;
+  filter: drop-shadow(0 0 10px #38bdf8);
+}
+.user-profile-avatar.deco-cyber_visor .visor-orbit {
+  transform-origin: 80px 88px;
+  animation: nsmSpinSlow 7s linear infinite;
+}
+
+/* 4. Plasma Flame Aura */
+.user-profile-avatar.deco-plasma_flames .deco-plasma-ring {
+  display: block;
+  inset: 14px;
+  border-radius: 50%;
+  border: 4px dashed var(--prof-accent);
+  box-shadow: 0 0 22px var(--prof-primary), inset 0 0 18px var(--prof-accent);
+  animation: nsmSpinSlow 4s linear infinite;
+}
+
+/* 5. Volt Lightning Storm */
+.user-profile-avatar.deco-volt_lightning .deco-volt-ring {
+  display: block;
+  inset: 12px;
+  border-radius: 50%;
+  border: 3px dotted #fde047;
+  box-shadow: 0 0 24px #38bdf8, 0 0 14px #fde047;
+  animation: nsmSpinSlow 2.6s linear infinite;
+}
+
+/* 6. Sakura Blossom Vortex */
+.user-profile-avatar.deco-sakura_drift .deco-sakura-ring {
+  display: block;
+  inset: 12px;
+  border-radius: 50%;
+  border: 4px dotted #f472b6;
+  box-shadow: 0 0 20px #ec4899;
+  animation: nsmSpinSlow 6s linear infinite;
+}
+
+/* 7. Singularity Nebula */
+.user-profile-avatar.deco-singularity_orb .deco-nebula-ring {
+  display: block;
+  inset: 10px;
+  border-radius: 50%;
+  border: 3px double #a855f7;
+  box-shadow: 0 0 26px #6366f1, inset 0 0 16px #ec4899;
+  animation: nsmSpinSlow 5s linear infinite;
+}
+
+/* ==========================================================================
+   ROLE TAGS, GLOWING PROFILE HEADER BADGE TRAY & 18-BADGE COMPENDIUM
+   ========================================================================== */
+.d-role-tag.role-founder {
+  background: linear-gradient(135deg, #ffd700, #f59e0b) !important;
+  color: #111318 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.5);
+}
+.d-role-tag.role-partner {
+  background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+}
+.d-role-tag.role-pulse {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+}
+.avatar-flair.flair-founder {
+  background: linear-gradient(135deg, #ffd700, #f59e0b) !important;
+  color: #111318 !important;
+}
+.avatar-flair.flair-partner {
+  background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+  color: #ffffff !important;
+}
+
+.d-profile-badge-tray {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(12, 15, 22, 0.72);
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.42);
+  width: fit-content;
+}
+.d-tray-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.d-tray-badge svg {
+  width: 16px;
+  height: 16px;
+}
+.d-tray-badge:hover {
+  transform: translateY(-2px) scale(1.12);
+  box-shadow: 0 6px 16px rgba(var(--prof-primary-rgb), 0.55);
+}
+
+.d-badge-card.badge-locked {
+  opacity: 0.62;
+  border-style: dashed !important;
+}
+.d-badge-rarity-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.d-badge-rarity-pill.rarity-Mythic {
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.55);
+  color: #fde047;
+}
+.d-badge-rarity-pill.rarity-Legendary {
+  background: rgba(236, 72, 153, 0.2);
+  border: 1px solid rgba(236, 72, 153, 0.55);
+  color: #f472b6;
+}
+.d-badge-rarity-pill.rarity-Epic {
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  color: #c084fc;
+}
+.d-badge-rarity-pill.rarity-Rare {
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #7dd3fc;
+}
+.d-badge-unlock-how {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ba3b2;
+}
+.d-unlocked-check {
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   AFX PULSE MEMBERSHIP SHOWCASE & TIER CARDS
+   ========================================================================== */
+.d-btn-pulse-pill {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(139, 92, 246, 0.25)) !important;
+  border: 1px solid rgba(236, 72, 153, 0.55) !important;
+  color: #f9a8d4 !important;
+  font-weight: 700 !important;
+}
+.d-pulse-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(var(--prof-primary-rgb), 0.35);
+  flex-wrap: wrap;
+}
+.d-pulse-current-status {
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: rgba(12, 15, 22, 0.78);
+  border: 1px solid rgba(var(--prof-primary-rgb), 0.48);
+}
+.d-pulse-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 920px) {
+  .d-pulse-tiers-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.d-pulse-tier-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px 20px;
+  border-radius: 12px;
+  background: rgba(15, 18, 26, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+.d-pulse-tier-card.featured-tier {
+  border-color: var(--prof-primary);
+  box-shadow: 0 14px 36px rgba(var(--prof-primary-rgb), 0.28);
+}
+.d-pulse-tier-card.sovereign-tier {
+  border-color: #f59e0b;
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.14), rgba(15, 18, 26, 0.92), rgba(236, 72, 153, 0.16));
+}
+.d-pulse-popular-tag {
+  position: absolute;
+  top: -11px;
+  right: 16px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, var(--prof-primary), var(--prof-accent));
+  color: #ffffff;
+}
+.d-pulse-tier-head h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #ffffff;
+}
+.d-pulse-price {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 14px;
+}
+.d-pulse-price span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ba3b2;
+}
+.d-pulse-perks {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13.5px;
+  color: #d6dce8;
+}
+
+

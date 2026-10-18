@@ -28,34 +28,127 @@ import (
 )
 
 type User struct {
-	ID             int64  `json:"id"`
-	Username       string `json:"username"`
-	DisplayName    string `json:"displayName,omitempty"`
-	Title          string `json:"title,omitempty"`
-	Bio            string `json:"bio,omitempty"`
-	Signature      string `json:"signature,omitempty"`
-	AvatarURL      string `json:"avatarUrl,omitempty"`
-	AvatarData     string `json:"avatarData,omitempty"` // data:image/...;base64,...
-	AvatarColor    string `json:"avatarColor,omitempty"`
-	BannerColor    string `json:"bannerColor,omitempty"`
-	BannerURL      string `json:"bannerUrl,omitempty"`
-	ThemePrimary   string `json:"themePrimary,omitempty"`
-	ThemeAccent    string `json:"themeAccent,omitempty"`
-	Location       string `json:"location,omitempty"`
-	Website        string `json:"website,omitempty"`
-	DiscordTag     string `json:"discordTag,omitempty"`
-	GitHub         string `json:"github,omitempty"`
-	Steam          string `json:"steam,omitempty"`
-	YouTube        string `json:"youtube,omitempty"`
-	Twitch         string `json:"twitch,omitempty"`
-	Twitter        string `json:"twitter,omitempty"`
-	FavoriteServer string `json:"favoriteServer,omitempty"`
-	Email          string `json:"email"`
-	Pass           string `json:"pass"`
-	Role           string `json:"role"`
-	CreatedAt      int64  `json:"createdAt"`
-	UpdatedAt      int64  `json:"updatedAt,omitempty"`
-	LastLogin      int64  `json:"lastLogin,omitempty"`
+	ID               int64  `json:"id"`
+	Username         string `json:"username"`
+	DisplayName      string `json:"displayName,omitempty"`
+	Title            string `json:"title,omitempty"`
+	Bio              string `json:"bio,omitempty"`
+	Signature        string `json:"signature,omitempty"`
+	AvatarURL        string `json:"avatarUrl,omitempty"`
+	AvatarData       string `json:"avatarData,omitempty"` // data:image/...;base64,...
+	AvatarColor      string `json:"avatarColor,omitempty"`
+	BannerColor      string `json:"bannerColor,omitempty"`
+	BannerURL        string `json:"bannerUrl,omitempty"`
+	BannerData       string `json:"bannerData,omitempty"` // data:image/...;base64,... (supports animated GIF banners)
+	ThemePrimary     string `json:"themePrimary,omitempty"`
+	ThemeAccent      string `json:"themeAccent,omitempty"`
+	AvatarDecoration string `json:"avatarDecoration,omitempty"` // cat_ears, sovereign_crown, cyber_visor, plasma_flames, volt_lightning, sakura_drift, singularity_orb, none
+	ProfileEffect    string `json:"profileEffect,omitempty"`    // aurora_waves, cyber_matrix, starlight_warp, thunder_storm, solar_embers, holo_prism, none
+	PulseTier        string `json:"pulseTier,omitempty"`        // core, pro, sovereign, eternal
+	PulseSince       int64  `json:"pulseSince,omitempty"`
+	IsPartner        bool   `json:"isPartner,omitempty"`
+	SquadHouse       string `json:"squadHouse,omitempty"` // bravery, brilliance, balance, all
+	Location         string `json:"location,omitempty"`
+	Website          string `json:"website,omitempty"`
+	DiscordTag       string `json:"discordTag,omitempty"`
+	GitHub           string `json:"github,omitempty"`
+	Steam            string `json:"steam,omitempty"`
+	YouTube          string `json:"youtube,omitempty"`
+	Twitch           string `json:"twitch,omitempty"`
+	Twitter          string `json:"twitter,omitempty"`
+	FavoriteServer   string `json:"favoriteServer,omitempty"`
+	Email            string `json:"email"`
+	Pass             string `json:"pass"`
+	Role             string `json:"role"`
+	CreatedAt        int64  `json:"createdAt"`
+	UpdatedAt        int64  `json:"updatedAt,omitempty"`
+	LastLogin        int64  `json:"lastLogin,omitempty"`
+}
+
+func (u *User) IsFounderAccount() bool {
+	if u == nil {
+		return false
+	}
+	return strings.EqualFold(u.Username, ownerName) || strings.EqualFold(u.Username, "Cravenz") || u.Role == "owner" || u.ID == 1
+}
+
+func (u *User) EffectivePulseTier() string {
+	if u == nil {
+		return ""
+	}
+	if u.IsFounderAccount() {
+		return "eternal"
+	}
+	switch strings.ToLower(strings.TrimSpace(u.PulseTier)) {
+	case "eternal", "sovereign", "pro", "core":
+		return strings.ToLower(strings.TrimSpace(u.PulseTier))
+	default:
+		return ""
+	}
+}
+
+func (u *User) EffectivePulseTierLabel() string {
+	switch u.EffectivePulseTier() {
+	case "eternal":
+		return "AFX Pulse Eternal (Founder Forever)"
+	case "sovereign":
+		return "AFX Pulse Sovereign"
+	case "pro":
+		return "AFX Pulse Pro"
+	case "core":
+		return "AFX Pulse Core"
+	default:
+		return "Standard Member"
+	}
+}
+
+func (u *User) HasPulse() bool {
+	return u != nil && u.EffectivePulseTier() != ""
+}
+
+func (u *User) HasPulseProOrHigher() bool {
+	if u == nil {
+		return false
+	}
+	t := u.EffectivePulseTier()
+	return t == "pro" || t == "sovereign" || t == "eternal"
+}
+
+func (u *User) HasPartnerBadge() bool {
+	if u == nil {
+		return false
+	}
+	return u.IsPartner || u.Role == "partner" || u.IsFounderAccount()
+}
+
+func (u *User) EffectiveAvatarDecoration() string {
+	if u == nil {
+		return "none"
+	}
+	d := strings.ToLower(strings.TrimSpace(u.AvatarDecoration))
+	switch d {
+	case "cat_ears", "sovereign_crown", "cyber_visor", "plasma_flames", "volt_lightning", "sakura_drift", "singularity_orb", "none":
+		return d
+	}
+	if u.IsFounderAccount() {
+		return "cat_ears"
+	}
+	return "none"
+}
+
+func (u *User) EffectiveProfileEffect() string {
+	if u == nil {
+		return "none"
+	}
+	e := strings.ToLower(strings.TrimSpace(u.ProfileEffect))
+	switch e {
+	case "aurora_waves", "cyber_matrix", "starlight_warp", "thunder_storm", "solar_embers", "holo_prism", "none":
+		return e
+	}
+	if u.IsFounderAccount() {
+		return "aurora_waves"
+	}
+	return "none"
 }
 
 func (u *User) GitHubHandle() string {
@@ -149,7 +242,12 @@ func (u *User) EffectiveTitle() string {
 		return "NSM Administrator"
 	case "staff":
 		return "NSM Staff"
+	case "partner":
+		return "AFX Partnered Server Owner"
 	default:
+		if u.IsPartner {
+			return "AFX Partnered Server Owner"
+		}
 		return "NSM Community Member"
 	}
 }
@@ -262,10 +360,27 @@ func (u *User) ThemeStyleAttr() template.CSS {
 	)
 }
 
+func (u *User) BannerPath() string {
+	if u == nil {
+		return ""
+	}
+	if strings.HasPrefix(u.BannerData, "data:image/") {
+		v := u.UpdatedAt
+		if v == 0 {
+			v = u.CreatedAt
+		}
+		return "/banners/u/" + url.PathEscape(u.Username) + "?v=" + strconv.FormatInt(v, 10)
+	}
+	if u.BannerURL != "" && !strings.ContainsAny(u.BannerURL, `"'<>()\`) {
+		return u.BannerURL
+	}
+	return ""
+}
+
 func (u *User) BannerStyleAttr() template.CSS {
 	base := "background: linear-gradient(135deg, var(--prof-banner) 0%, var(--prof-primary) 52%, var(--prof-accent) 100%), url('/img/nsm-backdrop.png') center/256px repeat;"
-	if u != nil && u.BannerURL != "" && !strings.ContainsAny(u.BannerURL, `"'<>()\`) {
-		base += "background-image: linear-gradient(180deg, rgba(17,19,23,0.20), rgba(17,19,23,0.88)), url('" + u.BannerURL + "');background-size:cover;"
+	if bp := u.BannerPath(); bp != "" {
+		base += "background-image: linear-gradient(180deg, rgba(14,16,22,0.18), rgba(14,16,22,0.82)), url('" + bp + "');background-size:cover;background-position:center;"
 	}
 	return template.CSS(base)
 }
@@ -349,29 +464,48 @@ func loadAccounts() {
 	}
 	if len(acc.Users) == 0 {
 		acc.Users = append(acc.Users, User{
-			ID:             1,
-			Username:       "Cravenz",
-			DisplayName:    "Cravenz",
-			Title:          "NSM Founder",
-			Bio:            "Founder & Lead Developer of the NSM Multiplayer Platform.",
-			Signature:      "NSM - Powered by AFX | Official Platform Founder",
-			AvatarColor:    "#2F7BFF",
-			BannerColor:    "#1d3557",
-			Location:       "United States",
-			DiscordTag:     "cravenz",
-			GitHub:         "platinum-cfx",
-			Website:        "https://github.com/platinum-cfx/NSM-FIVEM",
-			FavoriteServer: "NSM Official Server",
-			Email:          "cravenz@owner.local",
-			Role:           "owner",
-			CreatedAt:      time.Now().UnixMilli(),
+			ID:               1,
+			Username:         "Cravenz",
+			DisplayName:      "Cravenz",
+			Title:            "NSM Founder",
+			Bio:              "Founder & Lead Developer of the NSM Multiplayer Platform.",
+			Signature:        "NSM - Powered by AFX | Official Platform Founder",
+			AvatarColor:      "#2F7BFF",
+			BannerColor:      "#1d3557",
+			ThemePrimary:     "#1d3557",
+			ThemeAccent:      "#2F7BFF",
+			AvatarDecoration: "cat_ears",
+			ProfileEffect:    "aurora_waves",
+			PulseTier:        "eternal",
+			PulseSince:       time.Now().UnixMilli(),
+			IsPartner:        true,
+			SquadHouse:       "all",
+			Location:         "United States",
+			DiscordTag:       "cravenz",
+			GitHub:           "platinum-cfx",
+			Website:          "https://github.com/platinum-cfx/NSM-FIVEM",
+			FavoriteServer:   "NSM Official Server",
+			Email:            "cravenz@owner.local",
+			Role:             "owner",
+			CreatedAt:        time.Now().UnixMilli(),
 		})
 		acc.NextID = 2
 	}
 	for i := range acc.Users {
-		if acc.Users[i].Username == ownerName {
+		if strings.EqualFold(acc.Users[i].Username, ownerName) || strings.EqualFold(acc.Users[i].Username, "Cravenz") {
 			if acc.Users[i].Role == "" {
 				acc.Users[i].Role = "owner"
+			}
+			acc.Users[i].PulseTier = "eternal"
+			acc.Users[i].IsPartner = true
+			if acc.Users[i].AvatarDecoration == "" {
+				acc.Users[i].AvatarDecoration = "cat_ears"
+			}
+			if acc.Users[i].ProfileEffect == "" {
+				acc.Users[i].ProfileEffect = "aurora_waves"
+			}
+			if acc.Users[i].SquadHouse == "" {
+				acc.Users[i].SquadHouse = "all"
 			}
 			if acc.Users[i].DiscordTag == "" {
 				acc.Users[i].DiscordTag = "cravenz"
@@ -815,6 +949,9 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	bannerURL := firstNonEmpty("banner_url", "bannerUrl")
 	themePrimary := firstNonEmpty("theme_primary", "themePrimary")
 	themeAccent := firstNonEmpty("theme_accent", "themeAccent")
+	avatarDecoration := firstNonEmpty("avatar_decoration", "avatarDecoration")
+	profileEffect := firstNonEmpty("profile_effect", "profileEffect")
+	squadHouse := firstNonEmpty("squad_house", "squadHouse")
 	location := firstNonEmpty("location")
 	website := firstNonEmpty("website")
 	discordTag := firstNonEmpty("discord_tag", "discordTag", "discord")
@@ -826,6 +963,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	favServer := firstNonEmpty("favorite_server", "favoriteServer")
 	email := firstNonEmpty("email")
 	clearAvatar := r.FormValue("clear_avatar") == "1" || r.FormValue("clearAvatar") == "1"
+	clearBanner := r.FormValue("clear_banner") == "1" || r.FormValue("clearBanner") == "1"
 
 	if len(displayName) > 48 {
 		displayName = displayName[:48]
@@ -840,7 +978,7 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		signature = signature[:200]
 	}
 
-	var uploadedAvatarData string
+	var uploadedAvatarData, uploadedBannerData string
 	if r.MultipartForm != nil {
 		files := r.MultipartForm.File["avatar_file"]
 		if len(files) == 0 {
@@ -850,11 +988,28 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			f, err := files[0].Open()
 			if err == nil {
 				defer f.Close()
-				raw, err := io.ReadAll(io.LimitReader(f, 2<<20))
+				raw, err := io.ReadAll(io.LimitReader(f, 3<<20))
 				if err == nil && len(raw) > 0 {
 					ct := http.DetectContentType(raw)
 					if ct == "image/png" || ct == "image/jpeg" || ct == "image/gif" || ct == "image/webp" {
 						uploadedAvatarData = "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(raw)
+					}
+				}
+			}
+		}
+		bfiles := r.MultipartForm.File["banner_file"]
+		if len(bfiles) == 0 {
+			bfiles = r.MultipartForm.File["bannerFile"]
+		}
+		if len(bfiles) > 0 {
+			bf, err := bfiles[0].Open()
+			if err == nil {
+				defer bf.Close()
+				raw, err := io.ReadAll(io.LimitReader(bf, 4<<20))
+				if err == nil && len(raw) > 0 {
+					ct := http.DetectContentType(raw)
+					if ct == "image/png" || ct == "image/jpeg" || ct == "image/gif" || ct == "image/webp" {
+						uploadedBannerData = "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(raw)
 					}
 				}
 			}
@@ -897,6 +1052,17 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			target.AvatarURL = avatarURL
 		}
 	}
+	if clearBanner {
+		target.BannerData = ""
+		target.BannerURL = ""
+	} else {
+		if uploadedBannerData != "" {
+			target.BannerData = uploadedBannerData
+		}
+		if bannerURL != "" || r.Form.Has("bannerUrl") || r.Form.Has("banner_url") {
+			target.BannerURL = bannerURL
+		}
+	}
 	if isValidHexColor(avatarColor) {
 		target.AvatarColor = avatarColor
 		if !isValidHexColor(themeAccent) && target.ThemeAccent == "" {
@@ -918,7 +1084,22 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if isValidHexColor(themeAccent) {
 		target.ThemeAccent = themeAccent
 	}
-	target.BannerURL = bannerURL
+	if avatarDecoration != "" {
+		target.AvatarDecoration = strings.ToLower(avatarDecoration)
+	}
+	if profileEffect != "" {
+		target.ProfileEffect = strings.ToLower(profileEffect)
+	}
+	if squadHouse != "" {
+		sh := strings.ToLower(squadHouse)
+		if sh == "bravery" || sh == "brilliance" || sh == "balance" || sh == "all" {
+			target.SquadHouse = sh
+		}
+	}
+	if target.IsFounderAccount() {
+		target.PulseTier = "eternal"
+		target.IsPartner = true
+	}
 	target.Location = location
 	target.Website = website
 	target.DiscordTag = discordTag
@@ -983,8 +1164,89 @@ func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if returnTab == "" {
 		returnTab = "preferences"
 	}
-	data := buildDiscourseProfileData(&userCopy, &userCopy, returnTab, "Your profile, display name, and layout theme colors have been updated.", "")
+	data := buildDiscourseProfileData(&userCopy, &userCopy, returnTab, "Your profile, display name, decorations, and layout theme colors have been updated.", "")
 	renderPage(w, r, "profile.tmpl", data)
+}
+
+func accountSubscribePulse(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		if wantsJSONResponse(r) {
+			sendAccountJSON(w, false, "login required", nil)
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	tier := strings.ToLower(strings.TrimSpace(r.FormValue("tier")))
+	if tier != "core" && tier != "pro" && tier != "sovereign" && tier != "eternal" {
+		tier = "pro"
+	}
+
+	accMu.Lock()
+	target := userByID(u.ID)
+	if target == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if target.IsFounderAccount() {
+		target.PulseTier = "eternal"
+	} else {
+		target.PulseTier = tier
+	}
+	if target.PulseSince == 0 {
+		target.PulseSince = time.Now().UnixMilli()
+	}
+	if target.AvatarDecoration == "" || target.AvatarDecoration == "none" {
+		target.AvatarDecoration = "cat_ears"
+	}
+	if (tier == "pro" || tier == "sovereign" || target.IsFounderAccount()) && (target.ProfileEffect == "" || target.ProfileEffect == "none") {
+		target.ProfileEffect = "aurora_waves"
+	}
+	target.UpdatedAt = time.Now().UnixMilli()
+	userCopy := *target
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	if wantsJSONResponse(r) {
+		sendAccountJSON(w, true, "", &userCopy)
+		return
+	}
+	msg := "AFX Pulse (" + userCopy.EffectivePulseTierLabel() + ") is now active! Animated GIFs, Full-Page Layout Colors, Cat Ears, Moving Effects, and the AFX Pulse Badge are unlocked."
+	data := buildDiscourseProfileData(&userCopy, &userCopy, "pulse", msg, "")
+	renderPage(w, r, "profile.tmpl", data)
+}
+
+func serveUserBanner(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	accMu.Lock()
+	u := findUser(username)
+	var bannerData, bannerURL string
+	if u != nil {
+		bannerData = u.BannerData
+		bannerURL = u.BannerURL
+	}
+	accMu.Unlock()
+
+	if strings.HasPrefix(bannerData, "data:image/") {
+		if idx := strings.Index(bannerData, ";base64,"); idx > 0 {
+			ct := strings.TrimPrefix(bannerData[:idx], "data:")
+			if raw, err := base64.StdEncoding.DecodeString(bannerData[idx+8:]); err == nil && len(raw) > 0 {
+				w.Header().Set("Content-Type", ct)
+				w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
+				w.WriteHeader(http.StatusOK)
+				w.Write(raw)
+				return
+			}
+		}
+	}
+	if strings.HasPrefix(bannerURL, "http://") || strings.HasPrefix(bannerURL, "https://") {
+		http.Redirect(w, r, bannerURL, http.StatusFound)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func renderAccountPageWithMsg(w http.ResponseWriter, r *http.Request, u *User, msg, errMsg string) {
@@ -1148,10 +1410,179 @@ func serveUserAvatar(w http.ResponseWriter, r *http.Request) {
 	w.Write(pngBytes)
 }
 
+// ---- 18-Badge AFX & NSM Badge System ----
+
+type UserBadge struct {
+	ID          string
+	Name        string
+	Desc        string
+	HowToUnlock string
+	Rarity      string
+	Icon        string
+	Color       string
+	ColorStyle  template.CSS
+	Unlocked    bool
+	GrantedStr  string
+}
+
+func computeUserBadges(u *User, topicCount, postCount, likesReceived, upvoteCnt, serverKeyCount int, hasSupportPost, hasReleaseTopic bool, joinedStr string) ([]UserBadge, []UserBadge) {
+	isFounder := u != nil && u.IsFounderAccount()
+	isOwnerRole := isFounder || (u != nil && u.Role == "owner")
+	isAdmin := isOwnerRole || (u != nil && u.Role == "admin")
+	isStaff := isAdmin || (u != nil && u.Role == "staff")
+	isPartner := isFounder || (u != nil && u.HasPartnerBadge())
+	hasPulse := isFounder || (u != nil && u.HasPulse())
+
+	pulseBadgeName := "AFX Pulse Subscriber"
+	pulseBadgeDesc := "Active AFX Pulse Member — Unlocks Animated GIFs, Full-Page Layout Colors, Cat Ears & Moving Profile Effects."
+	if u != nil {
+		switch u.EffectivePulseTier() {
+		case "eternal":
+			pulseBadgeName = "AFX Pulse Eternal (Founder)"
+			pulseBadgeDesc = "Permanent Founder Lifetime AFX Pulse — All tiers, GIFs, Full-Page Colors, Decorations & Effects unlocked forever."
+		case "sovereign":
+			pulseBadgeName = "AFX Pulse Sovereign"
+			pulseBadgeDesc = "Top-tier AFX Pulse Sovereign Member — Full-Page Colors, GIFs, Moving Effects & 5x Server Boost Power."
+		case "pro":
+			pulseBadgeName = "AFX Pulse Pro"
+			pulseBadgeDesc = "AFX Pulse Pro Member — Full-Page Layout Colors, GIF Avatars/Banners, Cat Ears & 2x Server Boosts."
+		case "core":
+			pulseBadgeName = "AFX Pulse Core"
+			pulseBadgeDesc = "AFX Pulse Core Member — Custom Avatar Decorations & Animated Profile Flair."
+		}
+	}
+
+	boostTierName := "Server Booster — Tier I Spark"
+	effectiveBoosts := upvoteCnt
+	if u != nil {
+		switch u.EffectivePulseTier() {
+		case "eternal":
+			effectiveBoosts += 25
+		case "sovereign":
+			effectiveBoosts += 5
+		case "pro":
+			effectiveBoosts += 2
+		}
+	}
+	switch {
+	case isFounder || effectiveBoosts >= 15:
+		boostTierName = "Server Booster — Tier IX Transcendent Gem"
+	case effectiveBoosts >= 8:
+		boostTierName = "Server Booster — Tier VI Supernova Gem"
+	case effectiveBoosts >= 4:
+		boostTierName = "Server Booster — Tier IV Prismatic Gem"
+	case effectiveBoosts >= 2:
+		boostTierName = "Server Booster — Tier II Radiant Gem"
+	}
+
+	sh := ""
+	if u != nil {
+		sh = strings.ToLower(strings.TrimSpace(u.SquadHouse))
+	}
+
+	mk := func(id, name, desc, how, rarity, icon, col string, unlocked bool) UserBadge {
+		return UserBadge{
+			ID:          id,
+			Name:        name,
+			Desc:        desc,
+			HowToUnlock: how,
+			Rarity:      rarity,
+			Icon:        icon,
+			Color:       col,
+			ColorStyle:  template.CSS("color: " + col + "; --badge-glow: " + col + ";"),
+			Unlocked:    isFounder || unlocked,
+			GrantedStr:  joinedStr,
+		}
+	}
+
+	all := []UserBadge{
+		mk("founder_crown", "NSM Sovereign Founder",
+			"Original Creator & Sovereign Founder of the NSM & AFX Platform.",
+			"Reserved for the NSM Platform Founder (@Cravenz).",
+			"Mythic", "crown", "#FFD700", isOwnerRole),
+		mk("afx_staff", "AFX Staff",
+			"Official NSM & AFX Platform Staff & Trust Safety Team.",
+			"Appointed to the official AFX Staff team.",
+			"Mythic", "staff_shield", "#38BDF8", isStaff),
+		mk("afx_admin", "AFX Administrator",
+			"Core Platform Security & Masterlist Infrastructure Administrator.",
+			"Granted to AFX Platform Administrators.",
+			"Mythic", "admin_star", "#F43F5E", isAdmin),
+		mk("partnered_owner", "Partnered Server Owner",
+			"Official AFX Partnered Community & Server Creator.",
+			"Granted by AFX Staff or Administrators to standout NSM communities and creators.",
+			"Legendary", "partner_infinity", "#A855F7", isPartner),
+		mk("certified_mod", "Certified Moderator Alumni",
+			"Certified Guardian of the AFX Forum & Multiplayer Ecosystem.",
+			"Hold AFX Staff/Moderator status or earn 10+ community likes on the forum.",
+			"Legendary", "mod_sword", "#10B981", isStaff || likesReceived >= 10),
+		mk("afx_pulse", pulseBadgeName,
+			pulseBadgeDesc,
+			"Activate AFX Pulse Core, Pro, or Sovereign in the AFX Pulse tab.",
+			"Legendary", "pulse_wheel", "#EC4899", hasPulse),
+		mk("server_booster", boostTierName,
+			"Boosted a dedicated server on the NSM Server List with evolving gem tiers (Tiers I–IX).",
+			"Boost any server on /servers or subscribe to AFX Pulse Pro / Sovereign.",
+			"Legendary", "boost_gem", "#F472B6", effectiveBoosts > 0),
+		mk("events_vanguard", "AFX Events Vanguard",
+			"Hosted or participated in official AFX Community Showcases & Events.",
+			"Create a topic on the AFX Forum or feature your Favorite Server on your profile.",
+			"Epic", "trophy", "#F59E0B", topicCount >= 1 || (u != nil && strings.TrimSpace(u.FavoriteServer) != "")),
+		mk("house_bravery", "Vanguard of Bravery",
+			"Sworn member of the AFX Vanguard House of Bravery — Fearless leaders of the front line.",
+			"Select 'House of Bravery' under Vanguard Squad House in Preferences.",
+			"Epic", "bravery", "#9333EA", sh == "bravery" || sh == "all"),
+		mk("house_brilliance", "Vanguard of Brilliance",
+			"Sworn member of the AFX Vanguard House of Brilliance — Masterminds of code and strategy.",
+			"Select 'House of Brilliance' under Vanguard Squad House in Preferences.",
+			"Epic", "brilliance", "#F97316", sh == "brilliance" || sh == "all"),
+		mk("house_balance", "Vanguard of Balance",
+			"Sworn member of the AFX Vanguard House of Balance — Architects of harmony and precision.",
+			"Select 'House of Balance' under Vanguard Squad House in Preferences.",
+			"Epic", "balance", "#14B8A6", sh == "balance" || sh == "all"),
+		mk("bug_hunter_1", "Bug Hunter Tier I",
+			"Tracked down and reported technical issues on the AFX Forum.",
+			"Post in Technical Support (/forum/c/support) or contribute 2+ forum posts.",
+			"Rare", "bug", "#22C55E", hasSupportPost || postCount >= 2),
+		mk("bug_hunter_2", "Golden Bug Exterminator (Tier II)",
+			"Elite platform debugger who goes above and beyond squashing critical bugs.",
+			"Post in Technical Support and earn 5+ community likes (or hold Staff/Founder status).",
+			"Legendary", "gold_bug", "#EAB308", (hasSupportPost && likesReceived >= 5) || isStaff),
+		mk("active_developer", "Active Verified Developer",
+			"Verified NSM Server & Resource Developer with active AFX Portal keys or GitHub repositories.",
+			"Generate a Server Key in AFX Portal (/keymaster) or link your GitHub in Preferences.",
+			"Epic", "code_brackets", "#3B82F6", serverKeyCount > 0 || (u != nil && strings.TrimSpace(u.GitHub) != "")),
+		mk("early_verified_dev", "Early Verified Pioneer Developer",
+			"Pioneering developer building scripts, MLOs, and frameworks on NSM.",
+			"Publish a resource in Resource Releases (/forum/c/releases) or hold a Server Key + GitHub link.",
+			"Legendary", "verified_gear", "#6366F1", hasReleaseTopic || (serverKeyCount > 0 && u != nil && strings.TrimSpace(u.GitHub) != "")),
+		mk("early_supporter", "Early Platform Supporter",
+			"Backed the NSM & AFX platform during the founding era.",
+			"Register one of the first 50 NSM accounts or activate AFX Pulse.",
+			"Legendary", "early_gem", "#F43F5E", (u != nil && u.ID > 0 && u.ID <= 50) || hasPulse),
+		mk("quest_champion", "AFX Quest Champion",
+			"Completed the NSM Profile & Forum Onboarding Quest.",
+			"Customize your Bio & Profile Layout Colors in Preferences and post on the AFX Forum.",
+			"Rare", "compass", "#06B6D4", u != nil && strings.TrimSpace(u.Bio) != "" && postCount >= 1),
+		mk("legacy_pioneer", "Original Identity Pioneer",
+			"Known across NSM by their verified @handle and custom Display Name.",
+			"Customize your Display Name or Custom Title in Preferences.",
+			"Rare", "hash_tag", "#60A5FA", u != nil && (strings.TrimSpace(u.DisplayName) != "" || strings.TrimSpace(u.Title) != "")),
+	}
+
+	var unlocked []UserBadge
+	for _, b := range all {
+		if b.Unlocked {
+			unlocked = append(unlocked, b)
+		}
+	}
+	return unlocked, all
+}
+
 // ---- Public Profile Page (/u/{username}) & Users Directory (/u) ----
 
 func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg string) map[string]interface{} {
-	var upvoteCnt int
+	var upvoteCnt, serverKeyCount int
 	accMu.Lock()
 	if acc != nil {
 		for _, ids := range acc.Upvotes {
@@ -1159,6 +1590,11 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 				if id == targetCopy.ID {
 					upvoteCnt++
 				}
+			}
+		}
+		for _, sk := range acc.ServerKeys {
+			if sk.OwnerUserID == targetCopy.ID && !sk.Revoked {
+				serverKeyCount++
 			}
 		}
 	}
@@ -1183,6 +1619,8 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 	likesReceived := 0
 	likesGiven := 0
 	var lastPostSec int64
+	hasSupportPost := false
+	hasReleaseTopic := false
 	catTopicCounts := map[string]int{}
 	catReplyCounts := map[string]int{}
 
@@ -1191,10 +1629,16 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		for _, t := range forum.Topics {
 			if strings.EqualFold(t.AuthorUsername, targetCopy.Username) {
 				catTopicCounts[t.CategorySlug]++
+				if t.CategorySlug == "releases" {
+					hasReleaseTopic = true
+				}
 			}
 			for _, p := range t.Posts {
 				if strings.EqualFold(p.AuthorUsername, targetCopy.Username) {
 					likesReceived += len(p.Likes)
+					if t.CategorySlug == "support" {
+						hasSupportPost = true
+					}
 					if p.PostNumber > 1 {
 						catReplyCounts[t.CategorySlug]++
 					}
@@ -1249,32 +1693,30 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 	trustLevel := "member"
 	switch targetCopy.Role {
 	case "owner":
-		trustLevel = "leader (owner)"
-	case "admin", "staff":
+		trustLevel = "founder (owner)"
+	case "admin":
+		trustLevel = "leader (admin)"
+	case "staff":
 		trustLevel = "leader (staff)"
+	case "partner":
+		trustLevel = "partnered creator"
+	default:
+		if targetCopy.IsPartner {
+			trustLevel = "partnered creator"
+		}
 	}
 
-	badges := []map[string]string{
-		{"Name": "Autobiographer", "Desc": "Filled out user profile information", "Icon": "user-check", "Color": "#cd7f32"},
-		{"Name": "First Like", "Desc": "Liked a post on the AFX Forum", "Icon": "heart", "Color": "#cd7f32"},
-		{"Name": "AFX Verified", "Desc": "Linked account with NSM.exe client & AFX Portal", "Icon": "shield", "Color": "#c0c0c0"},
-	}
-	if targetCopy.DiscordTag != "" || targetCopy.GitHub != "" {
-		badges = append(badges, map[string]string{
-			"Name": "Connected Creator", "Desc": "Linked Discord & GitHub developer accounts", "Icon": "code", "Color": "#2F7BFF",
-		})
-	}
-	if targetCopy.Role == "owner" || targetCopy.Role == "admin" || targetCopy.Role == "staff" {
-		badges = append([]map[string]string{
-			{"Name": "AFX Platform Staff", "Desc": "Official NSM & AFX Platform Administrator", "Icon": "award", "Color": "#ffd700"},
-			{"Name": "Leader", "Desc": "Trust Level 4 Community Leader", "Icon": "crown", "Color": "#ffd700"},
-		}, badges...)
-	}
-	if upvoteCnt > 0 {
-		badges = append(badges, map[string]string{
-			"Name": "Server Supporter", "Desc": "Boosted a server on the NSM Server List", "Icon": "bolt", "Color": "#00d68f",
-		})
-	}
+	unlockedBadges, allBadges := computeUserBadges(
+		targetCopy,
+		len(userTopics),
+		len(userPosts),
+		likesReceived,
+		upvoteCnt,
+		serverKeyCount,
+		hasSupportPost,
+		hasReleaseTopic,
+		joinedStr,
+	)
 
 	var enrichedTopics []map[string]interface{}
 	for _, t := range userTopics {
@@ -1321,7 +1763,7 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 			"TimeStr":     fmt.Sprintf("%v", lp["RelativeStr"]),
 		})
 	}
-	for _, b := range badges {
+	for _, b := range unlockedBadges {
 		if len(notifications) >= 8 {
 			break
 		}
@@ -1330,10 +1772,10 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 			"Type":        "badge",
 			"Unread":      false,
 			"Icon":        "award",
-			"Color":       b["Color"],
-			"Title":       "Earned '" + b["Name"] + "' Badge",
-			"Excerpt":     b["Desc"],
-			"Subtitle":    b["Desc"],
+			"Color":       b.Color,
+			"Title":       "Unlocked '" + b.Name + "' Badge",
+			"Excerpt":     b.Desc,
+			"Subtitle":    b.Desc,
 			"URL":         "/u/" + url.PathEscape(targetCopy.Username) + "?tab=badges",
 			"RelativeStr": joinedStr,
 			"TimeStr":     joinedStr,
@@ -1346,8 +1788,8 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		"Icon":        "shield",
 		"Color":       targetCopy.EffectiveThemeAccent(),
 		"Title":       "Welcome to AFX Forum & NSM Platform",
-		"Excerpt":     "Your NSM account, custom Discord-style profile layout, and social connections are active.",
-		"Subtitle":    "Your NSM account, custom Discord-style profile layout, and social connections are active.",
+		"Excerpt":     "Your NSM account, full-page profile layout theme, and AFX Pulse perks are active.",
+		"Subtitle":    "Your NSM account, full-page profile layout theme, and AFX Pulse perks are active.",
 		"URL":         "/forum/t/1",
 		"RelativeStr": joinedStr,
 		"TimeStr":     joinedStr,
@@ -1360,7 +1802,7 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 			"Subject":      "Welcome to AFX Forum & NSM Account Sync",
 			"Sender":       "AFX System",
 			"SenderAvatar": "/img/nsm-icon.png",
-			"Excerpt":      "Greetings @" + targetCopy.Username + "! Your profile is synced with NSM.exe, AFX Portal (/keymaster), and the AFX Forum. You can customize your Discord-style profile theme colors and social links anytime in Preferences.",
+			"Excerpt":      "Greetings @" + targetCopy.Username + "! Your profile is synced with NSM.exe, AFX Portal (/keymaster), and the AFX Forum. Customize your full-page Style Profile Layout Colors, Cat Ears, and Moving Profile Effects anytime in Preferences.",
 			"RelativeStr":  joinedStr,
 			"TimeStr":      joinedStr,
 			"URL":          "/forum/t/1",
@@ -1403,60 +1845,66 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		}
 	}
 	themePresets := []profileThemePreset{
-		makePreset("AFX Sapphire", "#2F7BFF", "#1d3557", "#1d3557", "#2F7BFF"),
-		makePreset("Nitro Midnight", "#5865F2", "#EB459E", "#1e1f3b", "#5865F2"),
-		makePreset("Cyber Sunset", "#a855f7", "#ec4899", "#2e1065", "#a855f7"),
-		makePreset("Crimson Eclipse", "#f43f5e", "#9f1239", "#4c0519", "#f43f5e"),
-		makePreset("Emerald Matrix", "#10b981", "#065f46", "#064e3b", "#10b981"),
-		makePreset("Oceanic Cyan", "#06b6d4", "#1d4ed8", "#083344", "#06b6d4"),
-		makePreset("Solar Gold", "#f59e0b", "#b45309", "#451a03", "#f59e0b"),
-		makePreset("Obsidian Slate", "#6366f1", "#111827", "#111827", "#6366f1"),
+		makePreset("AFX Supernova", "#2F7BFF", "#1d3557", "#1d3557", "#2F7BFF"),
+		makePreset("Vinewood Horizon", "#6366F1", "#EC4899", "#1e1b4b", "#6366F1"),
+		makePreset("Vespucci Sunset", "#a855f7", "#f43f5e", "#2e1065", "#a855f7"),
+		makePreset("Blaine Crimson", "#f43f5e", "#9f1239", "#4c0519", "#f43f5e"),
+		makePreset("Paleto Emerald", "#10b981", "#065f46", "#064e3b", "#10b981"),
+		makePreset("Del Perro Abyss", "#06b6d4", "#1d4ed8", "#083344", "#06b6d4"),
+		makePreset("Chiliad Sovereign", "#f59e0b", "#b45309", "#451a03", "#f59e0b"),
+		makePreset("Obsidian Phantom", "#38bdf8", "#0f172a", "#0f172a", "#38bdf8"),
 	}
 
+	canManagePartner := cur != nil && (cur.Role == "staff" || cur.Role == "admin" || cur.Role == "owner" || cur.IsFounderAccount())
+
 	return map[string]interface{}{
-		"Title":          targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
-		"Page":           "/forum",
-		"User":           cur,
-		"Profile":        targetCopy,
-		"ProfileUser":    targetCopy,
-		"JoinedStr":      joinedStr,
-		"LastPostStr":    lastPostStr,
-		"LastSeenStr":    lastSeenStr,
-		"ProfileViews":   18 + len(userTopics)*9 + len(userPosts)*4,
-		"TrustLevelName": trustLevel,
-		"DaysVisited":    3 + len(userTopics) + len(userPosts),
-		"ReadTime":       "4h",
-		"RecentReadTime": "1h",
-		"TopicsViewed":   14 + len(userTopics)*5,
-		"PostsRead":      42 + len(userPosts)*8,
-		"LikesGiven":     likesGiven + 3,
-		"LikesReceived":  likesReceived + len(userTopics),
-		"TopicCount":     len(userTopics),
-		"PostCount":      len(userPosts),
-		"ReplyCount":     len(replyPosts),
-		"LikedCount":     len(likedPosts),
-		"SolvedCount":    len(solvedPosts),
-		"Topics":         userTopics,
-		"EnrichedTopics": enrichedTopics,
-		"Posts":          userPosts,
-		"ReplyPosts":     replyPosts,
-		"LikedPosts":     likedPosts,
-		"ReadTopics":     readTopics,
-		"SolvedPosts":    solvedPosts,
-		"Notifications":  notifications,
-		"Messages":       messages,
-		"TopCategories":  topCats,
-		"Badges":         badges,
-		"ThemePresets":   themePresets,
-		"UpvoteCount":    upvoteCnt,
-		"Tab":            tab,
-		"IsActivityTab":  isActivityTab,
-		"ActivitySub":    activitySub,
-		"Msg":            msg,
-		"Error":          errMsg,
-		"IsOwn":          cur != nil && cur.ID == targetCopy.ID,
-		"HasPending":     hasPendingClientAuth(),
-		"Categories":     forumCategoriesWithCounts(),
+		"Title":            targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ") - AFX Forum",
+		"Page":             "/forum",
+		"User":             cur,
+		"Profile":          targetCopy,
+		"ProfileUser":      targetCopy,
+		"JoinedStr":        joinedStr,
+		"LastPostStr":      lastPostStr,
+		"LastSeenStr":      lastSeenStr,
+		"ProfileViews":     18 + len(userTopics)*9 + len(userPosts)*4,
+		"TrustLevelName":   trustLevel,
+		"DaysVisited":      3 + len(userTopics) + len(userPosts),
+		"ReadTime":         "4h",
+		"RecentReadTime":   "1h",
+		"TopicsViewed":     14 + len(userTopics)*5,
+		"PostsRead":        42 + len(userPosts)*8,
+		"LikesGiven":       likesGiven + 3,
+		"LikesReceived":    likesReceived + len(userTopics),
+		"TopicCount":       len(userTopics),
+		"PostCount":        len(userPosts),
+		"ReplyCount":       len(replyPosts),
+		"LikedCount":       len(likedPosts),
+		"SolvedCount":      len(solvedPosts),
+		"Topics":           userTopics,
+		"EnrichedTopics":   enrichedTopics,
+		"Posts":            userPosts,
+		"ReplyPosts":       replyPosts,
+		"LikedPosts":       likedPosts,
+		"ReadTopics":       readTopics,
+		"SolvedPosts":      solvedPosts,
+		"Notifications":    notifications,
+		"Messages":         messages,
+		"TopCategories":    topCats,
+		"Badges":           unlockedBadges,
+		"AllBadges":        allBadges,
+		"UnlockedCount":    len(unlockedBadges),
+		"TotalBadgesCount": len(allBadges),
+		"ThemePresets":     themePresets,
+		"UpvoteCount":      upvoteCnt,
+		"Tab":              tab,
+		"IsActivityTab":    isActivityTab,
+		"ActivitySub":      activitySub,
+		"Msg":              msg,
+		"Error":            errMsg,
+		"IsOwn":            cur != nil && cur.ID == targetCopy.ID,
+		"CanManagePartner": canManagePartner,
+		"HasPending":       hasPendingClientAuth(),
+		"Categories":       forumCategoriesWithCounts(),
 	}
 }
 
@@ -1551,15 +1999,14 @@ func usersDirectoryPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ---- staff admin (owner session or existing bearer owner token) ----
+// ---- staff admin (staff, admin, owner session or bearer owner token) ----
 
 func adminUsersPage(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
-	if u == nil || u.Role != "owner" {
-		if !isOwner(r) {
-			http.Error(w, "owner only", http.StatusForbidden)
-			return
-		}
+	isStaffOrHigher := u != nil && (u.Role == "staff" || u.Role == "admin" || u.Role == "owner" || u.IsFounderAccount())
+	if !isStaffOrHigher && !isOwner(r) {
+		http.Error(w, "staff or owner only", http.StatusForbidden)
+		return
 	}
 	accMu.Lock()
 	users := append([]User{}, acc.Users...)
@@ -1569,31 +2016,114 @@ func adminUsersPage(w http.ResponseWriter, r *http.Request) {
 
 func adminSetRole(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
-	if (u == nil || u.Role != "owner") && !isOwner(r) {
-		http.Error(w, "owner only", http.StatusForbidden)
+	isOwnerOrBearer := (u != nil && (u.Role == "owner" || u.IsFounderAccount())) || isOwner(r)
+	isAdmin := isOwnerOrBearer || (u != nil && u.Role == "admin")
+	isStaff := isAdmin || (u != nil && u.Role == "staff")
+	if !isStaff {
+		http.Error(w, "staff or owner only", http.StatusForbidden)
 		return
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	role := r.FormValue("role")
-	if !map[string]bool{"user": true, "staff": true, "admin": true, "owner": true}[role] {
+	role := strings.ToLower(strings.TrimSpace(r.FormValue("role")))
+	if !map[string]bool{"user": true, "partner": true, "staff": true, "admin": true, "owner": true}[role] {
 		http.Error(w, "bad role", http.StatusBadRequest)
+		return
+	}
+	// Staff (non-admin/owner) can only assign "partner" or "user"
+	if !isOwnerOrBearer && !isAdmin && role != "partner" && role != "user" {
+		http.Error(w, "only owner/admin can assign staff/admin/owner roles", http.StatusForbidden)
+		return
+	}
+	if !isOwnerOrBearer && role == "owner" {
+		http.Error(w, "only owner can assign owner role", http.StatusForbidden)
 		return
 	}
 	accMu.Lock()
 	defer accMu.Unlock()
 	t := userByID(id)
-	if t == nil || (t.Role == "owner" && u != nil && u.ID != t.ID) {
+	if t == nil || ((t.Role == "owner" || t.IsFounderAccount()) && u != nil && u.ID != t.ID) {
 		http.Error(w, "cannot change that user", http.StatusBadRequest)
 		return
 	}
-	if u != nil && u.ID == t.ID && role != "owner" {
+	if u != nil && u.ID == t.ID && (t.Role == "owner" || t.IsFounderAccount()) && role != "owner" {
 		http.Error(w, "you cannot demote yourself", http.StatusBadRequest)
 		return
 	}
 	t.Role = role
+	if role == "partner" {
+		t.IsPartner = true
+	}
+	t.UpdatedAt = time.Now().UnixMilli()
 	saveAccountsLocked()
-	log.Printf("[accounts] %s -> role %s (by %s)", t.Username, role, u.Username)
+	actor := "owner-token"
+	if u != nil {
+		actor = u.Username
+	}
+	log.Printf("[accounts] %s -> role %s (by %s)", t.Username, role, actor)
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+func adminTogglePartner(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	isStaff := (u != nil && (u.Role == "staff" || u.Role == "admin" || u.Role == "owner" || u.IsFounderAccount())) || isOwner(r)
+	if !isStaff {
+		http.Error(w, "staff, admin, or owner required to grant Partner role", http.StatusForbidden)
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	_ = r.ParseForm()
+	action := strings.ToLower(strings.TrimSpace(r.FormValue("action")))
+
+	accMu.Lock()
+	t := userByID(id)
+	if t == nil {
+		accMu.Unlock()
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+	if t.IsFounderAccount() {
+		t.IsPartner = true
+	} else {
+		switch action {
+		case "grant":
+			t.IsPartner = true
+			if t.Role == "" || t.Role == "user" {
+				t.Role = "partner"
+			}
+		case "revoke":
+			t.IsPartner = false
+			if t.Role == "partner" {
+				t.Role = "user"
+			}
+		default:
+			t.IsPartner = !t.IsPartner
+			if t.IsPartner && (t.Role == "" || t.Role == "user") {
+				t.Role = "partner"
+			} else if !t.IsPartner && t.Role == "partner" {
+				t.Role = "user"
+			}
+		}
+	}
+	t.UpdatedAt = time.Now().UnixMilli()
+	targetCopy := *t
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	if wantsJSONResponse(r) {
+		sendAccountJSON(w, true, "", &targetCopy)
+		return
+	}
+	ret := strings.TrimSpace(r.FormValue("return_to"))
+	if ret != "" && strings.HasPrefix(ret, "/") && !strings.HasPrefix(ret, "//") {
+		http.Redirect(w, r, ret, http.StatusSeeOther)
+		return
+	}
+	msg := "Partnered Server Owner role granted to @" + targetCopy.Username + "!"
+	if !targetCopy.IsPartner {
+		msg = "Partnered Server Owner role removed from @" + targetCopy.Username + "."
+	}
+	data := buildDiscourseProfileData(&targetCopy, u, "summary", msg, "")
+	renderPage(w, r, "profile.tmpl", data)
 }
 
 // ---- upvotes (one per account per server) ----

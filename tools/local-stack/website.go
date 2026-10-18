@@ -378,6 +378,7 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /account", accountPage)
 	mux.HandleFunc("POST /account/password", accountChangePassword)
 	mux.HandleFunc("POST /account/profile", accountUpdateProfile)
+	mux.HandleFunc("POST /account/pulse", accountSubscribePulse)
 	mux.HandleFunc("POST /account/connect-client", accountConnectClient)
 	mux.HandleFunc("POST /account/claim-owner", accountClaimOwner)
 	mux.HandleFunc("GET /u/check_email.json", serveDiscourseCheckEmail)
@@ -394,6 +395,7 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /users/{username}/{tab}", userProfilePage)
 	mux.HandleFunc("GET /avatars/u/{username}/{size}", serveUserAvatar)
 	mux.HandleFunc("/f/avatars/u/{username}/{size}", serveUserAvatar)
+	mux.HandleFunc("GET /banners/u/{username}", serveUserBanner)
 
 	mux.HandleFunc("GET /docs", docsPage)
 	mux.HandleFunc("GET /support", supportPage)
@@ -453,6 +455,7 @@ func buildMux() *http.ServeMux {
 	// staff admin
 	mux.HandleFunc("GET /admin/users", adminUsersPage)
 	mux.HandleFunc("POST /admin/users/{id}/role", adminSetRole)
+	mux.HandleFunc("POST /admin/users/{id}/partner", adminTogglePartner)
 
 	// JSON API (client + site + keymaster)
 	mux.HandleFunc("GET /api/auth/me", apiMe)

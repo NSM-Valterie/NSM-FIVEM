@@ -34,7 +34,7 @@
       <div class="d-header-icons">
         <form method="get" action="/u" class="d-header-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" name="q" value="{{.Query}}" placeholder="Filter by username, Discord, GitHub...">
+          <input type="search" name="q" value="{{.Query}}" placeholder="Filter by username, handle, GitHub...">
         </form>
 
         {{if .User}}
@@ -144,11 +144,17 @@
                     <div class="d-user-dir-name">
                       <a href="/u/{{.User.Username}}"><strong>{{.User.EffectiveDisplayName}}</strong></a>
                       <span class="d-muted">@{{.User.Username}}</span>
+                      {{if .User.IsFounderAccount}}
+                      <span class="d-role-tag role-founder">&#9813; FOUNDER</span>
+                      {{else}}
                       <span class="d-role-tag role-{{.User.Role}}">{{.User.Role}}</span>
+                      {{end}}
+                      {{if .User.HasPartnerBadge}}<span class="d-role-tag role-partner">&#8734; PARTNER</span>{{end}}
+                      {{if .User.HasPulse}}<span class="d-role-tag role-pulse">&#9889; {{.User.EffectivePulseTier}}</span>{{end}}
                     </div>
                     <div class="d-user-dir-title">{{.User.EffectiveTitle}}</div>
                     <div class="d-user-dir-socials">
-                      {{if .User.DiscordTag}}<span class="d-social-pill d-social-discord">Discord: {{.User.DiscordTag}}</span>{{end}}
+                      {{if .User.DiscordTag}}<span class="d-social-pill d-social-community">Handle: {{.User.DiscordTag}}</span>{{end}}
                       {{if .User.GitHub}}<a href="{{.User.GitHubURL}}" class="d-social-pill d-social-github" rel="noopener">github.com/{{.User.GitHubHandle}}</a>{{end}}
                       {{if .User.Steam}}<a href="{{.User.SteamURL}}" class="d-social-pill d-social-steam" rel="noopener">Steam: {{.User.Steam}}</a>{{end}}
                     </div>

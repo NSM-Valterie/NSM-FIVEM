@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -804,16 +805,19 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	}
 	profBody := wProf.Body.String()
 	for _, marker := range []string{
+		`user-full-themed-page fx-effect-aurora_waves`,
 		`user-main user-themed-profile`,
 		`class="about has-background"`,
-		`class="user-profile-avatar"`,
+		`user-profile-avatar deco-cat_ears`,
 		`id="collapsed-info-panel"`,
 		`class="user-primary-navigation"`,
 		`class="top-section stats-section"`,
 		`class="top-section replies-and-topics-section"`,
 		`class="top-section top-categories-section"`,
 		`class="top-section badges-section"`,
-		`d-social-discord`,
+		`Badges (18/18)`,
+		`AFX Pulse Eternal (Founder Lifetime)`,
+		`d-social-community`,
 		`d-social-github`,
 		`github.com/platinum-cfx`,
 	} {
@@ -842,6 +846,7 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		{"/u/Cravenz?tab=notifications", `Notifications for`, `class="top-section stats-section"`},
 		{"/u/Cravenz?tab=messages", `Personal Messages`, `class="top-section stats-section"`},
 		{"/u/Cravenz?tab=badges", `Badges Earned by`, `class="top-section stats-section"`},
+		{"/u/Cravenz?tab=pulse", `Supercharge Your NSM &amp; AFX Profile`, `class="top-section stats-section"`},
 	}
 	for _, tc := range tabExpectations {
 		wTab := request(h, "GET", tc.url, "")
@@ -857,9 +862,9 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		}
 	}
 
-	// 13. Verify Display Name & Discord-style Profile Layout Theme Colors update immediately
+	// 13. Verify Display Name, Full-Page Layout Colors, Animated Cat Ears & Moving Profile Effects update immediately
 	customSess := registerTestUser(t, h, "theme_tester")
-	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&return_tab=summary"
+	formPayload := "display_name=Captain+Neon+AFX&title=Lead+Architect&theme_primary=%23EC4899&theme_accent=%238B5CF6&banner_color=%233B0764&avatar_color=%23F472B6&avatar_decoration=cat_ears&profile_effect=cyber_matrix&squad_house=brilliance&return_tab=summary"
 	reqUpd := httptest.NewRequest("POST", "/account/profile", strings.NewReader(formPayload))
 	reqUpd.RemoteAddr = "127.0.0.1:12345"
 	reqUpd.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -878,14 +883,69 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	for _, expected := range []string{
 		`<span id="live-profile-display-name">Captain Neon AFX</span>`,
 		`<span class="d-header-username" id="live-navbar-display-name">Captain Neon AFX</span>`,
+		`user-full-themed-page fx-effect-cyber_matrix`,
+		`user-profile-avatar deco-cat_ears`,
 		`--prof-primary: #EC4899`,
 		`--prof-accent: #8B5CF6`,
 		`--prof-banner: #3B0764`,
 		`--prof-avatar: #F472B6`,
+		`Vanguard of Brilliance`,
 	} {
 		if !strings.Contains(cpBody, expected) {
 			t.Fatalf("GET /u/theme_tester after profile update missing %q", expected)
 		}
+	}
+
+	// Verify Preferences tab has custom NSM/AFX preset names and no "Nitro" naming
+	wPrefTab := requestAuth(h, "GET", "/u/theme_tester?tab=preferences", "", map[string]string{"X-NSM-Session": customSess})
+	prefBody := wPrefTab.Body.String()
+	for _, presetName := range []string{"AFX Supernova", "Vinewood Horizon", "Vespucci Sunset", "Chiliad Sovereign"} {
+		if !strings.Contains(prefBody, presetName) {
+			t.Fatalf("Preferences tab missing custom preset %q", presetName)
+		}
+	}
+	if strings.Contains(strings.ToLower(prefBody), "nitro") {
+		t.Fatalf("Preferences tab still mentions 'nitro'")
+	}
+
+	// 14. Verify AFX Pulse subscription endpoint unlocks AFX Pulse Sovereign & Server Booster badge
+	reqPulse := httptest.NewRequest("POST", "/account/pulse", strings.NewReader("tier=sovereign"))
+	reqPulse.RemoteAddr = "127.0.0.1:12345"
+	reqPulse.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqPulse.Header.Set("X-NSM-Session", customSess)
+	wPulse := httptest.NewRecorder()
+	h.ServeHTTP(wPulse, reqPulse)
+	if wPulse.Code != http.StatusOK {
+		t.Fatalf("POST /account/pulse expected 200 OK, got %d", wPulse.Code)
+	}
+	if !strings.Contains(wPulse.Body.String(), "AFX Pulse Sovereign") {
+		t.Fatalf("POST /account/pulse did not unlock AFX Pulse Sovereign")
+	}
+
+	// 15. Verify Staff user can grant Partner role & Partnered Server Owner badge to any user
+	staffSess := registerTestUser(t, h, "mod_staff")
+	accMu.Lock()
+	staffUser := userByName("mod_staff")
+	targetUser := userByName("theme_tester")
+	if staffUser == nil || targetUser == nil {
+		accMu.Unlock()
+		t.Fatalf("expected mod_staff and theme_tester users to exist")
+	}
+	staffUser.Role = "staff"
+	targetID := targetUser.ID
+	accMu.Unlock()
+
+	reqPartner := httptest.NewRequest("POST", fmt.Sprintf("/admin/users/%d/partner", targetID), strings.NewReader("action=grant"))
+	reqPartner.RemoteAddr = "127.0.0.1:12345"
+	reqPartner.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqPartner.Header.Set("X-NSM-Session", staffSess)
+	wPartner := httptest.NewRecorder()
+	h.ServeHTTP(wPartner, reqPartner)
+	if wPartner.Code != http.StatusOK {
+		t.Fatalf("POST /admin/users/%d/partner by staff expected 200 OK, got %d: %s", targetID, wPartner.Code, wPartner.Body.String())
+	}
+	if !strings.Contains(wPartner.Body.String(), "Partnered Server Owner") {
+		t.Fatalf("Partner role grant did not unlock Partnered Server Owner badge")
 	}
 
 	// Also verify the updated Display Name appears on the main website navbar (GET /) and users directory (GET /u)
