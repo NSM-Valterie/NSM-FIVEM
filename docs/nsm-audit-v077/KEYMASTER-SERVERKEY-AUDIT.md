@@ -117,9 +117,21 @@ For NSM's *own* masterlist/services only:
 | No key (localtest mode) | Current behavior preserved, clearly labelled local-only |
 | Key of another account | Accepted for listing only under its own registration; ownership shown correctly; cannot mutate others' entries (IDOR check) |
 
-## 4. What was NOT done in this pass
+## 4. Additive Candidate Implementation (`tools/nsm-keyservice/`)
 
-No licensing, heartbeat, registration, or entitlement code was changed.
-No endpoint was contacted. No key was issued, removed, or bypassed.
-Implementation of §3 requires explicit owner approval and a separate
-candidate with locked-path gate PASS.
+An isolated, additive candidate implementing §3 above has been added in
+`tools/nsm-keyservice/` (`keyservice.py`, `test_keyservice.py`, `README.md`)
+with zero modifications to locked v0.7.7 files (`tools/local-stack/**`,
+`tools/release-077/**`) or existing `tools/masterlist/**`.
+
+Run the full §3 verification matrix locally with:
+
+```bash
+python3 -m unittest discover -s tools/nsm-keyservice -v
+```
+
+All 8 test cases (valid, malformed/unknown/wrong-secret, expired, revoked,
+missing key in `public` mode, `localtest` mode compatibility, cross-account
+IDOR & endpoint-hijack prevention, and non-impersonation/secret-redaction
+guardrails) pass. Native `GameServer.cpp` header wiring remains untouched
+pending explicit owner review.

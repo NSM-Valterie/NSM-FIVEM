@@ -66,7 +66,7 @@ namespace fx
 			argStr.find("\"--start-node\"") == std::string::npos) ||
 			argStr.find("\"-V\"") != std::string::npos)
 		{
-			fmt::printf("Cfx.re Platform Server (FXServer) %s\n", GIT_DESCRIPTION);
+			fmt::printf("NSM Platform Server (nsm-server) %s\n", GIT_DESCRIPTION);
 			fmt::printf("Build date: %s\n", __DATE__);
 			fmt::printf("\n");
 			fmt::printf("Usage restrictions apply, see <https://fivem.net/terms> for further information.\n");

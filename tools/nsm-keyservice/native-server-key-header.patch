@@ -1,0 +1,16 @@
+--- a/code/components/citizen-server-impl/src/GameServer.cpp
++++ b/code/components/citizen-server-impl/src/GameServer.cpp
+@@ -1004,6 +1004,13 @@ namespace fx
+ 					ro.headers = std::map<std::string, std::string>{
+ 						{ "Content-Type", "application/json; charset=utf-8" }
+ 					};
++					if (auto nsmKeyVar = m_instance->GetComponent<console::Context>()->GetVariableManager()->FindEntryRaw("sv_nsmServerKey");
++						nsmKeyVar && !nsmKeyVar->GetValue().empty())
++					{
++						// NSM: send server key in Authorization header only (never in public listing JSON)
++						ro.headers["Authorization"] = "Bearer " + nsmKeyVar->GetValue();
++					}
++
+ 					ro.addErrorBody = true;
+ 
+ 					static bool firstRun = true;
