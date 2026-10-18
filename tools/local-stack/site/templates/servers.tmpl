@@ -1,24 +1,61 @@
 {{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>Server List</h1>
-    {{if .Servers}}
-    <div class="fx">
-      {{range .Servers}}
-      <div class="c-lg-4 c-md-6 c-xs-12">
-        <article class="a1">
-          <h2><a href="/servers/{{.EndPoint}}" style="color:inherit;text-decoration:none">{{.Hostname}}</a></h2>
-          <span class="txt">{{.Clients}}/{{.MaxClients}} players{{if .GameType}} &middot; {{.GameType}}{{end}} &middot; {{.Upvotes}} upvotes</span>
-          <div class="btnpadder">
-            <a class="btn btn-accent block" href="nsm://connect/{{.EndPoint}}">Join</a>
-          </div>
-        </article>
-      </div>
-      {{end}}
+
+<section class="wrap section">
+  <div class="sec-head">
+    <div>
+      <h1>Server List</h1>
+      <p class="muted"><b id="srv-total-count">{{len .Servers}}</b> live servers &bull; <b id="srv-total-players">{{index .Stats "Players"}}</b> players online</p>
     </div>
-    {{else}}
-    <p class="lead">No servers are live right now. Start your NSM Server and it will appear here automatically.</p>
+    <div class="filter-bar">
+      <input type="search" id="srv-search" placeholder="Search server name, gamemode, map, or tag..." class="inp">
+      <select id="srv-sort" class="inp" style="min-width:160px">
+        <option value="players">Sort: Most Players</option>
+        <option value="upvotes">Sort: Most Upvotes</option>
+        <option value="name">Sort: Name (A–Z)</option>
+      </select>
+      <a href="/keymaster" class="btn btn-primary btn-sm">+ Host a Server</a>
+    </div>
+  </div>
+
+  {{if .Tags}}
+  <div class="tag-filter-bar" id="srv-tag-filters">
+    <button type="button" class="tag-btn on" data-tag="">All Servers</button>
+    {{range .Tags}}
+    <button type="button" class="tag-btn" data-tag="{{.}}">#{{.}}</button>
     {{end}}
-  </div></div>
+  </div>
+  {{end}}
+
+  {{if .Servers}}
+  <div class="srv-list" id="srv-list">
+    {{range .Servers}}
+    <div class="srv-row" data-name="{{.CleanName}} {{.GameType}} {{.MapName}} {{.EndPoint}}" data-tags="{{range .Tags}}{{.}} {{end}}" data-players="{{.Clients}}" data-upvotes="{{.Upvotes}}">
+      <div class="srv-icon">{{.Initial}}</div>
+      <div class="srv-row-main">
+        <a href="/servers/{{.EndPoint}}" class="srv-name">{{.CleanName}}</a>
+        {{if .Desc}}<div class="srv-desc-inline">{{.Desc}}</div>{{end}}
+        <div class="srv-sub">
+          {{if .GameType}}<span class="tag">{{.GameType}}</span>{{end}}
+          {{if .MapName}}<span class="tag">{{.MapName}}</span>{{end}}
+          {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
+          <span class="muted"><code>{{.EndPoint}}</code> &bull; {{.Resources}} resources</span>
+        </div>
+      </div>
+      <div class="srv-row-upv" title="Community Boost / Upvotes">&#9650; {{.Upvotes}}</div>
+      <div class="srv-row-players"><b>{{.Clients}}</b><span class="max">/{{.MaxClients}}</span></div>
+      <div style="display:flex;gap:8px">
+        <a href="/servers/{{.EndPoint}}" class="btn btn-ghost btn-sm">Details</a>
+        <a href="nsm://connect/{{.EndPoint}}" class="btn btn-primary btn-sm">Connect</a>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty">
+    <h3>No servers are currently online</h3>
+    <p class="muted">Issue a key in <a href="/keymaster">Keymaster</a> and start <code>nsm-server.exe</code> to list your server here.</p>
+  </div>
+  {{end}}
 </section>
+
 {{template "foot" .}}

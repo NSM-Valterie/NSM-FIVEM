@@ -1,30 +1,93 @@
 {{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>Documentation</h1>
-    <div class="fx">
-      <div class="c-lg-6 c-xs-12">
-        <h2 class="sub">1. Run the NSM backend</h2>
-        <p>Double-click <strong>NSM-Masterlist.exe</strong> (or run it from a terminal). It serves the website, accounts, server list and game cache on <code>http://127.0.0.1</code>.</p>
-        <h2 class="sub">2. Play</h2>
-        <p>Open <strong>NSM.exe</strong>, browse servers at <code>http://127.0.0.1/servers</code> or in the client, and join.</p>
-        <h2 class="sub">3. Run your own server</h2>
-        <p>Unzip NSM Server, configure <code>server.cfg</code>, start <strong>NSM-Server.exe</strong>. Your server appears on the list automatically.</p>
-        <h2 class="sub">4. Owner tools</h2>
-        <p>Log in as the owner account, then use <a href="/admin/users">Staff &amp; users</a> to manage roles.</p>
+
+<section class="wrap section">
+  <div class="sec-head">
+    <div>
+      <h1>NSM Documentation &amp; Developer Reference</h1>
+      <p class="muted">Complete guide to the NSM client, FXServer, Keymaster, in-app login, and local masterlist</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="/keymaster" class="btn btn-primary btn-sm">Open Keymaster</a>
+      <a href="/forum/c/server-dev" class="btn btn-ghost btn-sm">Server Dev Forum</a>
+    </div>
+  </div>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <div class="docs-nav-box">
+        <h4>Documentation</h4>
+        <a href="#quickstart">1. Quick Start</a>
+        <a href="#client-login">2. In-App Client Login</a>
+        <a href="#keymaster">3. Keymaster &amp; Server Keys</a>
+        <a href="#server-cfg">4. Server Configuration</a>
+        <a href="#profiles">5. Custom User Profiles</a>
+        <a href="#http-api">6. Masterlist &amp; Auth APIs</a>
       </div>
-      <div class="c-lg-6 c-xs-12">
-        <h2 class="sub">System requirements</h2>
-        <table class="stat-table">
-          <tr><td><span class="stat">OS</span></td><td>Windows 10 or 11</td></tr>
-          <tr><td><span class="stat">CPU</span></td><td>Intel Core i5-3470 / AMD FX-8350 (server: any quad-core)</td></tr>
-          <tr><td><span class="stat">GPU</span></td><td>NVIDIA GTX 660 2GB / AMD HD 7870 2GB</td></tr>
-          <tr><td><span class="stat">RAM</span></td><td>8GB</td></tr>
-          <tr><td><span class="stat">Disk</span></td><td>GTA V (~105GB) + ~4GB NSM</td></tr>
-          <tr><td><span class="stat">Game</span></td><td>Grand Theft Auto V (any edition)</td></tr>
-        </table>
+    </aside>
+
+    <div class="docs-main">
+      <div class="doc-card" id="quickstart">
+        <h3>1. Quick Start — Launching the Full NSM Stack</h3>
+        <p class="muted">The NSM stack runs as a single self-contained platform (`NSM-Masterlist.exe`) alongside `nsm-server.exe` and `NSM.exe`:</p>
+        <pre class="code">powershell -ExecutionPolicy Bypass -File .\START-LOCALHOST.ps1</pre>
+        <p class="muted" style="margin-top:8px">
+          `NSM-Masterlist.exe` binds `http://127.0.0.1:80` and provides the website (`/`), live server browser (`/servers`), Keymaster (`/keymaster`), community forum (`/forum`), custom profile system (`/account`, `/u/{username}`), and in-app client authentication (`/user-api-key/new`).
+        </p>
+      </div>
+
+      <div class="doc-card" id="client-login">
+        <h3>2. Signing In Inside the NSM Desktop Client</h3>
+        <p class="muted">
+          Clicking <strong>Sign In / Link Account</strong> in the NSM client navbar opens <code>http://127.0.0.1/user-api-key/new</code> in your browser instead of Discord.
+        </p>
+        <ul class="muted" style="margin:10px 0 0 18px;line-height:1.7">
+          <li>Sign in (or create an account) on the authorization screen and click <strong>Authorize &amp; Sign In to NSM Client</strong>.</li>
+          <li>The NSM website encrypts a persistent <code>User-Api-Key</code> using the client's RSA public key and delivers it via both <code>nsm://accept-auth?payload=...</code> and automatic local polling (<code>/api/auth/client-poll</code>).</li>
+          <li>Your custom display name, avatar, and role badge sync directly into the NSM client navbar.</li>
+        </ul>
+      </div>
+
+      <div class="doc-card" id="keymaster">
+        <h3>3. NSM Keymaster &amp; Server Keys (<code>/keymaster</code>)</h3>
+        <p class="muted">
+          Create and manage cryptographic server keys in <a href="/keymaster">Keymaster</a>:
+        </p>
+        <pre class="code"># Add your Keymaster key to server-local.cfg or server.cfg:
+sets sv_nsmServerKey "nsm_srv_..."</pre>
+        <p class="muted" style="margin-top:8px">
+          When your server sends its heartbeat to <code>POST /api/serverlist/ingress</code>, the masterlist verifies the key via constant-time iterated HMAC-SHA256, strips <code>sv_nsmServerKey</code> from public listings, and binds the endpoint to your account so no other account can overwrite it.
+        </p>
+      </div>
+
+      <div class="doc-card" id="server-cfg">
+        <h3>4. Connecting to a Server</h3>
+        <pre class="code"># Click Connect on /servers, or press F8 inside NSM and run:
+connect 127.0.0.1:30120</pre>
+      </div>
+
+      <div class="doc-card" id="profiles">
+        <h3>5. Custom User Profiles &amp; Avatars (<code>/account</code> &amp; <code>/u/{username}</code>)</h3>
+        <p class="muted">
+          Visit <a href="/account">Profile &amp; Settings</a> to upload a custom PNG/JPG/GIF avatar (or customize your generated monogram avatar color), set your display name, custom title, bio, banner color/image, location, Discord tag, and favorite server. Every user also has a public profile at <code>/u/{username}</code>.
+        </p>
+      </div>
+
+      <div class="doc-card" id="http-api">
+        <h3>6. HTTP API Reference</h3>
+        <pre class="code">GET  /health                         # Stack readiness probe
+GET  /api/servers/live               # Live JSON server list &amp; player counts
+GET  /api/servers/streamRedir/       # Binary protobuf masterlist stream for NSM.exe
+GET  /api/servers/single/{ep}        # Single server JSON details
+POST /api/serverlist/ingress         # FXServer heartbeat ingress
+GET  /keymaster                      # Keymaster Web Portal
+POST /api/keymaster/issue            # Issue a new nsm_srv_... key
+POST /api/keymaster/revoke           # Revoke an existing key
+GET  /user-api-key/new               # NSM Client RSA User-Api-Key authorization
+POST /api/auth/client-poll           # NSM Client automatic login poller
+POST /l/api/validate/discourse       # Native legitimacy.dll Discourse identity check</pre>
       </div>
     </div>
-  </div></div>
+  </div>
 </section>
+
 {{template "foot" .}}

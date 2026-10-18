@@ -1,0 +1,101 @@
+{{template "head" .}}
+
+<section class="wrap section">
+  <div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div>
+      <a href="/forum" class="muted">&larr; Forum</a>
+      <span class="muted"> / </span>
+      <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
+    </div>
+    {{if .CanMod}}
+    <div style="display:flex;gap:6px">
+      {{if or (eq .User.Role "staff") (eq .User.Role "admin") (eq .User.Role "owner")}}
+      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/pin" style="display:inline">
+        <button type="submit" class="btn btn-ghost btn-xs">{{if .Topic.Pinned}}Unpin{{else}}Pin Topic{{end}}</button>
+      </form>
+      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/lock" style="display:inline">
+        <button type="submit" class="btn btn-ghost btn-xs">{{if .Topic.Locked}}Unlock{{else}}Lock Topic{{end}}</button>
+      </form>
+      {{end}}
+      <form method="post" action="/forum/t/{{.Topic.ID}}/mod/delete" style="display:inline" onsubmit="return confirm('Delete this topic?');">
+        <button type="submit" class="btn btn-ghost btn-xs" style="color:#f87171">Delete Topic</button>
+      </form>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="topic-header-box">
+    <h1>
+      {{if .Topic.Pinned}}<span title="Pinned">&#128204;</span> {{end}}
+      {{if .Topic.Locked}}<span title="Locked">&#128274;</span> {{end}}
+      {{.Topic.Title}}
+    </h1>
+    <div class="topic-sub-line" style="margin-top:8px">
+      <span class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</span>
+      {{range .Topic.Tags}}<span class="tag">#{{.}}</span>{{end}}
+      <span class="muted">&bull; {{.Topic.Views}} views &bull; {{len .Posts}} posts</span>
+    </div>
+  </div>
+
+  <div class="post-stream">
+    {{range .Posts}}
+    <article class="forum-post-card" id="post-{{.PostNumber}}">
+      <div class="post-sidebar">
+        <a href="/u/{{.AuthorUsername}}">
+          <img src="{{.AuthorAvatar}}" alt="{{.AuthorUsername}}" class="post-avatar">
+        </a>
+      </div>
+      <div class="post-body-col">
+        <div class="post-meta-bar">
+          <div>
+            <a href="/u/{{.AuthorUsername}}" class="post-author-name">{{.AuthorDisplay}}</a>
+            <span class="muted">@{{.AuthorUsername}}</span>
+            <span class="role role-{{.AuthorRole}}">{{.AuthorRole}}</span>
+            <span class="post-author-title">{{.AuthorTitle}}</span>
+          </div>
+          <div class="muted" style="font-size:12px">
+            <span title="{{.CreatedAtStr}}">{{.RelativeStr}}</span> &bull; #{{.PostNumber}}
+          </div>
+        </div>
+        <div class="post-content">
+          {{range .Paragraphs}}
+          <p>{{.}}</p>
+          {{end}}
+        </div>
+        <div class="post-actions-bar">
+          <form method="post" action="/forum/t/{{$.Topic.ID}}/like/{{.ID}}" style="display:inline">
+            <button type="submit" class="like-btn {{if .Liked}}liked{{end}}">
+              &#9829; {{.LikesCount}} {{if .Liked}}Liked{{else}}Like{{end}}
+            </button>
+          </form>
+          <a href="/u/{{.AuthorUsername}}" class="muted" style="font-size:12px">View Profile</a>
+        </div>
+      </div>
+    </article>
+    {{end}}
+  </div>
+
+  <div id="post-bottom" style="margin-top:24px">
+    {{if .Topic.Locked}}
+    <div class="empty">
+      <p>&#128274; This topic is locked and no longer accepting new replies.</p>
+    </div>
+    {{else if .User}}
+    <div class="composer-card open">
+      <h3 style="margin-bottom:10px">Reply to "{{.Topic.Title}}"</h3>
+      <form method="post" action="/forum/t/{{.Topic.ID}}/reply" class="form">
+        <textarea name="content" class="inp" rows="5" placeholder="Write your reply..." required minlength="2"></textarea>
+        <div style="display:flex;justify-content:flex-end">
+          <button type="submit" class="btn btn-primary">Post Reply</button>
+        </div>
+      </form>
+    </div>
+    {{else}}
+    <div class="empty">
+      <p><a href="/login?next=/forum/t/{{.Topic.ID}}" class="btn btn-primary btn-sm">Sign in to Reply</a> or <a href="/register?next=/forum/t/{{.Topic.ID}}">create an account</a> to join the discussion.</p>
+    </div>
+    {{end}}
+  </div>
+</section>
+
+{{template "foot" .}}

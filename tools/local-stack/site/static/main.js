@@ -1,83 +1,74 @@
-// GTAMP website client JS
+// NSM website interactive client script: server list search/tag/sort filter + live player/server counters.
 (function () {
-  // FAQ accordion
-  document.querySelectorAll('.faq-q').forEach(q => q.addEventListener('click', () => q.parentElement.classList.toggle('open')));
+  var search = document.getElementById('srv-search');
+  var sortSel = document.getElementById('srv-sort');
+  var list = document.getElementById('srv-list');
+  var tagBar = document.getElementById('srv-tag-filters');
+  var activeTag = '';
 
-  // Live server list on /servers
-  const listEl = document.getElementById('server-list');
-  if (listEl) {
-    const search = document.getElementById('srv-search');
-    const tagSel = document.getElementById('srv-tag');
-    let all = [];
-    async function refresh() {
-      try {
-        const r = await fetch('/api/servers/live');
-        const d = await r.json();
-        all = d.servers || [];
-        // populate tag dropdown
-        if (tagSel) {
-          const tags = new Set(); all.forEach(s => (s.tags||[]).forEach(t => tags.add(t)));
-          const cur = tagSel.value;
-          tagSel.innerHTML = '<option value="">All tags</option>' + [...tags].map(t => `<option value="${t}">${t}</option>`).join('');
-          tagSel.value = cur;
-        }
-        render();
-      } catch (e) { if (listEl) listEl.innerHTML = '<div class="muted">Could not load servers.</div>'; }
-    }
-    function render() {
-      const q = (search && search.value || '').toLowerCase();
-      const t = tagSel ? tagSel.value : '';
-      const rows = all.filter(s => {
-        const name = (s.name||'').toLowerCase() + ' ' + (s.mode||'').toLowerCase() + ' ' + (s.tags||[]).join(' ').toLowerCase();
-        if (q && !name.includes(q)) return false;
-        if (t && !(s.tags||[]).includes(t)) return false;
-        return true;
-      });
-      if (!rows.length) { listEl.innerHTML = '<div class="muted">No servers match.</div>'; return; }
-      listEl.innerHTML = rows.map(s => `
-        <div class="server-row" onclick="location='/servers/${s.id}'">
-          <div class="server-icon">${(s.name||'S')[0]}</div>
-          <div class="server-info">
-            <div class="name"><span class="live-dot"></span>${escapeHtml(s.name)}</div>
-            <div class="desc">${escapeHtml(s.desc||'')}</div>
-          </div>
-          <div class="server-meta">
-            <div class="players">${s.players}/${s.maxPlayers} players</div>
-            <div class="tags">${(s.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-          </div>
-        </div>`).join('');
-    }
-    if (search) search.addEventListener('input', render);
-    if (tagSel) tagSel.addEventListener('change', render);
-    refresh();
-    setInterval(refresh, 5000);
+  function filterAndSortServers() {
+    if (!list) return;
+    var q = search ? search.value.toLowerCase().trim() : '';
+    var sortBy = sortSel ? sortSel.value : 'players';
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.srv-row'));
+
+    rows.forEach(function (r) {
+      var name = (r.getAttribute('data-name') || '').toLowerCase();
+      var tags = (r.getAttribute('data-tags') || '').toLowerCase();
+      var matchQ = !q || name.indexOf(q) !== -1 || tags.indexOf(q) !== -1;
+      var matchTag = !activeTag || tags.indexOf(activeTag.toLowerCase()) !== -1;
+      r.style.display = (matchQ && matchTag) ? '' : 'none';
+    });
+
+    rows.sort(function (a, b) {
+      if (sortBy === 'upvotes') {
+        return (parseInt(b.getAttribute('data-upvotes') || '0', 10)) - (parseInt(a.getAttribute('data-upvotes') || '0', 10));
+      }
+      if (sortBy === 'name') {
+        return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
+      }
+      return (parseInt(b.getAttribute('data-players') || '0', 10)) - (parseInt(a.getAttribute('data-players') || '0', 10));
+    });
+
+    rows.forEach(function (r) {
+      list.appendChild(r);
+    });
   }
 
-  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  window.escapeHtml = escapeHtml;
-})();
+  if (search) search.addEventListener('input', filterAndSortServers);
+  if (sortSel) sortSel.addEventListener('change', filterAndSortServers);
+  if (tagBar) {
+    tagBar.addEventListener('click', function (e) {
+      var btn = e.target.closest('.tag-btn');
+      if (!btn) return;
+      Array.prototype.forEach.call(tagBar.querySelectorAll('.tag-btn'), function (b) {
+        b.classList.remove('on');
+      });
+      btn.classList.add('on');
+      activeTag = btn.getAttribute('data-tag') || '';
+      filterAndSortServers();
+    });
+  }
 
-// upvote + tags (from server detail page)
-async function upvote(id) {
-  try {
-    const r = await fetch('/api/servers/' + id + '/upvote', { method: 'POST' });
-    const d = await r.json();
-    if (d.error === 'already') toast('Already upvoted');
-    else if (d.error === 'login') location = '/login';
-    else { toast('Upvoted! ⭐'); location.reload(); }
-  } catch (e) { toast('Error'); }
-}
-async function saveTags(id) {
-  const inp = document.getElementById('tag-input');
-  const tags = inp.value.split(',').map(t => t.trim()).filter(Boolean);
-  try {
-    await fetch('/api/servers/' + id + '/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }) });
-    toast('Tags saved'); location.reload();
-  } catch (e) { toast('Error'); }
-}
-function toast(msg) {
-  let t = document.querySelector('.toast');
-  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2500);
-}
+  // Live player & server count refresh every 10s
+  function refreshLiveCounts() {
+    fetch('/runtime/counts.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d) return;
+        var pEls = ['stat-players', 'stat-players-pill', 'nav-players', 'srv-total-players'];
+        var sEls = ['stat-servers', 'stat-servers-pill', 'srv-total-count'];
+        pEls.forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el && d.players !== undefined) el.textContent = d.players;
+        });
+        sEls.forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el && d.servers !== undefined) el.textContent = d.servers;
+        });
+      })
+      .catch(function () {});
+  }
+
+  setInterval(refreshLiveCounts, 10000);
+})();

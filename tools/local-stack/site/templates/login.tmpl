@@ -1,15 +1,22 @@
 {{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <div class="form-card">
-      <h1 style="margin-bottom:20px">Log in</h1>
-      <form method="POST" action="/login">
-        <div class="form-row"><label>Username</label><input type="text" name="username" required></div>
-        <div class="form-row"><label>Password</label><input type="password" name="password" required></div>
-        <button class="btn btn-accent" style="width:100%">LOG IN</button>
-      </form>
-      <p class="muted mt center">No account? <a href="/register">Register</a></p>
-    </div>
-  </div></div>
+
+<section class="wrap section auth-wrap">
+  <div class="auth-card">
+    <h1>Sign in to NSM</h1>
+    <p class="muted">Use your NSM account for the website, community forum, Keymaster, and NSM desktop client.</p>
+    {{if .Error}}<div class="alert alert-err" style="margin-bottom:12px">{{.Error}}</div>{{end}}
+    <form method="post" action="/login" class="form">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label>Username
+        <input type="text" name="username" class="inp" required autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="password" class="inp" required>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+    </form>
+    <p class="auth-foot">No account yet? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create one</a> &bull; <a href="/user-api-key/new">Sign in for NSM App</a></p>
+  </div>
 </section>
+
 {{template "foot" .}}

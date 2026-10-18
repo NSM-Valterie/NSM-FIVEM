@@ -1,44 +1,58 @@
 {{define "head"}}<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{if .Title}}{{.Title}} - {{end}}NSM Community</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&family=Rubik:ital,wght@0,300;0,400;1,300;1,400&family=Material+Icons+Outlined&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{if .Title}}{{.Title}} — {{end}}NSM — FiveM / Cfx.re Local Platform</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="container"><div class="spacer">
-<header>
-  <div class="hbar">
-    <a href="/" class="logo">
-      <svg class="logo-img" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 22V2H7.2L15.5 14.2V2H19V22H14.8L6.5 9.8V22H3Z" fill="#2F7BFF"/></svg>
-      <span class="logo-title">NSM Community</span>
+{{if .HasPendingClientAuth}}
+<div class="client-auth-banner">
+  <div class="wrap client-auth-banner-inner">
+    <span><strong>NSM Client Sign-In Requested:</strong> Your NSM desktop app is waiting to link your account.</span>
+    <a href="/user-api-key/new" class="btn btn-primary btn-xs">Authorize NSM App &rarr;</a>
+  </div>
+</div>
+{{end}}
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a href="/" class="brand">
+      <span class="brand-mark">NSM</span>
+      <span class="brand-sub">Platform <small>v0.7.8</small></span>
     </a>
-    <div class="burger-toggle" id="burger-open"><span class="material-icons-outlined">menu</span></div>
-    <ul class="links hidden-xs hidden-sm hidden-md">
-      <li><a href="/servers" class="{{if eq .Page "/servers"}}active{{end}}">Server List</a></li>
-      <li><a href="/support" class="{{if eq .Page "/support"}}active{{end}}">Support</a></li>
-      <li><a href="/keymaster" class="{{if eq .Page "/keymaster"}}active{{end}}">Portal</a></li>
-      <li><a href="/forum" class="{{if eq .Page "/forum"}}active{{end}}">Forum</a></li>
-      <li><a href="/docs" class="{{if eq .Page "/docs"}}active{{end}}">Documentation</a></li>
-      {{if .User}}<li><a href="/account" class="{{if eq .Page "/account"}}active{{end}}">{{.User.Username}} ({{.User.Role}})</a></li><li><a href="/logout">Log out</a></li>
-      {{else}}<li><a href="/login" class="{{if eq .Page "/login"}}active{{end}}">Log in</a></li>{{end}}
-    </ul>
+    <nav class="nav">
+      <a href="/" {{if eq .Page "/"}}class="on"{{end}}>Home</a>
+      <a href="/servers" {{if eq .Page "/servers"}}class="on"{{end}}>Servers {{if .Stats}}<span class="nav-count">{{index .Stats "Servers"}}</span>{{end}}</a>
+      <a href="/forum" {{if eq .Page "/forum"}}class="on"{{end}}>Forum</a>
+      <a href="/keymaster" {{if eq .Page "/keymaster"}}class="on"{{end}}>Keymaster</a>
+      <a href="/docs" {{if eq .Page "/docs"}}class="on"{{end}}>Docs</a>
+      <a href="/support" {{if eq .Page "/support"}}class="on"{{end}}>Support</a>
+      {{if .User}}{{if or (eq .User.Role "staff") (eq .User.Role "admin") (eq .User.Role "owner")}}
+      <a href="/admin/users" {{if eq .Page "/admin/users"}}class="on"{{end}}>Staff</a>
+      {{end}}{{end}}
+    </nav>
+    <div class="auth">
+      {{if .Stats}}
+      <a href="/servers" class="live-pill" title="Live players and servers on NSM Masterlist">
+        <span class="dot"></span>
+        <span><b id="nav-players">{{index .Stats "Players"}}</b> playing</span>
+      </a>
+      {{end}}
+      {{if .User}}
+        <a href="/u/{{.User.Username}}" class="user-chip" title="View public profile">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+          <span class="user-chip-name">{{.User.EffectiveDisplayName}}</span>
+          <span class="role role-{{.User.Role}}">{{.User.Role}}</span>
+        </a>
+        <a href="/account" class="btn btn-ghost btn-sm">Profile &amp; Settings</a>
+        <a href="/logout" class="btn btn-ghost btn-sm">Log out</a>
+      {{else}}
+        <a href="/login" class="btn btn-ghost btn-sm">Sign in</a>
+        <a href="/register" class="btn btn-primary btn-sm">Create account</a>
+      {{end}}
+    </div>
   </div>
 </header>
-<div class="burger-links" id="burger-menu">
-  <ul class="links">
-    <li><a href="/servers">Server List</a></li>
-    <li><a href="/support">Support</a></li>
-    <li><a href="/keymaster">Portal</a></li>
-    <li><a href="/forum">Forum</a></li>
-    <li><a href="/docs">Documentation</a></li>
-    {{if .User}}<li><a href="/logout">Log out ({{.User.Username}})</a></li>{{else}}<li><a href="/login">Log in</a></li>{{end}}
-  </ul>
-  <div class="close" id="burger-close"><span class="material-icons-outlined">close</span></div>
-</div>
-</div></div>
+<main class="main">
 {{end}}

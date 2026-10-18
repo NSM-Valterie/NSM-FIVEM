@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,8 +28,11 @@ func setupTest(t *testing.T) http.Handler {
 	ticketPublicKey = ""
 	requireKeys = false
 	keyClock = time.Now
-	accPath = filepath.Join(t.TempDir(), "accounts.json")
+	tmp := t.TempDir()
+	accPath = filepath.Join(tmp, "accounts.json")
+	forumPath = filepath.Join(tmp, "forum.json")
 	loadAccounts()
+	loadForum()
 	initSite()
 	return localHandler()
 }
@@ -409,4 +414,186 @@ func TestKeymasterFullMatrix(t *testing.T) {
 		t.Fatalf("expected 401 when requireKeys=true and no key sent, got %d", w.Code)
 	}
 }
+
+func TestForumProfilesAndInAppClientLogin(t *testing.T) {
+	h := setupTest(t)
+
+	// 1. HTML form registration redirects to /account and sets nsm_session cookie
+	regForm := url.Values{
+		"username": {"cravenz_dev"},
+		"email":    {"dev@nsm.local"},
+		"password": {"secretPass123"},
+	}
+	rReg := httptest.NewRequest("POST", "/register", strings.NewReader(regForm.Encode()))
+	rReg.RemoteAddr = "127.0.0.1:12345"
+	rReg.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rReg.Header.Set("Accept", "text/html")
+	wReg := httptest.NewRecorder()
+	h.ServeHTTP(wReg, rReg)
+	if wReg.Code != http.StatusSeeOther || wReg.Header().Get("Location") != "/account" {
+		t.Fatalf("expected 303 redirect to /account, got %d (%s)", wReg.Code, wReg.Header().Get("Location"))
+	}
+	var sessionCookie *http.Cookie
+	for _, c := range wReg.Result().Cookies() {
+		if c.Name == "nsm_session" {
+			sessionCookie = c
+		}
+	}
+	if sessionCookie == nil || sessionCookie.Value == "" {
+		t.Fatalf("missing nsm_session cookie on HTML registration")
+	}
+
+	// 2. Customize user profile (DisplayName, Title, Bio, colors, social metadata)
+	profForm := url.Values{
+		"display_name":    {"Cravenz Official"},
+		"title":           {"Lead NSM Architect"},
+		"bio":             {"Building the NSM multiplayer platform and Keymaster."},
+		"avatar_color":    {"#e7064f"},
+		"banner_color":    {"#1e293b"},
+		"location":        {"Miami, FL"},
+		"discord_tag":     {"cravenz#0001"},
+		"favorite_server": {"NSM Official RP"},
+	}
+	rProf := httptest.NewRequest("POST", "/account/profile", strings.NewReader(profForm.Encode()))
+	rProf.RemoteAddr = "127.0.0.1:12345"
+	rProf.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rProf.AddCookie(sessionCookie)
+	wProf := httptest.NewRecorder()
+	h.ServeHTTP(wProf, rProf)
+	if wProf.Code != 200 || !strings.Contains(wProf.Body.String(), "Cravenz Official") {
+		t.Fatalf("profile update failed: %d", wProf.Code)
+	}
+
+	// Public profile page /u/cravenz_dev & PNG avatar /avatars/u/cravenz_dev/128.png
+	if wU := request(h, "GET", "/u/cravenz_dev", ""); wU.Code != 200 || !strings.Contains(wU.Body.String(), "Lead NSM Architect") {
+		t.Fatalf("public profile /u/cravenz_dev failed: %d", wU.Code)
+	}
+	if wAv := request(h, "GET", "/avatars/u/cravenz_dev/128.png", ""); wAv.Code != 200 || wAv.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("avatar PNG failed: %d (%s)", wAv.Code, wAv.Header().Get("Content-Type"))
+	}
+
+	// 3. Forum: view /forum, create topic, view topic, reply, and like
+	if wF := request(h, "GET", "/forum", ""); wF.Code != 200 || !strings.Contains(wF.Body.String(), "NSM Community Forum") {
+		t.Fatalf("GET /forum failed: %d", wF.Code)
+	}
+	topicForm := url.Values{
+		"title":    {"My New NSM Resource Release v1.0"},
+		"category": {"releases"},
+		"tags":     {"release,hud"},
+		"content":  {"Here is our brand new custom HUD resource for NSM servers!"},
+	}
+	rNewTopic := httptest.NewRequest("POST", "/forum/new", strings.NewReader(topicForm.Encode()))
+	rNewTopic.RemoteAddr = "127.0.0.1:12345"
+	rNewTopic.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rNewTopic.AddCookie(sessionCookie)
+	wNewTopic := httptest.NewRecorder()
+	h.ServeHTTP(wNewTopic, rNewTopic)
+	if wNewTopic.Code != http.StatusSeeOther || !strings.HasPrefix(wNewTopic.Header().Get("Location"), "/forum/t/") {
+		t.Fatalf("POST /forum/new failed: %d (%s)", wNewTopic.Code, wNewTopic.Header().Get("Location"))
+	}
+	topicLoc := wNewTopic.Header().Get("Location")
+	if wT := request(h, "GET", topicLoc, ""); wT.Code != 200 || !strings.Contains(wT.Body.String(), "My New NSM Resource Release v1.0") {
+		t.Fatalf("GET %s failed: %d", topicLoc, wT.Code)
+	}
+
+	// 4. NSM Client In-App Login (RSA User-Api-Key flow + /api/auth/client-poll + /l/api/validate/discourse)
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubDER, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER}))
+	nonce := "00112233445566778899aabbccddeeff"
+	clientID := "deadbeefcafebabe0011223344556677"
+
+	authForm := url.Values{
+		"action":           {"authorize"},
+		"client_id":        {clientID},
+		"nonce":            {nonce},
+		"public_key":       {pubPEM},
+		"application_name": {"NSM Client"},
+		"auth_redirect":    {"nsm://accept-auth"},
+	}
+	rAuth := httptest.NewRequest("POST", "/user-api-key/new", strings.NewReader(authForm.Encode()))
+	rAuth.RemoteAddr = "127.0.0.1:12345"
+	rAuth.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rAuth.AddCookie(sessionCookie)
+	wAuth := httptest.NewRecorder()
+	h.ServeHTTP(wAuth, rAuth)
+	if wAuth.Code != 200 || !strings.Contains(wAuth.Body.String(), "nsm://accept-auth?payload=") {
+		t.Fatalf("POST /user-api-key/new failed: %d", wAuth.Code)
+	}
+
+	// Client poller receives the RSA-encrypted payload
+	wPoll := request(h, "POST", "/api/auth/client-poll", `{"nonce":"`+nonce+`","clientId":"`+clientID+`"}`)
+	if wPoll.Code != 200 {
+		t.Fatalf("POST /api/auth/client-poll failed: %d", wPoll.Code)
+	}
+	var pollResp struct {
+		OK      bool   `json:"ok"`
+		Payload string `json:"payload"`
+	}
+	if err := json.Unmarshal(wPoll.Body.Bytes(), &pollResp); err != nil || !pollResp.OK || pollResp.Payload == "" {
+		t.Fatalf("unexpected poll response: %s", wPoll.Body.String())
+	}
+
+	cipherBytes, err := base64.StdEncoding.DecodeString(pollResp.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plainBytes, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, cipherBytes)
+	if err != nil {
+		t.Fatalf("RSA decrypt failed: %v", err)
+	}
+	var decPayload struct {
+		Key   string `json:"key"`
+		Nonce string `json:"nonce"`
+	}
+	if err := json.Unmarshal(plainBytes, &decPayload); err != nil || decPayload.Nonce != nonce || !strings.HasPrefix(decPayload.Key, "nsm_uapi_") {
+		t.Fatalf("unexpected decrypted payload: %s", string(plainBytes))
+	}
+
+	// Verify /session/current.json and /l/api/validate/discourse with User-Api-Key
+	wSess := requestAuth(h, "GET", "/session/current.json", "", map[string]string{"User-Api-Key": decPayload.Key})
+	if wSess.Code != 200 || !strings.Contains(wSess.Body.String(), `"username":"cravenz_dev"`) {
+		t.Fatalf("GET /session/current.json failed: %d %s", wSess.Code, wSess.Body.String())
+	}
+	wVal := requestAuth(h, "POST", "/l/api/validate/discourse", "", map[string]string{"User-Api-Key": decPayload.Key})
+	if wVal.Code != 200 || !strings.Contains(wVal.Body.String(), `"username":"cravenz_dev"`) {
+		t.Fatalf("POST /l/api/validate/discourse failed: %d %s", wVal.Code, wVal.Body.String())
+	}
+
+	// 5. Verify patchUIBundleBytes rewrites Discord invite to http://127.0.0.1 and injects auth poller
+	var zbuf bytes.Buffer
+	zw := zip.NewWriter(&zbuf)
+	f1, _ := zw.Create("index.html")
+	f1.Write([]byte(`<html><body><div id="root"></div></body></html>`))
+	f2, _ := zw.Create("mpMenu.js")
+	f2.Write([]byte(`const BASE_URL = "https://discord.gg/UXj5QfCX88";`))
+	zw.Close()
+
+	patchedZip, changed, err := patchUIBundleBytes(zbuf.Bytes())
+	if err != nil || !changed {
+		t.Fatalf("patchUIBundleBytes failed: changed=%v err=%v", changed, err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(patchedZip), int64(len(patchedZip)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, zf := range zr.File {
+		rc, _ := zf.Open()
+		b, _ := io.ReadAll(rc)
+		rc.Close()
+		if zf.Name == "mpMenu.js" && !strings.Contains(string(b), `http://127.0.0.1`) {
+			t.Fatalf("mpMenu.js was not rewritten: %s", string(b))
+		}
+		if zf.Name == "index.html" && !strings.Contains(string(b), `id="nsm-client-auth-poll"`) {
+			t.Fatalf("index.html did not get auth poller injected: %s", string(b))
+		}
+	}
+}
+
 

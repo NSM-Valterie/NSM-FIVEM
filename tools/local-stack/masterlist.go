@@ -1007,7 +1007,9 @@ func main() {
 	if *opass != "" {
 		setOwnerPassword(*opass)
 	}
+	loadForum()
 	initSite()
+	patchLocalUIBundlesOnDisk()
 
 	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
 	srv := &http.Server{

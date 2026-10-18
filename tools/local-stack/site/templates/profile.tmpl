@@ -1,0 +1,88 @@
+{{template "head" .}}
+
+<section class="wrap section">
+  <div class="profile-hero-card" style="--banner-color:{{.Profile.EffectiveBannerColor}};{{if .Profile.BannerURL}}background-image:linear-gradient(180deg,rgba(11,13,18,.35),rgba(11,13,18,.92)),url('{{.Profile.BannerURL}}');background-size:cover;background-position:center;{{end}}">
+    <div class="profile-hero-inner">
+      <img src="{{.Profile.AvatarPath}}" alt="{{.Profile.Username}}" class="profile-big-avatar">
+      <div class="profile-hero-meta">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h1 style="margin:0;font-size:28px">{{.Profile.EffectiveDisplayName}}</h1>
+          <span class="muted" style="font-size:16px">@{{.Profile.Username}}</span>
+          <span class="role role-{{.Profile.Role}}">{{.Profile.Role}}</span>
+          {{if .IsOwn}}
+          <a href="/account" class="btn btn-ghost btn-xs" style="margin-left:auto">Edit My Profile</a>
+          {{end}}
+        </div>
+        <div class="profile-title-badge">{{.Profile.EffectiveTitle}}</div>
+        {{if .Profile.Bio}}<p style="margin-top:10px;max-width:700px">{{.Profile.Bio}}</p>{{end}}
+        <div class="profile-quick-facts">
+          <span>&#128197; Joined {{.JoinedStr}}</span>
+          {{if .Profile.Location}}<span>&#128205; {{.Profile.Location}}</span>{{end}}
+          {{if .Profile.DiscordTag}}<span>&#127918; Discord: {{.Profile.DiscordTag}}</span>{{end}}
+          {{if .Profile.FavoriteServer}}<span>&#9889; Favorite Server: {{.Profile.FavoriteServer}}</span>{{end}}
+          {{if .Profile.Website}}<a href="{{.Profile.Website}}" target="_blank" rel="noopener">&#128279; {{.Profile.Website}}</a>{{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="margin:18px 0 24px">
+    <div class="stat">
+      <div class="stat-num">{{len .Topics}}</div>
+      <div class="stat-lbl">Topics Created</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">{{len .Posts}}</div>
+      <div class="stat-lbl">Forum Posts</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">{{.UpvoteCount}}</div>
+      <div class="stat-lbl">Server Boosts</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="text-transform:uppercase;font-size:20px">{{.Profile.Role}}</div>
+      <div class="stat-lbl">Platform Trust Role</div>
+    </div>
+  </div>
+
+  <div class="detail-cols">
+    <div class="detail-box">
+      <h3>Topics by {{.Profile.EffectiveDisplayName}} ({{len .Topics}})</h3>
+      {{if .Topics}}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        {{range .Topics}}
+        <a href="/forum/t/{{.ID}}" class="forum-home-row" style="padding:10px 12px">
+          <div class="forum-row-main">
+            <div class="forum-row-title">{{.Title}}</div>
+            <div class="muted" style="font-size:12px">{{.Views}} views &bull; {{len .Posts}} posts</div>
+          </div>
+        </a>
+        {{end}}
+      </div>
+      {{else}}
+      <p class="muted" style="margin-top:10px">No forum topics started yet.</p>
+      {{end}}
+    </div>
+
+    <div class="detail-box">
+      <h3>Recent Posts ({{len .Posts}})</h3>
+      {{if .Posts}}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        {{range .Posts}}
+        <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}" class="forum-home-row" style="padding:10px 12px">
+          <div class="forum-row-main">
+            <div class="forum-row-title">{{.TopicTitle}} <span class="muted">#{{.PostNumber}}</span></div>
+            <div class="muted" style="font-size:12px;margin-top:4px">{{.Excerpt}}</div>
+            <div class="muted" style="font-size:11px;margin-top:4px">{{.CreatedAt}} &bull; &#9829; {{.Likes}}</div>
+          </div>
+        </a>
+        {{end}}
+      </div>
+      {{else}}
+      <p class="muted" style="margin-top:10px">No forum posts yet.</p>
+      {{end}}
+    </div>
+  </div>
+</section>
+
+{{template "foot" .}}

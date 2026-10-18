@@ -1,98 +1,207 @@
 {{template "head" .}}
-<div class="bg-holder with-bg">
-  <div class="container"><div class="spacer">
-  <section class="hero">
-    <div class="hero-seller" id="hero-seller" style="display:flex;flex-wrap:wrap;gap:var(--q2);align-items:center;justify-content:space-between;width:100%">
-      <div class="hero-lead">
-        <p class="lead"><strong>NSM Community</strong> is a multiplayer modification for Grand Theft Auto&nbsp;V, built on our own code. <strong>Play</strong> on community-run servers, or <strong>create</strong> your own world.</p>
+
+<section class="hero fivem-hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <div class="pill">
+        <span class="dot"></span>
+        <span><b id="stat-players-pill">{{index .Stats "Players"}}</b> players online across <b id="stat-servers-pill">{{index .Stats "Servers"}}</b> live servers</span>
       </div>
+      <h1>Building upon years of multiplayer modification.</h1>
+      <p class="lead">
+        NSM is the complete Grand Theft Auto V multiplayer modification platform with a built-in masterlist, Keymaster server-key portal, custom profiles, in-app client authentication, and community forum.
+      </p>
       <div class="hero-cta">
-        <div class="players">
-          <span class="live-dot"></span>Join the <span class="current-players">{{.Stats.Players}}</span> people playing right now!
+        <a href="nsm://" class="btn btn-primary btn-lg">Launch NSM Client</a>
+        <a href="/servers" class="btn btn-ghost btn-lg">Browse Servers ({{index .Stats "Servers"}})</a>
+        <a href="/keymaster" class="btn btn-ghost btn-lg">Keymaster</a>
+        <a href="/forum" class="btn btn-ghost btn-lg">Community Forum</a>
+      </div>
+      <div class="hero-quicklinks">
+        <a href="/user-api-key/new">Sign In to NSM App &rarr;</a>
+        <span>&bull;</span>
+        <a href="/account">Customize Profile &amp; Avatar &rarr;</a>
+        <span>&bull;</span>
+        <a href="/docs">Server Setup Docs &rarr;</a>
+      </div>
+    </div>
+
+    <div class="hero-showcase">
+      <div class="showcase-card">
+        <div class="showcase-head">
+          <span class="showcase-badge">LIVE MASTERLIST</span>
+          <span class="muted" style="font-size:12px">127.0.0.1:80</span>
         </div>
-        <a id="dl" href="/docs">
-          <span class="txt">GET NSM</span>
-          <span class="desc">see Documentation to install</span>
-        </a>
-        <p class="plaText">By downloading, you agree to the terms of the <a href="/docs">NSM License Agreement</a></p>
-        <div class="server">
-          <a class="btn block" href="/docs">Create your own server</a>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-num" id="stat-players">{{index .Stats "Players"}}</div>
+            <div class="stat-lbl">Players Online</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num" id="stat-servers">{{index .Stats "Servers"}}</div>
+            <div class="stat-lbl">Live Servers</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">{{index .Stats "Accounts"}}</div>
+            <div class="stat-lbl">NSM Accounts</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">{{index .Stats "Posts"}}</div>
+            <div class="stat-lbl">Forum Posts</div>
+          </div>
+        </div>
+        <div class="showcase-actions">
+          {{if .User}}
+          <div class="showcase-user">
+            <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+            <div>
+              <div style="font-weight:700">{{.User.EffectiveDisplayName}} <span class="role role-{{.User.Role}}">{{.User.Role}}</span></div>
+              <div class="muted" style="font-size:12px">{{.User.EffectiveTitle}}</div>
+            </div>
+            <a href="/user-api-key/new" class="btn btn-primary btn-xs" style="margin-left:auto">Sync to NSM App</a>
+          </div>
+          {{else}}
+          <div class="showcase-user">
+            <div>
+              <div style="font-weight:700">Sign in to NSM &amp; Link Your Game Client</div>
+              <div class="muted" style="font-size:12px">Customize your profile picture, post on the forum, and manage keys.</div>
+            </div>
+            <a href="/login" class="btn btn-primary btn-xs" style="margin-left:auto">Sign In</a>
+          </div>
+          {{end}}
         </div>
       </div>
     </div>
-  </section>
-  </div></div>
-</div>
-
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>What we have for you</h1>
-    <div class="fx">
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a1">
-          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">cloud_download</span></div>Download &amp; play</h2>
-          <span class="txt">NSM servers ship custom cars, maps, weapons, and more — delivered <em>dynamically</em> as you play.</span>
-        </article>
-      </div>
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a2">
-          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">supervisor_account</span></div>Your community</h2>
-          <span class="txt">NSM accounts work everywhere — the launcher, the website, and every community service, one login.</span>
-        </article>
-      </div>
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a3">
-          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">sync_alt</span></div>Sync quality</h2>
-          <span class="txt">NSM's own network stack keeps every player smoothly in sync, so you get the <em>best</em> experience around.</span>
-        </article>
-      </div>
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a1">
-          <h2><div class="icon-wrap"><span class="material-icons-outlined md-24">shield</span></div>Community first</h2>
-          <span class="txt">Run by our own staff team. Servers, support and moderation — <em>all in one place</em>.</span>
-        </article>
-      </div>
-    </div>
-
-    <div class="fx" style="margin-top:var(--q3)">
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a2"><h2>{{.Stats.Players}}</h2><span class="txt">players online now</span></article>
-      </div>
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a3"><h2>{{.Stats.Servers}}</h2><span class="txt">live servers</span></article>
-      </div>
-      <div class="c-lg-3 c-md-4 c-sm-6 c-xs-12">
-        <article class="a1"><h2>{{.Stats.Accounts}}</h2><span class="txt">NSM accounts</span></article>
-      </div>
-    </div>
-
-    {{if .Servers}}
-    <h1 style="margin-top:var(--q3)">Popular servers</h1>
-    <div class="fx">
-      {{range .Servers}}
-      <div class="c-lg-4 c-md-4 c-sm-6">
-        <article class="a1">
-          <h2>{{.Hostname}}</h2>
-          <span class="txt">{{.Clients}}/{{.MaxClients}} players{{if .GameType}} &middot; {{.GameType}}{{end}} &middot; <a href="/servers/{{.EndPoint}}">details</a></span>
-        </article>
-      </div>
-      {{end}}
-    </div>
-    {{end}}
-
-    {{if .Feed}}
-    <h1 style="margin-top:var(--q3)">News</h1>
-    <div class="fx">
-      {{range .Feed}}
-      <div class="c-xs-12">
-        <article class="a3">
-          <h2>{{.ScreenName}}</h2>
-          <span class="txt">{{.Text}}</span>
-        </article>
-      </div>
-      {{end}}
-    </div>
-    {{end}}
-  </div></div>
+  </div>
 </section>
+
+<section class="wrap section">
+  <div class="pillars-grid">
+    <a href="/servers" class="pillar-card">
+      <div class="pillar-icon" style="background:rgba(249,115,22,.15);color:#f97316">&#9889;</div>
+      <h3>Live Server Browser</h3>
+      <p class="muted">Real-time protobuf masterlist &amp; web server directory with player counts, tags, resource inspection, and one-click <code>nsm://connect/</code> launch.</p>
+    </a>
+    <a href="/keymaster" class="pillar-card">
+      <div class="pillar-icon" style="background:rgba(47,123,255,.15);color:#2F7BFF">&#128273;</div>
+      <h3>NSM Keymaster</h3>
+      <p class="muted">Issue, rotate, and revoke cryptographic <code>nsm_srv_...</code> license keys for your dedicated servers with automatic endpoint ownership binding.</p>
+    </a>
+    <a href="/forum" class="pillar-card">
+      <div class="pillar-icon" style="background:rgba(7,186,174,.15);color:#07baae">&#128172;</div>
+      <h3>Community Forum</h3>
+      <p class="muted">Full Cfx.re / Discourse-style community forum with categories, resource releases, server bazaar, likes, search, and staff moderation.</p>
+    </a>
+    <a href="/account" class="pillar-card">
+      <div class="pillar-icon" style="background:rgba(231,6,79,.15);color:#e7064f">&#128100;</div>
+      <h3>Custom Profiles &amp; App Login</h3>
+      <p class="muted">Upload a custom avatar, set your display name, banner, and bio, and sign in directly inside the NSM desktop client.</p>
+    </a>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="sec-head">
+    <div>
+      <h2>Live Servers Right Now</h2>
+      <p class="muted">Servers actively broadcasting heartbeats to the NSM Masterlist</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="/keymaster" class="btn btn-ghost btn-sm">+ Register Server Key</a>
+      <a href="/servers" class="btn btn-primary btn-sm">View All Servers &rarr;</a>
+    </div>
+  </div>
+  {{if .Servers}}
+  <div class="srv-grid">
+    {{range .Servers}}
+    <div class="srv-card">
+      <div class="srv-card-top">
+        <div class="srv-icon">{{.Initial}}</div>
+        <div class="srv-meta">
+          <a href="/servers/{{.EndPoint}}" class="srv-name">{{.CleanName}}</a>
+          <div class="srv-sub">
+            {{if .GameType}}<span class="tag">{{.GameType}}</span>{{end}}
+            {{if .MapName}}<span class="tag">{{.MapName}}</span>{{end}}
+            <span class="muted"><code>{{.EndPoint}}</code></span>
+          </div>
+        </div>
+        <div class="srv-count">
+          <span class="players">{{.Clients}}</span><span class="max">/{{.MaxClients}}</span>
+        </div>
+      </div>
+      {{if .Desc}}<p class="srv-desc">{{.Desc}}</p>{{end}}
+      <div class="srv-card-foot">
+        <span class="upv">&#9650; {{.Upvotes}} BOOST</span>
+        <div class="srv-actions">
+          <a href="/servers/{{.EndPoint}}" class="btn btn-ghost btn-xs">Details</a>
+          <a href="nsm://connect/{{.EndPoint}}" class="btn btn-primary btn-xs">Connect</a>
+        </div>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty">
+    <p><strong>No servers are currently broadcasting a heartbeat.</strong></p>
+    <p class="muted">Generate a key in <a href="/keymaster">Keymaster</a> or start <code>START-LOCALHOST.ps1</code> to bring your local FXServer online.</p>
+  </div>
+  {{end}}
+</section>
+
+<section class="wrap section">
+  <div class="sec-head">
+    <div>
+      <h2>Community Forum Discussions</h2>
+      <p class="muted">Latest announcements, server development guides, and resource releases</p>
+    </div>
+    <a href="/forum" class="btn btn-ghost btn-sm">Open Forum &rarr;</a>
+  </div>
+  <div class="forum-home-list">
+    {{range .ForumTopics}}
+    <a href="/forum/t/{{.ID}}" class="forum-home-row">
+      <img src="{{.AuthorAvatar}}" alt="{{.AuthorUsername}}" class="forum-row-avatar">
+      <div class="forum-row-main">
+        <div class="forum-row-title">
+          {{if .Pinned}}<span class="pin-badge" title="Pinned">&#128204;</span>{{end}}
+          <span>{{.Title}}</span>
+        </div>
+        <div class="forum-row-meta">
+          <span class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</span>
+          <span class="muted">by <strong>{{.AuthorDisplay}}</strong></span>
+          {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
+        </div>
+      </div>
+      <div class="forum-row-stats">
+        <span><b>{{.Replies}}</b> replies</span>
+        <span><b>{{.Views}}</b> views</span>
+        <span class="muted">{{.UpdatedAtStr}}</span>
+      </div>
+    </a>
+    {{end}}
+  </div>
+</section>
+
+{{if .Feed}}
+<section class="wrap section">
+  <div class="sec-head">
+    <h2>Platform Feed &amp; News</h2>
+  </div>
+  <div class="feed-grid">
+    {{range .Feed}}
+    <article class="feed-card">
+      <div class="feed-head">
+        <img src="{{.AuthorAvatar}}" alt="" class="feed-av">
+        <div>
+          <div class="feed-author">{{.AuthorName}}</div>
+          <div class="feed-Handle">@{{.AuthorHandle}}</div>
+        </div>
+      </div>
+      {{if .Title}}<h3 class="feed-title">{{.Title}}</h3>{{end}}
+      <p class="feed-body">{{.Body}}</p>
+    </article>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
 {{template "foot" .}}

@@ -43,7 +43,7 @@ jobs:
           ls -lh /tmp/NSM-Masterlist.exe
           sha256sum /tmp/NSM-Masterlist.exe
 
-      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe
+      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe & UI bundle
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -51,7 +51,7 @@ jobs:
           cp /tmp/NSM-Masterlist.exe /tmp/v078-dist/NSM-Masterlist.exe
           gh release download nsm-v0.7.7-localtest -p "NSM-client-v0.7.7-localtest.zip" -D /tmp
           python3 - << 'EOF'
-          import hashlib, zipfile
+          import hashlib, io, zipfile
           from pathlib import Path
 
           base_zip = Path("/tmp/NSM-client-v0.7.7-localtest.zip")
@@ -60,8 +60,33 @@ jobs:
           src_zip = Path("/tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip")
           RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
 
+          POLL_SNIPPET = b'<script id="nsm-client-auth-poll">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";var t=window.localStorage.getItem("discourseAuthToken")||"";if(!n||t||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("http://127.0.0.1/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");}}).catch(function(){});}catch(e){}},1200);})();</script>'
+
           def sha(b):
               return hashlib.sha256(b).hexdigest()
+
+          def patch_ui_archive(raw_bytes):
+              buf = io.BytesIO()
+              with zipfile.ZipFile(io.BytesIO(raw_bytes), "r") as zin, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zout:
+                  for info in zin.infolist():
+                      body = zin.read(info.filename)
+                      lower = info.filename.lower()
+                      if lower.endswith((".js", ".html", ".json")):
+                          body = body.replace(
+                              b"init({dsn:`http://127.0.0.1/sentry-ingest`,tracesSampleRate:.05",
+                              b"init({enabled:!1,dsn:void 0,tracesSampleRate:0",
+                          )
+                          body = body.replace(b"https://discord.gg/UXj5QfCX88/terms", b"http://127.0.0.1/docs")
+                          body = body.replace(b"https://discord.gg/UXj5QfCX88", b"http://127.0.0.1")
+                          body = body.replace(b"https://forum.cfx.re", b"http://127.0.0.1")
+                          body = body.replace(b"https://portal.cfx.re", b"http://127.0.0.1/keymaster")
+                          if lower.endswith(".html") and b'id="nsm-client-auth-poll"' not in body:
+                              if b"</body>" in body:
+                                  body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
+                              else:
+                                  body += POLL_SNIPPET
+                      zout.writestr(info, body)
+              return buf.getvalue()
 
           overlay = {
               "NSM-Client/NSM-Masterlist.exe": new_exe,
@@ -78,6 +103,10 @@ jobs:
                   if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt" or info.filename in overlay:
                       continue
                   data = zin.read(info.filename)
+                  if info.filename in ("NSM-Client/citizen/ui.zip", "NSM-Client/citizen/ui-big.zip"):
+                      data = patch_ui_archive(data)
+                      if info.filename == "NSM-Client/citizen/ui.zip":
+                          Path("/tmp/patched-ui.zip").write_bytes(data)
                   zout.writestr(info, data)
                   sums[info.filename] = sha(data)
               for name, data in sorted(overlay.items()):
@@ -105,13 +134,14 @@ jobs:
           Path("/tmp/v078-dist/SHA256SUMS.txt").write_text("".join(dist_sums), encoding="utf-8")
           print("".join(dist_sums))
           EOF
+          node tools/local-stack/tests/ui-contract-check.js /tmp/patched-ui.zip
 
       - name: Upload release assets to nsm-v0.7.8-candidate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! gh release view nsm-v0.7.8-candidate >/dev/null 2>&1; then
-            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 Candidate — NSM-Masterlist.exe Keymaster Update" --notes "NSM v0.7.8 Candidate with Keymaster built directly into NSM-Masterlist.exe."
+            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 Candidate — Full Platform, Keymaster, Forum, Profiles & In-App Login" --notes "NSM v0.7.8 Candidate."
           fi
           gh release upload nsm-v0.7.8-candidate \
             /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip \

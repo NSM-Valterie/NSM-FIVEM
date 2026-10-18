@@ -1,16 +1,46 @@
 {{define "foot"}}
-<div class="container"><div class="spacer">
-<footer>
-  <div class="hbar">
-    <ul class="links">
-      <li><a href="/docs">Documentation</a></li>
-      <li><a href="/support">Support</a></li>
-      <li><a href="https://discord.gg/UXj5QfCX88">Discord</a></li>
-    </ul>
-    <span class="muted">&copy; {{.Year}} NSM Community</span>
+</main>
+<footer class="foot">
+  <div class="wrap foot-grid">
+    <div class="foot-col">
+      <div class="brand">
+        <span class="brand-mark">NSM</span>
+        <span class="brand-sub">Platform</span>
+      </div>
+      <p class="muted" style="margin-top:10px;max-width:300px">
+        The NSM multiplayer modification framework, masterlist, Keymaster portal, and community forum.
+      </p>
+      <p class="muted" style="margin-top:8px;font-size:12px">
+        <span class="dot"></span> Local Masterlist &amp; Auth Online (<code>127.0.0.1:80</code>)
+      </p>
+    </div>
+    <div class="foot-col">
+      <h4>Platform</h4>
+      <a href="/">Home</a>
+      <a href="/servers">Server List</a>
+      <a href="/keymaster">Keymaster Portal</a>
+      <a href="/user-api-key/new">NSM Client Sign-In</a>
+    </div>
+    <div class="foot-col">
+      <h4>Community</h4>
+      <a href="/forum">Community Forum</a>
+      <a href="/forum/c/announcements">Announcements</a>
+      <a href="/forum/c/releases">Resource Releases</a>
+      <a href="/forum/c/bazaar">Server Bazaar</a>
+    </div>
+    <div class="foot-col">
+      <h4>Developers &amp; Help</h4>
+      <a href="/docs">Documentation</a>
+      <a href="/support">Support &amp; Status</a>
+      <a href="/account">Custom Profile &amp; Avatar</a>
+      <a href="https://discord.gg/UXj5QfCX88" target="_blank" rel="noopener">Official Discord</a>
+    </div>
+  </div>
+  <div class="wrap foot-bottom">
+    <span>&copy; {{.Year}} NSM Platform — Not affiliated with Rockstar Games or Take-Two Interactive.</span>
+    <span>Masterlist &bull; Keymaster &bull; Forum &bull; In-App Auth</span>
   </div>
 </footer>
-</div></div>
 <script src="/js/main.js"></script>
 </body>
 </html>

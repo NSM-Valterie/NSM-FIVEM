@@ -1,0 +1,145 @@
+{{template "head" .}}
+
+<section class="wrap section">
+  <div class="sec-head">
+    <div>
+      <h1>NSM Community Forum</h1>
+      <p class="muted">
+        {{if .ActiveCat}}
+          <span class="cat-pill" style="--cat-color:{{.ActiveCat.Color}}">{{.ActiveCat.Name}}</span> — {{.ActiveCat.Description}}
+        {{else}}
+          Announcements, server development, resource releases, server bazaar, and technical support
+        {{end}}
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <form method="get" action="/forum" style="display:flex;gap:6px">
+        {{if .CatSlug}}<input type="hidden" name="cat" value="{{.CatSlug}}">{{end}}
+        <input type="search" name="q" value="{{.Query}}" placeholder="Search forum topics &amp; posts..." class="inp" style="min-width:220px">
+        <button type="submit" class="btn btn-ghost btn-sm">Search</button>
+      </form>
+      {{if .User}}
+      <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('new-topic-box').classList.toggle('open')">+ New Topic</button>
+      {{else}}
+      <a href="/login?next=/forum" class="btn btn-primary btn-sm">Sign in to Post</a>
+      {{end}}
+    </div>
+  </div>
+
+  <!-- Category Grid -->
+  <div class="forum-cats-grid">
+    <a href="/forum" class="forum-cat-card {{if eq .CatSlug ""}}on{{end}}" style="--cat-color:#f97316">
+      <div class="forum-cat-top">
+        <span class="forum-cat-dot" style="background:#f97316"></span>
+        <strong>All Categories</strong>
+      </div>
+      <div class="muted" style="font-size:12px">Browse all community discussions</div>
+    </a>
+    {{range .Categories}}
+    <a href="/forum/c/{{.Slug}}" class="forum-cat-card {{if eq $.CatSlug .Slug}}on{{end}}" style="--cat-color:{{.Color}}">
+      <div class="forum-cat-top">
+        <span class="forum-cat-dot" style="background:{{.Color}}"></span>
+        <strong>{{.Name}}</strong>
+        <span class="forum-cat-count">{{.TopicCount}}</span>
+      </div>
+      <div class="muted" style="font-size:12px">{{.Description}}</div>
+    </a>
+    {{end}}
+  </div>
+
+  <!-- New Topic Composer -->
+  {{if .User}}
+  <div id="new-topic-box" class="composer-card">
+    <h3 style="margin-bottom:12px">Create a New Forum Topic</h3>
+    <form method="post" action="/forum/new" class="form">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
+        <label>Topic Title
+          <input type="text" name="title" class="inp" placeholder="What is this discussion about?" required minlength="3" maxlength="140">
+        </label>
+        <label>Category
+          <select name="category" class="inp">
+            {{range .Categories}}
+            <option value="{{.Slug}}" {{if eq $.CatSlug .Slug}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+        </label>
+        <label>Tags (comma-separated)
+          <input type="text" name="tags" class="inp" placeholder="e.g. script, release, help">
+        </label>
+      </div>
+      <label>Message Body
+        <textarea name="content" class="inp" rows="6" placeholder="Write your post here..." required minlength="2"></textarea>
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('new-topic-box').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Publish Topic</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
+
+  <!-- Filter Tabs -->
+  <div class="forum-tabs">
+    <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=latest" class="forum-tab {{if eq .Tab "latest"}}on{{end}}">Latest</a>
+    <a href="/forum?{{if .CatSlug}}cat={{.CatSlug}}&{{end}}tab=top" class="forum-tab {{if eq .Tab "top"}}on{{end}}">Top</a>
+    {{if .Query}}
+    <a href="/forum{{if .CatSlug}}/c/{{.CatSlug}}{{end}}" class="forum-tab">Clear Search ("{{.Query}}") &times;</a>
+    {{end}}
+  </div>
+
+  <!-- Discourse Topic Table -->
+  {{if .Topics}}
+  <div class="forum-table-wrap">
+    <table class="forum-table">
+      <thead>
+        <tr>
+          <th>Topic</th>
+          <th>Posters</th>
+          <th class="num">Replies</th>
+          <th class="num">Likes</th>
+          <th class="num">Views</th>
+          <th class="num">Activity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Topics}}
+        <tr class="forum-topic-tr {{if .Pinned}}pinned{{end}}">
+          <td class="topic-main-cell">
+            <div class="topic-title-line">
+              {{if .Pinned}}<span class="pin-badge" title="Pinned Topic">&#128204;</span>{{end}}
+              {{if .Locked}}<span class="pin-badge" title="Locked Topic">&#128274;</span>{{end}}
+              <a href="/forum/t/{{.ID}}" class="topic-link">{{.Title}}</a>
+            </div>
+            <div class="topic-sub-line">
+              <a href="/forum/c/{{.Category.Slug}}" class="cat-pill" style="--cat-color:{{.Category.Color}}">{{.Category.Name}}</a>
+              {{range .Tags}}<span class="tag">#{{.}}</span>{{end}}
+              <span class="muted">by <a href="/u/{{.AuthorUsername}}">{{.AuthorDisplay}}</a></span>
+            </div>
+          </td>
+          <td class="posters-cell">
+            <div class="posters-stack">
+              {{range .Posters}}
+              <a href="/u/{{.Username}}" title="{{.DisplayName}} (@{{.Username}})">
+                <img src="{{.Avatar}}" alt="{{.Username}}" class="poster-av">
+              </a>
+              {{end}}
+            </div>
+          </td>
+          <td class="num"><b>{{.Replies}}</b></td>
+          <td class="num"><span style="color:#e7064f">&#9829;</span> {{.Likes}}</td>
+          <td class="num muted">{{.Views}}</td>
+          <td class="num muted">{{.UpdatedAtStr}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="empty">
+    <h3>No topics match your filter</h3>
+    <p class="muted">Start the first conversation using the <strong>+ New Topic</strong> button above.</p>
+  </div>
+  {{end}}
+</section>
+
+{{template "foot" .}}

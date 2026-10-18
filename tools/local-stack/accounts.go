@@ -1,13 +1,21 @@
-// NSM accounts: users, sessions, roles (owner/admin/staff/user), upvotes.
+// NSM accounts: users, custom profiles, sessions, client tokens, roles (owner/admin/staff/user), upvotes.
 // Storage: accounts.json next to the exe. Passwords: bcrypt.
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -18,13 +26,95 @@ import (
 )
 
 type User struct {
-	ID        int64  `json:"id"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Pass      string `json:"pass"`
-	Role      string `json:"role"`
-	CreatedAt int64  `json:"createdAt"`
-	LastLogin int64  `json:"lastLogin,omitempty"`
+	ID             int64  `json:"id"`
+	Username       string `json:"username"`
+	DisplayName    string `json:"displayName,omitempty"`
+	Title          string `json:"title,omitempty"`
+	Bio            string `json:"bio,omitempty"`
+	AvatarURL      string `json:"avatarUrl,omitempty"`
+	AvatarData     string `json:"avatarData,omitempty"` // data:image/...;base64,...
+	AvatarColor    string `json:"avatarColor,omitempty"`
+	BannerColor    string `json:"bannerColor,omitempty"`
+	BannerURL      string `json:"bannerUrl,omitempty"`
+	Location       string `json:"location,omitempty"`
+	Website        string `json:"website,omitempty"`
+	DiscordTag     string `json:"discordTag,omitempty"`
+	FavoriteServer string `json:"favoriteServer,omitempty"`
+	Email          string `json:"email"`
+	Pass           string `json:"pass"`
+	Role           string `json:"role"`
+	CreatedAt      int64  `json:"createdAt"`
+	UpdatedAt      int64  `json:"updatedAt,omitempty"`
+	LastLogin      int64  `json:"lastLogin,omitempty"`
+}
+
+func (u *User) EffectiveDisplayName() string {
+	if u == nil {
+		return ""
+	}
+	if strings.TrimSpace(u.DisplayName) != "" {
+		return u.DisplayName
+	}
+	return u.Username
+}
+
+func (u *User) EffectiveTitle() string {
+	if u == nil {
+		return ""
+	}
+	if strings.TrimSpace(u.Title) != "" {
+		return u.Title
+	}
+	switch u.Role {
+	case "owner":
+		return "NSM Founder & Owner"
+	case "admin":
+		return "NSM Administrator"
+	case "staff":
+		return "NSM Staff"
+	default:
+		return "NSM Community Member"
+	}
+}
+
+func (u *User) EffectiveAvatarColor() string {
+	if u != nil && strings.HasPrefix(u.AvatarColor, "#") && len(u.AvatarColor) == 7 {
+		return u.AvatarColor
+	}
+	palette := []string{"#2F7BFF", "#07baae", "#e7064f", "#8b5cf6", "#f59e0b", "#10b981"}
+	if u == nil || u.ID <= 0 {
+		return palette[0]
+	}
+	return palette[int(u.ID)%len(palette)]
+}
+
+func (u *User) EffectiveBannerColor() string {
+	if u != nil && strings.HasPrefix(u.BannerColor, "#") && len(u.BannerColor) == 7 {
+		return u.BannerColor
+	}
+	return "#1e293b"
+}
+
+func (u *User) AvatarPath() string {
+	if u == nil {
+		return "/avatars/u/guest/120.png"
+	}
+	v := u.UpdatedAt
+	if v == 0 {
+		v = u.CreatedAt
+	}
+	return "/avatars/u/" + url.PathEscape(u.Username) + "/120.png?v=" + strconv.FormatInt(v, 10)
+}
+
+func (u *User) AvatarTemplate() string {
+	if u == nil {
+		return "/avatars/u/guest/{size}.png"
+	}
+	v := u.UpdatedAt
+	if v == 0 {
+		v = u.CreatedAt
+	}
+	return "/avatars/u/" + url.PathEscape(u.Username) + "/{size}.png?v=" + strconv.FormatInt(v, 10)
 }
 
 type Session struct {
@@ -32,13 +122,23 @@ type Session struct {
 	Expires int64 `json:"expires"`
 }
 
+type ClientToken struct {
+	Token     string `json:"token"`
+	UserID    int64  `json:"userId"`
+	ClientID  string `json:"clientId"`
+	AppName   string `json:"appName,omitempty"`
+	CreatedAt int64  `json:"createdAt"`
+	LastUsed  int64  `json:"lastUsed,omitempty"`
+}
+
 type Accounts struct {
-	mu         sync.Mutex
-	Users      []User             `json:"users"`
-	Sessions   map[string]Session `json:"sessions"`
-	Upvotes    map[string][]int64 `json:"upvotes"` // endpoint -> user ids
-	ServerKeys []ServerKey        `json:"serverKeys,omitempty"`
-	NextID     int64              `json:"nextId"`
+	mu           sync.Mutex
+	Users        []User                 `json:"users"`
+	Sessions     map[string]Session     `json:"sessions"`
+	ClientTokens map[string]ClientToken `json:"clientTokens,omitempty"`
+	Upvotes      map[string][]int64     `json:"upvotes"` // endpoint -> user ids
+	ServerKeys   []ServerKey            `json:"serverKeys,omitempty"`
+	NextID       int64                  `json:"nextId"`
 }
 
 var (
@@ -50,19 +150,45 @@ var (
 func loadAccounts() {
 	accMu.Lock()
 	defer accMu.Unlock()
-	acc = &Accounts{Sessions: map[string]Session{}, Upvotes: map[string][]int64{}, NextID: 1}
+	acc = &Accounts{
+		Sessions:     map[string]Session{},
+		ClientTokens: map[string]ClientToken{},
+		Upvotes:      map[string][]int64{},
+		NextID:       1,
+	}
 	if b, err := os.ReadFile(accPath); err == nil {
 		json.Unmarshal(b, acc)
 	}
+	if acc.Sessions == nil {
+		acc.Sessions = map[string]Session{}
+	}
+	if acc.ClientTokens == nil {
+		acc.ClientTokens = map[string]ClientToken{}
+	}
+	if acc.Upvotes == nil {
+		acc.Upvotes = map[string][]int64{}
+	}
 	if len(acc.Users) == 0 {
-		// seed the owner
-		acc.Users = append(acc.Users, User{ID: 1, Username: "Cravenz", Email: "cravenz@owner.local", Role: "owner", CreatedAt: time.Now().UnixMilli()})
+		acc.Users = append(acc.Users, User{
+			ID:          1,
+			Username:    "Cravenz",
+			DisplayName: "Cravenz",
+			Title:       "NSM Founder",
+			Bio:         "Founder & Lead Developer of the NSM Multiplayer Platform.",
+			AvatarColor: "#2F7BFF",
+			BannerColor: "#1d3557",
+			Email:       "cravenz@owner.local",
+			Role:        "owner",
+			CreatedAt:   time.Now().UnixMilli(),
+		})
 		acc.NextID = 2
 	}
-	// ensure owner exists if the seed file lacked roles
 	for i := range acc.Users {
 		if acc.Users[i].Username == ownerName && acc.Users[i].Role == "" {
 			acc.Users[i].Role = "owner"
+		}
+		if acc.Users[i].ID >= acc.NextID {
+			acc.NextID = acc.Users[i].ID + 1
 		}
 	}
 	saveAccountsLocked()
@@ -79,6 +205,7 @@ func saveAccountsLocked() {
 }
 
 func findUser(name string) *User {
+	name = strings.TrimSpace(name)
 	for i := range acc.Users {
 		if strings.EqualFold(acc.Users[i].Username, name) {
 			return &acc.Users[i]
@@ -131,7 +258,55 @@ func roleAtLeast(role, min string) bool {
 	return rank[role] >= rank[min]
 }
 
-// ---- JSON API for the client / external apps ----
+func wantsJSONResponse(r *http.Request) bool {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		return true
+	}
+	ct := strings.ToLower(r.Header.Get("Content-Type"))
+	if strings.Contains(ct, "application/json") {
+		return true
+	}
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	if strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/html") {
+		return true
+	}
+	return false
+}
+
+func safeRedirectTarget(next string) string {
+	next = strings.TrimSpace(next)
+	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		return "/account"
+	}
+	return next
+}
+
+// ---- JSON API & HTML Form Handlers for Login / Register ----
+
+func userPublicMap(u *User) map[string]interface{} {
+	if u == nil {
+		return nil
+	}
+	return map[string]interface{}{
+		"id":             u.ID,
+		"username":       u.Username,
+		"displayName":    u.EffectiveDisplayName(),
+		"title":          u.EffectiveTitle(),
+		"bio":            u.Bio,
+		"avatarUrl":      u.AvatarPath(),
+		"avatarTemplate": u.AvatarTemplate(),
+		"avatarColor":    u.EffectiveAvatarColor(),
+		"bannerColor":    u.EffectiveBannerColor(),
+		"bannerUrl":      u.BannerURL,
+		"location":       u.Location,
+		"website":        u.Website,
+		"discordTag":     u.DiscordTag,
+		"favoriteServer": u.FavoriteServer,
+		"email":          u.Email,
+		"role":           u.Role,
+		"createdAt":      u.CreatedAt,
+	}
+}
 
 func sendAccountJSON(w http.ResponseWriter, ok bool, msg string, u *User) {
 	w.Header().Set("Content-Type", "application/json")
@@ -140,60 +315,113 @@ func sendAccountJSON(w http.ResponseWriter, ok bool, msg string, u *User) {
 		out["error"] = msg
 	}
 	if u != nil {
-		out["user"] = map[string]interface{}{"id": u.ID, "username": u.Username, "email": u.Email, "role": u.Role}
+		out["user"] = userPublicMap(u)
 	}
 	json.NewEncoder(w).Encode(out)
 }
 
 func apiRegister(w http.ResponseWriter, r *http.Request) {
-	var req struct{ Username, Password, Email string }
-	if strings.Contains(r.Header.Get("Content-Type"), "json") {
+	var req struct{ Username, Password, Email, Next string }
+	isJSON := wantsJSONResponse(r)
+	if strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json") {
 		json.NewDecoder(r.Body).Decode(&req)
 	} else {
-		req.Username, req.Password, req.Email = r.FormValue("username"), r.FormValue("password"), r.FormValue("email")
+		req.Username = r.FormValue("username")
+		req.Password = r.FormValue("password")
+		req.Email = r.FormValue("email")
+		req.Next = r.FormValue("next")
 	}
 	un := strings.TrimSpace(req.Username)
 	if len(un) < 3 || len(req.Password) < 6 {
-		sendAccountJSON(w, false, "username needs 3+ chars, password 6+ chars", nil)
+		msg := "Username needs 3+ characters and password needs 6+ characters."
+		if isJSON {
+			sendAccountJSON(w, false, "username needs 3+ chars, password 6+ chars", nil)
+			return
+		}
+		renderPage(w, r, "register.tmpl", map[string]interface{}{"Title": "Create account", "Error": msg, "Next": req.Next, "PrefillUser": un, "PrefillEmail": req.Email})
 		return
 	}
 	accMu.Lock()
-	defer accMu.Unlock()
 	if findUser(un) != nil {
-		sendAccountJSON(w, false, "that username is taken", nil)
+		accMu.Unlock()
+		if isJSON {
+			sendAccountJSON(w, false, "that username is taken", nil)
+			return
+		}
+		renderPage(w, r, "register.tmpl", map[string]interface{}{"Title": "Create account", "Error": "That username is already taken.", "Next": req.Next, "PrefillEmail": req.Email})
 		return
 	}
+	role := "user"
+	// If this is the very first registered user with a password or matches ownerName, grant owner if none has password yet
+	if strings.EqualFold(un, ownerName) {
+		role = "owner"
+	}
 	h, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-	u := User{ID: acc.NextID, Username: un, Email: strings.TrimSpace(req.Email), Pass: string(h), Role: "user", CreatedAt: time.Now().UnixMilli()}
+	now := time.Now().UnixMilli()
+	u := User{
+		ID:          acc.NextID,
+		Username:    un,
+		DisplayName: un,
+		Email:       strings.TrimSpace(req.Email),
+		Pass:        string(h),
+		Role:        role,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		LastLogin:   now,
+	}
 	acc.NextID++
 	acc.Users = append(acc.Users, u)
 	tok := newSession(u.ID)
 	saveAccountsLocked()
+	accMu.Unlock()
+
 	log.Printf("[accounts] registered %s (id %d)", un, u.ID)
 	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-	sendAccountJSON(w, true, "", &u)
+	recordWebsiteLoginForClientAuth(u.ID)
+
+	if isJSON {
+		sendAccountJSON(w, true, "", &u)
+		return
+	}
+	http.Redirect(w, r, safeRedirectTarget(req.Next), http.StatusSeeOther)
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
-	var req struct{ Username, Password string }
-	if strings.Contains(r.Header.Get("Content-Type"), "json") {
+	var req struct{ Username, Password, Next string }
+	isJSON := wantsJSONResponse(r)
+	if strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json") {
 		json.NewDecoder(r.Body).Decode(&req)
 	} else {
-		req.Username, req.Password = r.FormValue("username"), r.FormValue("password")
+		req.Username = r.FormValue("username")
+		req.Password = r.FormValue("password")
+		req.Next = r.FormValue("next")
 	}
 	accMu.Lock()
-	defer accMu.Unlock()
 	u := findUser(strings.TrimSpace(req.Username))
 	if u == nil || bcrypt.CompareHashAndPassword([]byte(u.Pass), []byte(req.Password)) != nil {
-		sendAccountJSON(w, false, "wrong username or password", nil)
+		accMu.Unlock()
+		if isJSON {
+			sendAccountJSON(w, false, "wrong username or password", nil)
+			return
+		}
+		renderPage(w, r, "login.tmpl", map[string]interface{}{"Title": "Log in", "Error": "Wrong username or password.", "Next": req.Next, "PrefillUser": req.Username})
 		return
 	}
 	u.LastLogin = time.Now().UnixMilli()
 	tok := newSession(u.ID)
+	userCopy := *u
 	saveAccountsLocked()
-	log.Printf("[accounts] login %s (role %s)", u.Username, u.Role)
+	accMu.Unlock()
+
+	log.Printf("[accounts] login %s (role %s)", userCopy.Username, userCopy.Role)
 	http.SetCookie(w, &http.Cookie{Name: "nsm_session", Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-	sendAccountJSON(w, true, "", u)
+	recordWebsiteLoginForClientAuth(userCopy.ID)
+
+	if isJSON {
+		sendAccountJSON(w, true, "", &userCopy)
+		return
+	}
+	http.Redirect(w, r, safeRedirectTarget(req.Next), http.StatusSeeOther)
 }
 
 func apiLogout(w http.ResponseWriter, r *http.Request) {
@@ -221,15 +449,354 @@ func accountChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	old, nw := r.FormValue("old"), r.FormValue("new")
 	accMu.Lock()
-	defer accMu.Unlock()
-	if bcrypt.CompareHashAndPassword([]byte(u.Pass), []byte(old)) != nil || len(nw) < 6 {
-		renderPage(w, r, "account.tmpl", map[string]interface{}{"User": u, "Error": "old password wrong, or new password too short (6+)"})
+	target := userByID(u.ID)
+	if target == nil || bcrypt.CompareHashAndPassword([]byte(target.Pass), []byte(old)) != nil || len(nw) < 6 {
+		accMu.Unlock()
+		renderAccountPageWithMsg(w, r, u, "", "Current password is wrong, or new password is shorter than 6 characters.")
 		return
 	}
 	h, _ := bcrypt.GenerateFromPassword([]byte(nw), 10)
-	u.Pass = string(h)
+	target.Pass = string(h)
+	target.UpdatedAt = time.Now().UnixMilli()
+	userCopy := *target
 	saveAccountsLocked()
-	renderPage(w, r, "account.tmpl", map[string]interface{}{"User": u, "Msg": "password updated"})
+	accMu.Unlock()
+	renderAccountPageWithMsg(w, r, &userCopy, "Password updated successfully.", "")
+}
+
+func accountUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		if wantsJSONResponse(r) {
+			sendAccountJSON(w, false, "login required", nil)
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
+	if strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "multipart/form-data") {
+		_ = r.ParseMultipartForm(4 << 20)
+	} else {
+		_ = r.ParseForm()
+	}
+
+	firstNonEmpty := func(keys ...string) string {
+		for _, k := range keys {
+			if v := strings.TrimSpace(r.FormValue(k)); v != "" {
+				return v
+			}
+		}
+		return ""
+	}
+	displayName := firstNonEmpty("display_name", "displayName")
+	title := firstNonEmpty("title")
+	bio := firstNonEmpty("bio")
+	avatarURL := firstNonEmpty("avatar_url", "avatarUrl")
+	avatarColor := firstNonEmpty("avatar_color", "avatarColor")
+	bannerColor := firstNonEmpty("banner_color", "bannerColor")
+	bannerURL := firstNonEmpty("banner_url", "bannerUrl")
+	location := firstNonEmpty("location")
+	website := firstNonEmpty("website")
+	discordTag := firstNonEmpty("discord_tag", "discordTag")
+	favServer := firstNonEmpty("favorite_server", "favoriteServer")
+	email := firstNonEmpty("email")
+	clearAvatar := r.FormValue("clear_avatar") == "1" || r.FormValue("clearAvatar") == "1"
+
+	if len(displayName) > 48 {
+		displayName = displayName[:48]
+	}
+	if len(title) > 64 {
+		title = title[:64]
+	}
+	if len(bio) > 600 {
+		bio = bio[:600]
+	}
+
+	var uploadedAvatarData string
+	if r.MultipartForm != nil {
+		files := r.MultipartForm.File["avatar_file"]
+		if len(files) == 0 {
+			files = r.MultipartForm.File["avatarFile"]
+		}
+		if len(files) > 0 {
+			f, err := files[0].Open()
+			if err == nil {
+				defer f.Close()
+				raw, err := io.ReadAll(io.LimitReader(f, 2<<20))
+				if err == nil && len(raw) > 0 {
+					ct := http.DetectContentType(raw)
+					if ct == "image/png" || ct == "image/jpeg" || ct == "image/gif" || ct == "image/webp" {
+						uploadedAvatarData = "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(raw)
+					}
+				}
+			}
+		}
+	}
+
+	accMu.Lock()
+	target := userByID(u.ID)
+	if target == nil {
+		accMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	target.DisplayName = displayName
+	target.Title = title
+	target.Bio = bio
+	if clearAvatar {
+		target.AvatarData = ""
+		target.AvatarURL = ""
+	} else {
+		if uploadedAvatarData != "" {
+			target.AvatarData = uploadedAvatarData
+		}
+		if avatarURL != "" || r.Form.Has("avatarUrl") {
+			target.AvatarURL = avatarURL
+		}
+	}
+	if strings.HasPrefix(avatarColor, "#") && len(avatarColor) == 7 {
+		target.AvatarColor = avatarColor
+	}
+	if strings.HasPrefix(bannerColor, "#") && len(bannerColor) == 7 {
+		target.BannerColor = bannerColor
+	}
+	target.BannerURL = bannerURL
+	target.Location = location
+	target.Website = website
+	target.DiscordTag = discordTag
+	target.FavoriteServer = favServer
+	if email != "" {
+		target.Email = email
+	}
+	target.UpdatedAt = time.Now().UnixMilli()
+	userCopy := *target
+	saveAccountsLocked()
+	accMu.Unlock()
+
+	if wantsJSONResponse(r) {
+		sendAccountJSON(w, true, "", &userCopy)
+		return
+	}
+	renderAccountPageWithMsg(w, r, &userCopy, "Your profile has been saved and synced with NSM.", "")
+}
+
+func renderAccountPageWithMsg(w http.ResponseWriter, r *http.Request, u *User, msg, errMsg string) {
+	if u == nil {
+		u = currentUser(r)
+	}
+	var topics []ForumTopic
+	if u != nil {
+		topics = topicsByUser(u.Username)
+	}
+	renderPage(w, r, "account.tmpl", map[string]interface{}{
+		"Title":      "My Account & Profile",
+		"User":       u,
+		"Msg":        msg,
+		"Error":      errMsg,
+		"UserTopics": topics,
+		"HasPending": hasPendingClientAuth(),
+	})
+}
+
+// ---- Avatar PNG endpoint (/avatars/u/{username}/{size}) ----
+
+// 5x7 bitmap font for uppercase A-Z and 0-9 so generated avatars look crisp in both browser and NSM client.
+var avatarGlyphs = map[byte][7]uint8{
+	'A': {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11},
+	'B': {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E},
+	'C': {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E},
+	'D': {0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C},
+	'E': {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F},
+	'F': {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10},
+	'G': {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F},
+	'H': {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11},
+	'I': {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E},
+	'J': {0x07, 0x02, 0x02, 0x02, 0x12, 0x12, 0x0C},
+	'K': {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11},
+	'L': {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F},
+	'M': {0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11},
+	'N': {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11},
+	'O': {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E},
+	'P': {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10},
+	'Q': {0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D},
+	'R': {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11},
+	'S': {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E},
+	'T': {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04},
+	'U': {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E},
+	'V': {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04},
+	'W': {0x11, 0x11, 0x11, 0x15, 0x15, 0x1B, 0x11},
+	'X': {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11},
+	'Y': {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04},
+	'Z': {0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F},
+	'0': {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E},
+	'1': {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E},
+	'2': {0x0E, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1F},
+	'3': {0x1F, 0x02, 0x04, 0x06, 0x01, 0x11, 0x0E},
+	'4': {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02},
+	'5': {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E},
+	'6': {0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E},
+	'7': {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08},
+	'8': {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E},
+	'9': {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C},
+}
+
+func parseHexColor(s string) color.RGBA {
+	s = strings.TrimPrefix(strings.TrimSpace(s), "#")
+	if len(s) == 6 {
+		if b, err := hex.DecodeString(s); err == nil && len(b) == 3 {
+			return color.RGBA{R: b[0], G: b[1], B: b[2], A: 255}
+		}
+	}
+	return color.RGBA{R: 47, G: 123, B: 255, A: 255}
+}
+
+func generateInitialsPNG(initial byte, bgHex string, size int) []byte {
+	if size < 32 {
+		size = 64
+	}
+	if size > 512 {
+		size = 256
+	}
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	bg := parseHexColor(bgHex)
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
+
+	if initial >= 'a' && initial <= 'z' {
+		initial -= 32
+	}
+	glyph, ok := avatarGlyphs[initial]
+	if !ok {
+		glyph = avatarGlyphs['N']
+	}
+	scale := size / 14
+	if scale < 1 {
+		scale = 1
+	}
+	gw, gh := 5*scale, 7*scale
+	ox, oy := (size-gw)/2, (size-gh)/2
+	fg := color.RGBA{R: 255, G: 255, B: 245, A: 255}
+	for row := 0; row < 7; row++ {
+		bits := glyph[row]
+		for col := 0; col < 5; col++ {
+			if (bits>>(4-col))&1 == 1 {
+				rect := image.Rect(ox+col*scale, oy+row*scale, ox+(col+1)*scale, oy+(row+1)*scale)
+				draw.Draw(img, rect, &image.Uniform{C: fg}, image.Point{}, draw.Src)
+			}
+		}
+	}
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, img)
+	return buf.Bytes()
+}
+
+func serveUserAvatar(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	sizeStr := strings.TrimSuffix(r.PathValue("size"), ".png")
+	size, _ := strconv.Atoi(sizeStr)
+	if size <= 0 {
+		size = 120
+	}
+
+	accMu.Lock()
+	u := findUser(username)
+	var avatarData, avatarURL, bgHex string
+	initial := byte('N')
+	if len(username) > 0 {
+		initial = username[0]
+	}
+	if u != nil {
+		avatarData = u.AvatarData
+		avatarURL = u.AvatarURL
+		bgHex = u.EffectiveAvatarColor()
+		dn := u.EffectiveDisplayName()
+		if len(dn) > 0 {
+			initial = dn[0]
+		}
+	} else {
+		bgHex = "#2F7BFF"
+	}
+	accMu.Unlock()
+
+	if strings.HasPrefix(avatarData, "data:image/") {
+		if idx := strings.Index(avatarData, ";base64,"); idx > 0 {
+			ct := strings.TrimPrefix(avatarData[:idx], "data:")
+			if raw, err := base64.StdEncoding.DecodeString(avatarData[idx+8:]); err == nil && len(raw) > 0 {
+				w.Header().Set("Content-Type", ct)
+				w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
+				w.WriteHeader(http.StatusOK)
+				w.Write(raw)
+				return
+			}
+		}
+	}
+	if strings.HasPrefix(avatarURL, "http://") || strings.HasPrefix(avatarURL, "https://") {
+		http.Redirect(w, r, avatarURL, http.StatusFound)
+		return
+	}
+
+	pngBytes := generateInitialsPNG(initial, bgHex, size)
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Length", strconv.Itoa(len(pngBytes)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(pngBytes)
+}
+
+// ---- Public Profile Page (/u/{username}) ----
+
+func userProfilePage(w http.ResponseWriter, r *http.Request) {
+	rawName := r.PathValue("username")
+	if strings.HasSuffix(strings.ToLower(rawName), ".json") || wantsJSONResponse(r) {
+		serveDiscourseUserJSON(w, r, strings.TrimSuffix(rawName, ".json"))
+		return
+	}
+	accMu.Lock()
+	u := findUser(rawName)
+	var targetCopy *User
+	var upvoteCnt int
+	if u != nil {
+		cp := *u
+		targetCopy = &cp
+		for _, ids := range acc.Upvotes {
+			for _, id := range ids {
+				if id == u.ID {
+					upvoteCnt++
+				}
+			}
+		}
+	}
+	accMu.Unlock()
+
+	if targetCopy == nil {
+		w.WriteHeader(http.StatusNotFound)
+		renderPage(w, r, "stub.tmpl", map[string]interface{}{"Title": "Profile Not Found", "Stub": "User @" + rawName + " not found"})
+		return
+	}
+
+	joinedUnix := targetCopy.CreatedAt
+	if joinedUnix > 1_000_000_000_000 {
+		joinedUnix = joinedUnix / 1000
+	}
+	joinedStr := "Recently"
+	if joinedUnix > 0 {
+		joinedStr = time.Unix(joinedUnix, 0).Format("Jan 2006")
+	}
+
+	userTopics := topicsByUser(targetCopy.Username)
+	userPosts := postsByUser(targetCopy.Username)
+	cur := currentUser(r)
+
+	renderPage(w, r, "profile.tmpl", map[string]interface{}{
+		"Title":       targetCopy.EffectiveDisplayName() + " (@" + targetCopy.Username + ")",
+		"Profile":     targetCopy,
+		"ProfileUser": targetCopy,
+		"JoinedStr":   joinedStr,
+		"Topics":      userTopics,
+		"Posts":       userPosts,
+		"UpvoteCount": upvoteCnt,
+		"IsOwn":       cur != nil && cur.ID == targetCopy.ID,
+	})
 }
 
 // ---- staff admin (owner session or existing bearer owner token) ----
@@ -281,27 +848,45 @@ func adminSetRole(w http.ResponseWriter, r *http.Request) {
 
 func upvoteServer(w http.ResponseWriter, r *http.Request, ep string) {
 	u := currentUser(r)
+	isJSON := wantsJSONResponse(r)
 	if u == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		if isJSON {
+			sendJSON(w, http.StatusUnauthorized, map[string]string{"error": "login"})
+			return
+		}
+		http.Redirect(w, r, "/login?next="+url.QueryEscape("/servers/"+ep), http.StatusSeeOther)
 		return
 	}
 	accMu.Lock()
-	defer accMu.Unlock()
 	for _, id := range acc.Upvotes[ep] {
 		if id == u.ID {
+			accMu.Unlock()
+			if isJSON {
+				sendJSON(w, http.StatusOK, map[string]interface{}{"ok": false, "error": "already", "upvotes": upvoteCount(ep)})
+				return
+			}
 			http.Redirect(w, r, "/servers/"+ep, http.StatusSeeOther)
 			return
 		}
 	}
 	acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
 	saveAccountsLocked()
+	total := len(acc.Upvotes[ep])
+	accMu.Unlock()
 	log.Printf("[upvote] %s upvoted %s", u.Username, ep)
+	if isJSON {
+		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "upvotes": total})
+		return
+	}
 	http.Redirect(w, r, "/servers/"+ep, http.StatusSeeOther)
 }
 
 func upvoteCount(ep string) int {
 	accMu.Lock()
 	defer accMu.Unlock()
+	if acc == nil {
+		return 0
+	}
 	return len(acc.Upvotes[ep])
 }
 
