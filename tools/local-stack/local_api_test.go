@@ -829,7 +829,14 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	if wUsersDir.Code != http.StatusOK || !strings.Contains(wUsersDir.Body.String(), "d-users-directory-table") {
 		t.Fatalf("GET /u users directory failed: %d", wUsersDir.Code)
 	}
+
+	ln, err := listenWithReuseAddr("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listenWithReuseAddr failed: %v", err)
+	}
+	_ = ln.Close()
 }
+
 
 
 

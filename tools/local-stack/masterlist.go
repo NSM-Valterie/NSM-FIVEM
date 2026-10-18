@@ -974,18 +974,85 @@ var stateFile = flag.String("state", "state.json", "path to persistent state fil
 
 var ownerName = "Cravenz"
 
+var (
+	activeSrvMu    sync.Mutex
+	activeListener net.Listener
+	activeServer   *http.Server
+)
+
+func closeActiveServer() {
+	activeSrvMu.Lock()
+	ln := activeListener
+	srv := activeServer
+	activeSrvMu.Unlock()
+	if ln != nil {
+		_ = ln.Close()
+	}
+	if srv != nil {
+		_ = srv.Close()
+	}
+}
+
+func sys32Bin(name string) string {
+	if sr := os.Getenv("SystemRoot"); sr != "" {
+		p := filepath.Join(sr, "System32", name)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return name
+}
+
+func findListeningPIDsOnPort(port int) []int {
+	pid := os.Getpid()
+	out, err := exec.Command(sys32Bin("netstat.exe"), "-ano", "-p", "tcp").Output()
+	if err != nil {
+		return nil
+	}
+	targetSuffix := ":" + strconv.Itoa(port)
+	seen := map[int]bool{}
+	var pids []int
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 5 || !strings.EqualFold(fields[0], "TCP") {
+			continue
+		}
+		localAddr := fields[1]
+		foreignAddr := fields[2]
+		stateStr := fields[3]
+		isListening := strings.EqualFold(stateStr, "LISTENING") || foreignAddr == "0.0.0.0:0" || foreignAddr == "[::]:0" || strings.HasSuffix(foreignAddr, ":0")
+		if isListening && strings.HasSuffix(localAddr, targetSuffix) {
+			if otherPID, err := strconv.Atoi(fields[len(fields)-1]); err == nil && otherPID > 4 && otherPID != pid && !seen[otherPID] {
+				seen[otherPID] = true
+				pids = append(pids, otherPID)
+			}
+		}
+	}
+	return pids
+}
+
 func stopPreviousMasterlistInstances(addr string, port int) {
 	pid := os.Getpid()
-	// 1. Politely ask any running NSM-Masterlist on this address to exit
-	cl := &http.Client{Timeout: 400 * time.Millisecond}
-	resp, err := cl.Post("http://"+addr+"/api/nsm/internal-restart", "application/json", strings.NewReader(`{}`))
-	if err == nil && resp != nil {
-		resp.Body.Close()
+	// 1. Politely ask any running NSM-Masterlist on this address to close its listener and exit
+	tr := &http.Transport{DisableKeepAlives: true}
+	cl := &http.Client{Timeout: 350 * time.Millisecond, Transport: tr}
+	if req, err := http.NewRequest("POST", "http://"+addr+"/api/nsm/internal-restart", strings.NewReader(`{}`)); err == nil {
+		req.Close = true
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Connection", "close")
+		if resp, err := cl.Do(req); err == nil && resp != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
 	}
+	tr.CloseIdleConnections()
 
 	if runtime.GOOS != "windows" {
 		return
 	}
+
+	taskkillBin := sys32Bin("taskkill.exe")
+	tasklistBin := sys32Bin("tasklist.exe")
 
 	killPID := func(targetPID int) {
 		if targetPID <= 4 || targetPID == pid {
@@ -994,21 +1061,21 @@ func stopPreviousMasterlistInstances(addr string, port int) {
 		if proc, err := os.FindProcess(targetPID); err == nil && proc != nil {
 			_ = proc.Kill()
 		}
-		_ = exec.Command("taskkill", "/F", "/PID", strconv.Itoa(targetPID)).Run()
+		_ = exec.Command(taskkillBin, "/F", "/T", "/PID", strconv.Itoa(targetPID)).Run()
 	}
 
 	// 2. Find any NSM-Masterlist*.exe process via tasklist CSV output and terminate it without touching the console window
-	if out, err := exec.Command("tasklist", "/FO", "CSV", "/NH").Output(); err == nil {
+	if out, err := exec.Command(tasklistBin, "/FO", "CSV", "/NH").Output(); err == nil {
 		for _, line := range strings.Split(string(out), "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
 			}
-			parts := strings.Split(line, ",")
+			parts := strings.Split(line, `","`)
 			if len(parts) >= 2 {
 				imgName := strings.ToLower(strings.Trim(parts[0], `"`))
 				pidStr := strings.Trim(parts[1], `"`)
-				if strings.HasPrefix(imgName, "nsm-masterlist") {
+				if strings.Contains(imgName, "nsm-masterlist") {
 					if otherPID, err := strconv.Atoi(pidStr); err == nil {
 						killPID(otherPID)
 					}
@@ -1018,19 +1085,15 @@ func stopPreviousMasterlistInstances(addr string, port int) {
 	}
 
 	// 3. Also check netstat for any user process holding 127.0.0.1:<port>
-	if out, err := exec.Command("netstat", "-ano", "-p", "tcp").Output(); err == nil {
-		targetSuffix := ":" + strconv.Itoa(port)
-		for _, line := range strings.Split(string(out), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) >= 5 && strings.EqualFold(fields[0], "TCP") && strings.EqualFold(fields[3], "LISTENING") {
-				localAddr := fields[1]
-				if strings.HasSuffix(localAddr, targetSuffix) {
-					if otherPID, err := strconv.Atoi(fields[4]); err == nil {
-						killPID(otherPID)
-					}
-				}
-			}
-		}
+	for _, otherPID := range findListeningPIDsOnPort(port) {
+		killPID(otherPID)
+	}
+
+	// 4. If an elevated process is still holding 127.0.0.1:<port>, request elevated taskkill for that PID
+	time.Sleep(150 * time.Millisecond)
+	for _, remPID := range findListeningPIDsOnPort(port) {
+		psCmd := fmt.Sprintf("Start-Process -FilePath 'taskkill.exe' -ArgumentList '/F /T /PID %d' -Verb RunAs -Wait", remPID)
+		_ = exec.Command(sys32Bin("WindowsPowerShell\\v1.0\\powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", psCmd).Run()
 	}
 }
 
@@ -1038,7 +1101,8 @@ func pauseBeforeExitOnWindows(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	log.Println(msg)
 	if runtime.GOOS == "windows" {
-		fmt.Println("\n------------------------------------------------------------")
+		fmt.Println("\nERROR:", msg)
+		fmt.Println("------------------------------------------------------------")
 		fmt.Println("Press Enter to close this window...")
 		if _, err := bufio.NewReader(os.Stdin).ReadBytes('\n'); err != nil {
 			time.Sleep(30 * time.Second)
@@ -1095,6 +1159,39 @@ func main() {
 		log.Printf("NOTE: OWNER_TOKEN not set - bearer-token admin API is disabled (website owner login still works)")
 	}
 
+	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
+	if c, dialErr := net.DialTimeout("tcp", addr, 120*time.Millisecond); dialErr == nil {
+		_ = c.Close()
+		log.Printf("Existing service detected on %s — stopping previous NSM-Masterlist instance...", addr)
+		stopPreviousMasterlistInstances(addr, *port)
+		time.Sleep(200 * time.Millisecond)
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Printf("Port %s is currently in use — stopping previous NSM-Masterlist instance...", addr)
+		stopPreviousMasterlistInstances(addr, *port)
+		for attempt := 0; attempt < 6; attempt++ {
+			time.Sleep(150 * time.Millisecond)
+			ln, err = net.Listen("tcp", addr)
+			if err == nil {
+				log.Printf("Successfully took over %s from previous instance.", addr)
+				break
+			}
+		}
+		if err != nil {
+			// On Windows, Go's default net.Listen does not set SO_REUSEADDR, so lingering TIME_WAIT/FIN_WAIT_2
+			// connections from Chrome or NSM.exe after stopping the old process cause WSAEADDRINUSE for up to 120s.
+			// Binding with SO_REUSEADDR after stopping the old instance succeeds immediately.
+			ln, err = listenWithReuseAddr("tcp", addr)
+			if err == nil {
+				log.Printf("Successfully bound %s (with SO_REUSEADDR socket takeover).", addr)
+			}
+		}
+	}
+	if err != nil {
+		pauseBeforeExitOnWindows("Could not bind http://%s: %v\nTip: Try right-clicking NSM-Masterlist.exe and choosing 'Run as administrator'.", addr, err)
+	}
+
 	loadState()
 	loadAccounts()
 	if *opass != "" {
@@ -1104,24 +1201,6 @@ func main() {
 	initSite()
 	patchLocalUIBundlesOnDisk()
 
-	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Printf("Port %s is currently in use — stopping previous NSM-Masterlist instance...", addr)
-		stopPreviousMasterlistInstances(addr, *port)
-		for attempt := 0; attempt < 20; attempt++ {
-			time.Sleep(250 * time.Millisecond)
-			ln, err = net.Listen("tcp", addr)
-			if err == nil {
-				log.Printf("Successfully took over %s from previous instance.", addr)
-				break
-			}
-		}
-	}
-	if err != nil {
-		pauseBeforeExitOnWindows("Could not bind http://%s: %v\nTip: Try right-clicking NSM-Masterlist.exe and choosing 'Run as administrator'.", addr, err)
-	}
-
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           localHandler(),
@@ -1129,8 +1208,13 @@ func main() {
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+	activeSrvMu.Lock()
+	activeListener = ln
+	activeServer = srv
+	activeSrvMu.Unlock()
+
 	log.Printf("================================================================")
-	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-f)")
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-g)")
 	log.Printf("Listening on: http://%s", addr)
 	log.Printf("  Homepage:    http://%s/", addr)
 	log.Printf("  Server List: http://%s/servers", addr)
