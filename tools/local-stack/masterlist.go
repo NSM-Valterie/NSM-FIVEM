@@ -491,7 +491,11 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 			if lk == "sv_nsmserverkey" || lk == "sv_licensekey" || lk == "sv_licensekeytoken" || lk == "authorization" {
 				continue
 			}
-			vars[k] = redactServerKeys(v)
+			rv := strings.TrimSpace(strings.TrimRight(redactServerKeys(v), "\x00"))
+			if strings.EqualFold(rv, "default FXServer") {
+				rv = "AFXserver"
+			}
+			vars[k] = rv
 		}
 	}
 	vars["gamename"] = gamename // client browser filter requires this
@@ -506,12 +510,12 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 		}
 	}
 
-	hostname := redactServerKeys(asString(dyn["hostname"]))
+	hostname := strings.TrimSpace(strings.TrimRight(redactServerKeys(asString(dyn["hostname"])), "\x00"))
 	if hostname == "" {
-		hostname = redactServerKeys(asString(info["hostname"]))
+		hostname = strings.TrimSpace(strings.TrimRight(redactServerKeys(asString(info["hostname"])), "\x00"))
 	}
-	if hostname == "" {
-		hostname = "NSM Server"
+	if hostname == "" || strings.EqualFold(hostname, "default FXServer") {
+		hostname = "AFXserver"
 	}
 
 	maxClients := asInt(dyn["svMaxclients"], 0)

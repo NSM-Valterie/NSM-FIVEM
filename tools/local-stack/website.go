@@ -25,9 +25,9 @@ var tmpl *template.Template
 var colorCodeRe = regexp.MustCompile(`\^[0-9]`)
 
 func cleanHostname(s string) string {
-	s = strings.TrimSpace(colorCodeRe.ReplaceAllString(s, ""))
-	if s == "" {
-		return "NSM Dedicated Server"
+	s = strings.TrimSpace(strings.TrimRight(colorCodeRe.ReplaceAllString(s, ""), "\x00"))
+	if s == "" || strings.EqualFold(s, "default FXServer") {
+		return "AFXserver"
 	}
 	return s
 }

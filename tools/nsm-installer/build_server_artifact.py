@@ -374,6 +374,28 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
     #    c) InitConnectMethod: allow empty/unset sv_serverId & missing cfxTicket2 when open-source NSM.exe connects
     if filename.lower().endswith(("citizen-server-impl.dll", "axiomfx-server-impl.dll")):
         data[:] = re.sub(b"(?<![A-Za-z0-9_.-])version\\x00", b"infoVer\x00", data)
+        # Replace default sv_hostname "default FXServer" -> "AFXserver"
+        def_fxs = b"default FXServer\x00"
+        fxs_off = data.find(def_fxs)
+        if fxs_off != -1:
+            fxs_rva = file_off_to_rva(sections, fxs_off)
+            if fxs_rva is not None:
+                for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
+                    if t_name in (".text", ".zdata", ".ctext"):
+                        end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
+                        for p in range(t_raw_ptr, end):
+                            if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
+                                disp = struct.unpack_from("<i", data, p + 3)[0]
+                                if (t_rva + (p - t_raw_ptr) + 7 + disp) == fxs_rva:
+                                    w_start = max(t_raw_ptr, p - 40)
+                                    w_end = min(end, p + 40)
+                                    for q in range(w_start, w_end):
+                                        if data[q : q + 6] == b"\x41\xb8\x10\x00\x00\x00":
+                                            data[q + 2 : q + 6] = struct.pack("<I", 9)
+                                        elif data[q : q + 5] == b"\xba\x10\x00\x00\x00":
+                                            data[q + 1 : q + 5] = struct.pack("<I", 9)
+            data[fxs_off : fxs_off + len(def_fxs)] = b"AFXserver       \x00"
+            print(f"[server-pe] {filename}: replaced 'default FXServer' -> 'AFXserver'")
         fivem_appid = struct.pack("<I", 2676230)
         redm_appid = struct.pack("<I", 4333400)
         nsm_appid = struct.pack("<I", 218)
@@ -661,6 +683,7 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
         assert b"https://lambda.fivem.net/api/ticket/pubkey\x00" in impl_bytes
         assert b"http://147.189.174.173/v1/public/pool-size-limits" in impl_bytes
         assert b"194.104.146.133" not in impl_bytes
+        assert b"default FXServer" not in impl_bytes
 
         if "NSM-Server/pool-sizes-state.dll" in names:
             pool_bytes = zcheck.read("NSM-Server/pool-sizes-state.dll")

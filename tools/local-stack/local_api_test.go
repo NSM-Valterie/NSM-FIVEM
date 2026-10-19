@@ -1246,6 +1246,16 @@ func TestUpvotesFeaturedAndJoinLinks(t *testing.T) {
 	if wJoin.Code != 200 || wJoin.Header().Get("X-CitizenFX-Url") != "http://127.0.0.1:30120/" || !strings.Contains(wJoin.Body.String(), "https://nsmultiplayer.com/join/127.0.0.1:30120") {
 		t.Fatalf("GET /join/127.0.0.1:30120 failed: code=%d hdr=%q", wJoin.Code, wJoin.Header().Get("X-CitizenFX-Url"))
 	}
+
+	// 8. Verify default FXServer / empty hostname becomes AFXserver
+	hbDefault := `{"port":30125,"listingToken":"","ipOverride":"","private":true,"fallbackData":{"players":[],"info":{"info":{"resources":["chat"],"version":"test-fixture","vars":{}}},"dynamic":{"dynamic":{"clients":0,"svMaxclients":48,"hostname":"default FXServer"}}}}`
+	if wDef := request(h, "POST", "/api/serverlist/ingress", hbDefault); wDef.Code != 200 {
+		t.Fatalf("default FXServer heartbeat failed: %d %s", wDef.Code, wDef.Body.String())
+	}
+	wSingleDef := request(h, "GET", "/api/servers/single/127.0.0.1:30125", "")
+	if wSingleDef.Code != 200 || !strings.Contains(wSingleDef.Body.String(), `"hostname":"AFXserver"`) {
+		t.Fatalf("expected default FXServer to become AFXserver, got %d: %s", wSingleDef.Code, wSingleDef.Body.String())
+	}
 }
 
 
