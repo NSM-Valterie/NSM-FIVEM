@@ -192,11 +192,11 @@ func wndProc(hwnd uintptr, uMsg uint32, wParam, lParam uintptr) uintptr {
 			procSetBkMode.Call(hdc, 1) // TRANSPARENT
 			fontName, _ := syscall.UTF16PtrFromString("Segoe UI")
 			hFontTitle, _, _ := procCreateFontW.Call(
-				uintptr(uint32(int32(-20))), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0,
+				^uintptr(19), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0,
 				uintptr(unsafe.Pointer(fontName)),
 			)
 			hFontSub, _, _ := procCreateFontW.Call(
-				uintptr(uint32(int32(-14))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0,
+				^uintptr(13), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0,
 				uintptr(unsafe.Pointer(fontName)),
 			)
 
