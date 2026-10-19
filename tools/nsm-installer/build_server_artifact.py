@@ -359,11 +359,17 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
         "AxiomFXGame".encode("utf-16le"),
         data,
     )
-    #    e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll
+    #    e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll & CfxCrashDump -> AFXCrashDump
     data[:] = re.sub(b"(?i)cfx_curl_x86_64", b"afx_curl_x86_64", data)
     data[:] = re.sub(
         b"(?i)c\x00f\x00x\x00_\x00c\x00u\x00r\x00l\x00_\x00x\x008\x006\x00_\x006\x004\x00",
         "afx_curl_x86_64".encode("utf-16le"),
+        data,
+    )
+    data[:] = re.sub(b"(?i)cfxcrashdump", b"AFXCrashDump", data)
+    data[:] = re.sub(
+        b"(?i)c\x00f\x00x\x00c\x00r\x00a\x00s\x00h\x00d\x00u\x00m\x00p\x00",
+        "AFXCrashDump".encode("utf-16le"),
         data,
     )
 

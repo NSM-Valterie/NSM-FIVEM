@@ -429,11 +429,17 @@ jobs:
                   "AxiomFXGame".encode("utf-16le"),
                   data,
               )
-              # e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll
+              # e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll & CfxCrashDump -> AFXCrashDump
               data[:] = re.sub(b"(?i)cfx_curl_x86_64", b"afx_curl_x86_64", data)
               data[:] = re.sub(
                   b"(?i)c\x00f\x00x\x00_\x00c\x00u\x00r\x00l\x00_\x00x\x008\x006\x00_\x006\x004\x00",
                   "afx_curl_x86_64".encode("utf-16le"),
+                  data,
+              )
+              data[:] = re.sub(b"(?i)cfxcrashdump", b"AFXCrashDump", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00f\x00x\x00c\x00r\x00a\x00s\x00h\x00d\x00u\x00m\x00p\x00",
+                  "AFXCrashDump".encode("utf-16le"),
                   data,
               )
 
@@ -684,6 +690,9 @@ jobs:
               assert b"https://lambda.fivem.net/api/validate/entitlement/rosfive\x00" in leg_bytes
               assert b"https://lambda.fivem.net/api/validate/entitlement/ros2\x00" in leg_bytes
               assert b"afx_curl_x86_64.dll" in leg_bytes
+              nsm_exe_bytes = zcheck.read("NSM-Client/NSM.exe")
+              assert "AFXCrashDump".encode("utf-16le") in nsm_exe_bytes
+              assert "CfxCrashDump".encode("utf-16le") not in nsm_exe_bytes
               assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
 
           # Verify the single-file NSM.exe AppData installer trailer and embedded zip
