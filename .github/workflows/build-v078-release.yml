@@ -387,17 +387,13 @@ jobs:
 
               # Exact same-length replacements (8==8, 11==11, 15==15) — zero offset or length changes:
               # a) citizen-*.dll -> AxiomFX-*.dll
+              # Note: keep internal "citizen:<name>" FXCOMPONENT identifiers untouched in PE resources
+              # so std::unordered_map<std::string, ComponentData> bucket hashing and SortDependencyList
+              # preserve the exact component initialization order (e.g. gta:core:five before scrbind:base).
               data[:] = re.sub(b"(?i)citizen-", b"AxiomFX-", data)
               data[:] = re.sub(
                   b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00-\x00",
                   "AxiomFX-".encode("utf-16le"),
-                  data,
-              )
-              # b) citizen:<component> -> AxiomFX:<component> (preserves citizen:/ VFS scheme!)
-              data[:] = re.sub(b"citizen:(?=[A-Za-z])", b"AxiomFX:", data)
-              data[:] = re.sub(
-                  b"c\x00i\x00t\x00i\x00z\x00e\x00n\x00:\x00(?=[A-Za-z]\x00)",
-                  "AxiomFX:".encode("utf-16le"),
                   data,
               )
               # c) citizen/ and citizen\ disk folder -> AxiomFX/ and AxiomFX\
