@@ -3795,21 +3795,6 @@ func upvoteServer(w http.ResponseWriter, r *http.Request, ep string) {
 }
 
 func handleUpvoteAPI(w http.ResponseWriter, r *http.Request) {
-	u := currentUser(r)
-	if u == nil {
-		u = userFromClientRequest(r)
-	}
-	if u == nil {
-		if hdrUser := strings.TrimSpace(r.Header.Get("X-NSM-User")); hdrUser != "" {
-			accMu.Lock()
-			if found := findUser(hdrUser); found != nil {
-				cp := *found
-				u = &cp
-			}
-			accMu.Unlock()
-		}
-	}
-
 	var reqBody struct {
 		Address  string `json:"address"`
 		Endpoint string `json:"endpoint"`
@@ -3826,6 +3811,24 @@ func handleUpvoteAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	if ep == "" {
 		ep = strings.TrimSpace(r.URL.Query().Get("ep"))
+	}
+
+	u := currentUser(r)
+	hasExplicitClientHeader := strings.TrimSpace(r.Header.Get("User-Api-Key")) != "" ||
+		strings.TrimSpace(r.Header.Get("X-CitizenFX-Token")) != "" ||
+		strings.TrimSpace(r.Header.Get("Api-Key")) != ""
+	if u == nil && hasExplicitClientHeader {
+		u = userFromClientRequest(r)
+	}
+	if u == nil {
+		if hdrUser := strings.TrimSpace(r.Header.Get("X-NSM-User")); hdrUser != "" {
+			accMu.Lock()
+			if found := findUser(hdrUser); found != nil {
+				cp := *found
+				u = &cp
+			}
+			accMu.Unlock()
+		}
 	}
 
 	if u == nil && ep != "" {
