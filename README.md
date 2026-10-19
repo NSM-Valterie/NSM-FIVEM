@@ -49,19 +49,44 @@ All NSM platform, account, policy, and server-discovery routes operate directly 
 
 ---
 
-### 2. Full Real-World FiveM Script & Resource Compatibility
-NSM is engineered so existing FiveM servers, frameworks, scripts, and custom assets run **out of the box without code changes**:
+### 2. Full Real-World FiveM Script & Resource Compatibility (How It Works Under the Hood)
+NSM is engineered so existing FiveM servers, frameworks, scripts, and custom assets run **out of the box without a single line of code changed**. Below is how the **AxiomFX (`AFX`)** engine executes FiveM resources end-to-end:
 
-- **All Scripting Runtimes Included**:
-  - **Lua 5.4** (`AxiomFX-scripting-lua.dll` / `AxiomFX-scripting-lua54.dll`)
-  - **JavaScript / V8 / Node.js** (`AxiomFX-scripting-v8*.dll`)
-  - **C# / Mono** (`AxiomFX-scripting-mono.dll` & v2)
-- **Both `fxmanifest.lua` and `__resource.lua` Supported**:
-  - While external directories and DLLs are rebranded to **`AxiomFX/`** and **`AxiomFX-*.dll`**, internal binary component registry identifiers (`citizen:resources:core`, `citizen:scripting:lua`, etc.) and script globals (`Citizen.*`, `cfx`, `RegisterNetEvent`, `TriggerServerEvent`, `exports`, `SendNUIMessage`, `RegisterNUICallback`) are preserved so all scripts load cleanly.
-- **Confirmed Compatible Frameworks & Resources**:
-  - **QBCore**, **Qbox**, **ESX**, **vMenu**, **ox_lib**, **ox_inventory**, **ox_target**, **oxmysql**, **pma-voice**, custom NUI (`nui://`) interfaces, custom addon vehicles, weapons, MLO interiors, and EUP clothing packs.
-- **All GTA V Game Builds Supported**:
-  - Supports `sv_enforceGameBuild` (`b2802`, `b2944`, `b3095`, `b3258`, etc.).
+1. **Dual-Layer Architecture (External `AxiomFX` Branding vs. Internal `citizen:` Registry)**:
+   - On disk, all client and server folders and DLLs are rebranded to **`AxiomFX/`** and **`AxiomFX-*.dll`** (`AxiomFX-resources-core.dll`, `AxiomFX-scripting-lua.dll`, `AxiomFX-scripting-v8.dll`, `AxiomFX-scripting-mono.dll`).
+   - Inside the engine's memory, internal `FXCOMPONENT` dependency identifiers (`citizen:resources:core`, `citizen:scripting:lua`, `citizen:resources:gta`) and FNV-1a component hash buckets are preserved verbatim so every engine subsystem initializes in the exact order FiveM scripts expect.
+
+2. **Manifest Parsing (`fxmanifest.lua` & `__resource.lua`)**:
+   - When `nsm-server.exe` starts a resource (`ensure <resource>`), `AxiomFX-resources-core.dll` runs the Lua manifest parser (`fx_version 'cerulean'`, `'bodacious'`, `'adamant'`, or legacy `resource_manifest_version`).
+   - All standard manifest directives work identically: `client_scripts`, `server_scripts`, `shared_scripts`, `files`, `ui_page`, `data_file`, `dependencies`, `lua54 'yes'`, `escrow_ignore`, and `provides`.
+
+3. **Identical Script Globals, Events, Exports & Convars**:
+   - Every script runtime exposes the exact globals FiveM scripts call:
+     - **Threading & Tick Loops**: `Citizen.CreateThread`, `CreateThread`, `Citizen.Wait`, `Wait`, `Citizen.SetTimeout`, `SetInterval`.
+     - **Client/Server Networking**: `RegisterNetEvent`, `AddEventHandler`, `TriggerEvent`, `TriggerServerEvent`, `TriggerClientEvent`, `TriggerLatentClientEvent`, and `RegisterCommand`.
+     - **Cross-Resource Exports**: `exports['resource_name']:functionName(...)` and `AddEventHandler('__cfx_export_...', ...)`.
+     - **State Bags (OneSync)**: `Entity(veh).state`, `Player(src).state`, and `GlobalState` replication between `nsm-server.exe` and `NSM.exe`.
+
+4. **All Three Scripting Languages (Lua 5.4, JavaScript/Node.js V8, C# Mono)**:
+   - **Lua (`AxiomFX-scripting-lua.dll` / `AxiomFX-scripting-lua54.dll`)**: Full Cfx Lua 5.3 / 5.4 runtime including vector types (`vector2`, `vector3`, `vector4`, `quat`), `msgpack`, `json`, `promise`/`Citizen.Await`, and `debug` hooks.
+   - **JavaScript / Node.js (`AxiomFX-scripting-v8*.dll`)**: Full V8 + Node.js server/client runtime, allowing scripts like **`oxmysql`**, **`webpack`**, **`yarn`**, Discord bots, and HTTP/WebSocket modules to run natively on the server.
+   - **C# / Mono (`AxiomFX-scripting-mono.dll`)**: Full `.NET` / `CitizenFX.Core.dll` client & server assembly support (used by **`vMenu`** and C# roleplay frameworks).
+
+5. **GTA V Native Execution (`Citizen.InvokeNative` & `scrbind`)**:
+   - Client scripts invoke GTA V RAGE engine functions through the exact 64-bit universal native crossmap table (`0x...` hashes mapped to human-readable functions like `PlayerPedId()`, `GetEntityCoords()`, `CreateVehicle()`, `SetPedComponentVariation()`).
+   - Server scripts execute server-side natives (`GetPlayerIdentifiers()`, `GetPlayerEndpoint()`, `DropPlayer()`, `PerformHttpRequest()`, `SetRoutingBucketPopulationEnabled()`, etc.) inside `AxiomFX-server-impl.dll`.
+
+6. **NUI Chromium Browser (`nui://`) & Callbacks**:
+   - Resources with a `ui_page` render inside `AxiomFX_SubProcess_chrome.bin` (CEF/Chromium).
+   - Lua/JS/C# scripts send data to the UI via `SendNUIMessage({...})`, and the HTML/React/Vue UI talks back to the script via `fetch('https://resource_name/callback', ...)` -> `RegisterNUICallback('callback', ...)`.
+
+7. **Custom Streaming Assets (`stream/`), EUP Clothing, Cars & MLOs**:
+   - Any `.yft`, `.ydr`, `.ytd`, `.ydd`, `.ymap`, `.ytyp`, `.ymf`, `.awc`, or `.meta` file placed inside a resource's `stream/` folder (including nested `stream/[subfolder]/` directories and `^` prefix overrides) is hashed and streamed by `nsm-server.exe` to connecting `NSM.exe` clients.
+   - Because `NSM-Masterlist.exe` (`/p/api/policy/*`) and `AxiomFX-net-five.dll` automatically unlock **`subdir_file_mapping`** and **`onesync_platinum`** (up to 2048 slots), EUP clothing packs, custom addon cars, custom weapons, and MLO interiors stream without needing any Cfx Patreon subscription.
+
+8. **Confirmed Compatible Frameworks & Resources**:
+   - **QBCore**, **Qbox**, **ESX Legacy**, **vMenu**, **ox_lib**, **ox_inventory**, **ox_target**, **ox_doorlock**, **oxmysql**, **pma-voice** (built-in Mumble voice server), custom phones/HUDs, custom addon vehicles, weapons, MLO interiors, and EUP clothing packs.
+   - Supports all GTA V game builds via `sv_enforceGameBuild` (`b2802`, `b2944`, `b3095`, `b3258`, etc.).
 
 ---
 
