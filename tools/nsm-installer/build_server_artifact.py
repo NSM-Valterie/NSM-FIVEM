@@ -90,47 +90,30 @@ def patch_nearby_ascii_lengths(
         return 0
     old_u32 = struct.pack("<I", old_len)
     new_u32 = struct.pack("<I", new_len)
-    win_start = max(sec_start, lea_pos - 32)
-    win_end = min(sec_end - 8, lea_pos + 40)
+    win_start = max(sec_start, lea_pos - 48)
+    win_end = min(sec_end - 12, lea_pos + 56)
     patched = 0
     k = win_start
     while k < win_end:
-        if data[k] == 0x41 and 0xB8 <= data[k + 1] <= 0xBF and data[k + 2 : k + 6] == old_u32:
-            data[k + 2 : k + 6] = new_u32
-            patched += 1
-            k += 6
-            continue
-        if 0xB8 <= data[k] <= 0xBF and data[k + 1 : k + 5] == old_u32:
-            data[k + 1 : k + 5] = new_u32
-            patched += 1
-            k += 5
-            continue
-        if (
-            data[k] in (0x48, 0x49)
-            and data[k + 1] == 0xC7
-            and 0xC0 <= data[k + 2] <= 0xC7
-            and data[k + 3 : k + 7] == old_u32
-        ):
-            data[k + 3 : k + 7] = new_u32
-            patched += 1
-            k += 7
-            continue
-        if (
-            data[k] in (0x48, 0x49)
-            and data[k + 1] == 0xC7
-            and data[k + 2] == 0x44
-            and data[k + 3] == 0x24
-            and data[k + 5 : k + 9] == old_u32
-        ):
-            data[k + 5 : k + 9] = new_u32
-            patched += 1
-            k += 9
-            continue
-        if data[k] == 0xC7 and data[k + 1] == 0x44 and data[k + 2] == 0x24 and data[k + 4 : k + 8] == old_u32:
-            data[k + 4 : k + 8] = new_u32
-            patched += 1
-            k += 8
-            continue
+        if data[k : k + 4] == old_u32:
+            is_mov_reg = (k >= 1 and 0xB8 <= data[k - 1] <= 0xBF) or (
+                k >= 2 and data[k - 2] in (0x41, 0x48, 0x49) and 0xB8 <= data[k - 1] <= 0xBF
+            )
+            is_mov_c7 = (
+                (k >= 2 and data[k - 2] == 0xC7 and 0xC0 <= data[k - 1] <= 0xC7)
+                or (k >= 3 and data[k - 3] in (0x48, 0x49) and data[k - 2] == 0xC7 and 0xC0 <= data[k - 1] <= 0xC7)
+                or (k >= 3 and data[k - 3] == 0xC7 and (data[k - 2] & 0x38) == 0x00)
+                or (k >= 4 and data[k - 4] == 0xC7 and (data[k - 3] & 0x38) == 0x00)
+                or (k >= 5 and data[k - 5] in (0x48, 0x49) and data[k - 4] == 0xC7 and (data[k - 3] & 0x38) == 0x00)
+                or (k >= 6 and data[k - 6] == 0xC7 and (data[k - 5] & 0x38) == 0x00)
+                or (k >= 7 and data[k - 7] == 0xC7 and (data[k - 6] & 0x38) == 0x00)
+                or (k >= 8 and data[k - 8] in (0x48, 0x49) and data[k - 7] == 0xC7 and (data[k - 6] & 0x38) == 0x00)
+            )
+            if is_mov_reg or is_mov_c7:
+                data[k : k + 4] = new_u32
+                patched += 1
+                k += 4
+                continue
         if old_len < 128 and new_len < 128:
             if (
                 data[k] in (0x48, 0x49)
@@ -334,8 +317,10 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
         new_pool = b"http://147.189.174.173" + old_pool[suffix_idx:]
         redirect_ascii_string(data, sections, old_pool, new_pool, filename)
 
-    # 4. Replace any remaining 194.104.146.133 (15 == 15 bytes)
+    # 4. Replace any remaining 194.104.146.133 (15 == 15 bytes) and terminal prompt "cfx> " -> "afx> "
     data[:] = data.replace(b"194.104.146.133", b"147.189.174.173")
+    data[:] = data.replace(b"cfx> \x00", b"afx> \x00")
+    data[:] = data.replace("cfx> \x00".encode("utf-16le"), "afx> \x00".encode("utf-16le"))
 
     # 5. Rename CitizenFX_log / CitizenFX.log / CitizenFX.ini / CitiLaunch_TLSDummy.dll -> AxiomFX
     for old_s, new_s in (
@@ -499,18 +484,16 @@ endpoint_add_udp "0.0.0.0:30120"
 sets sv_nsmServerKey ""
 
 # Live NSM Masterlist endpoint (automatically lists your server in NSM.exe & https://nsmultiplayer.com/servers)
-sv_master1 "http://147.189.174.173/api/serverlist/ingress"
+sv_master1 "http://147.189.174.173:80/api/serverlist/ingress"
 set sv_serverId ""
 sv_lan 1
 
 # ---- Standard Core Resources ----
 ensure mapmanager
-ensure chat
 ensure spawnmanager
-ensure sessionmanager
 ensure basic-gamemode
-ensure hardcap
-ensure rconlog
+ensure baseevents
+ensure playernames
 
 # ---- Server Identity & Tags ----
 sv_hostname "^5NSM Community Server ^0| ^2Powered by AFX"
