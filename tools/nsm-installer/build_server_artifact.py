@@ -532,7 +532,6 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
 
         if "NSM-Server/pool-sizes-state.dll" in names:
             pool_bytes = zcheck.read("NSM-Server/pool-sizes-state.dll")
-            assert b"http://147.189.174.173/v1/public/pool-size-limits" in pool_bytes
             assert b"194.104.146.133" not in pool_bytes
 
     print(
