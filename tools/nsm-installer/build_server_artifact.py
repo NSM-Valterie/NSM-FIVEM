@@ -403,56 +403,83 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                         data[idx : idx + 4] = nsm_appid
                         print(f"[server-pe] {filename}: patched STEAM_APPID_FIVEM 2676230 -> 218 at 0x{idx:x}")
 
-        err4_str = b"CitizenFX ticket authorization failed. (4)\x00"
-        err4_off = data.find(err4_str)
-        if err4_off != -1:
-            err4_rva = file_off_to_rva(sections, err4_off)
-            if err4_rva is not None:
+        # Bypass cfxTicket2 requirement when open-source NSM.exe connects (even if sv_lan is 0 in server.cfg)
+        no_ticket_str = b"No authentication ticket was specified.\x00"
+        no_t_off = data.find(no_ticket_str)
+        if no_t_off != -1:
+            no_t_rva = file_off_to_rva(sections, no_t_off)
+            if no_t_rva is not None:
                 for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
                     if t_name in (".text", ".zdata", ".ctext"):
                         end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
-                        for p in range(t_raw_ptr, end):
-                            if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
-                                disp = struct.unpack_from("<i", data, p + 3)[0]
-                                insn_end_rva = t_rva + (p - t_raw_ptr) + 7
-                                if insn_end_rva + disp == err4_rva:
-                                    for bpos in range(p - 1, max(t_raw_ptr, p - 32), -1):
-                                        if data[bpos] == 0x75:  # jnz rel8
-                                            rel8 = struct.unpack_from("<b", data, bpos + 1)[0]
-                                            target = bpos + 2 + rel8
-                                            if target > p + 7:
-                                                data[bpos] = 0xEB  # jmp rel8
-                                                print(
-                                                    f"[server-pe] {filename}: patched serverIdMatch jnz->jmp at 0x{bpos:x}"
-                                                )
-                                                break
-                                        elif data[bpos] == 0x0F and data[bpos + 1] == 0x85:  # jnz rel32
+                        for p_err in range(t_raw_ptr, end):
+                            if data[p_err] in (0x48, 0x4C) and data[p_err + 1] == 0x8D and (data[p_err + 2] & 0xC7) == 0x05:
+                                disp = struct.unpack_from("<i", data, p_err + 3)[0]
+                                if (t_rva + (p_err - t_raw_ptr) + 7 + disp) == no_t_rva:
+                                    for bpos in range(p_err - 1, max(t_raw_ptr, p_err - 200), -1):
+                                        if data[bpos] == 0x0F and data[bpos + 1] in (0x84, 0x85):
                                             rel32 = struct.unpack_from("<i", data, bpos + 2)[0]
                                             target = bpos + 6 + rel32
-                                            if target > p + 7:
+                                            if target > p_err + 120:
                                                 data[bpos : bpos + 2] = b"\x90\xe9"
                                                 print(
-                                                    f"[server-pe] {filename}: patched serverIdMatch jnz->jmp32 at 0x{bpos:x}"
+                                                    f"[server-pe] {filename}: patched !lanVar cfxTicket2 branch->jmp32 at 0x{bpos:x} (target=0x{target:x})"
                                                 )
                                                 break
-                                        elif data[bpos] == 0x74:  # jz rel8 into error4 block
-                                            rel8 = struct.unpack_from("<b", data, bpos + 1)[0]
-                                            target = bpos + 2 + rel8
-                                            if p - 12 <= target <= p:
-                                                data[bpos : bpos + 2] = b"\x90\x90"
-                                                print(
-                                                    f"[server-pe] {filename}: NOPed serverIdMatch jz at 0x{bpos:x}"
-                                                )
-                                                break
-                                        elif data[bpos] == 0x0F and data[bpos + 1] == 0x84:  # jz rel32 into error4 block
-                                            rel32 = struct.unpack_from("<i", data, bpos + 2)[0]
-                                            target = bpos + 6 + rel32
-                                            if p - 12 <= target <= p:
-                                                data[bpos : bpos + 6] = b"\x90" * 6
-                                                print(
-                                                    f"[server-pe] {filename}: NOPed serverIdMatch jz32 at 0x{bpos:x}"
-                                                )
-                                                break
+
+        for err_label, err_str in (
+            ("gameNameMatch (3)", b"CitizenFX ticket authorization failed. (3)\x00"),
+            ("serverIdMatch (4)", b"CitizenFX ticket authorization failed. (4)\x00"),
+        ):
+            err_off = data.find(err_str)
+            if err_off != -1:
+                err_rva = file_off_to_rva(sections, err_off)
+                if err_rva is not None:
+                    for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
+                        if t_name in (".text", ".zdata", ".ctext"):
+                            end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
+                            for p in range(t_raw_ptr, end):
+                                if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
+                                    disp = struct.unpack_from("<i", data, p + 3)[0]
+                                    insn_end_rva = t_rva + (p - t_raw_ptr) + 7
+                                    if insn_end_rva + disp == err_rva:
+                                        for bpos in range(p - 1, max(t_raw_ptr, p - 32), -1):
+                                            if data[bpos] == 0x75:  # jnz rel8
+                                                rel8 = struct.unpack_from("<b", data, bpos + 1)[0]
+                                                target = bpos + 2 + rel8
+                                                if target > p + 7:
+                                                    data[bpos] = 0xEB  # jmp rel8
+                                                    print(
+                                                        f"[server-pe] {filename}: patched {err_label} jnz->jmp at 0x{bpos:x}"
+                                                    )
+                                                    break
+                                            elif data[bpos] == 0x0F and data[bpos + 1] == 0x85:  # jnz rel32
+                                                rel32 = struct.unpack_from("<i", data, bpos + 2)[0]
+                                                target = bpos + 6 + rel32
+                                                if target > p + 7:
+                                                    data[bpos : bpos + 2] = b"\x90\xe9"
+                                                    print(
+                                                        f"[server-pe] {filename}: patched {err_label} jnz->jmp32 at 0x{bpos:x}"
+                                                    )
+                                                    break
+                                            elif data[bpos] == 0x74:  # jz rel8 into error block
+                                                rel8 = struct.unpack_from("<b", data, bpos + 1)[0]
+                                                target = bpos + 2 + rel8
+                                                if p - 12 <= target <= p:
+                                                    data[bpos : bpos + 2] = b"\x90\x90"
+                                                    print(
+                                                        f"[server-pe] {filename}: NOPed {err_label} jz at 0x{bpos:x}"
+                                                    )
+                                                    break
+                                            elif data[bpos] == 0x0F and data[bpos + 1] == 0x84:  # jz rel32 into error block
+                                                rel32 = struct.unpack_from("<i", data, bpos + 2)[0]
+                                                target = bpos + 6 + rel32
+                                                if p - 12 <= target <= p:
+                                                    data[bpos : bpos + 6] = b"\x90" * 6
+                                                    print(
+                                                        f"[server-pe] {filename}: NOPed {err_label} jz32 at 0x{bpos:x}"
+                                                    )
+                                                    break
 
     assert len(data) == orig_len
     return bytes(data)
@@ -474,6 +501,7 @@ sets sv_nsmServerKey ""
 # Live NSM Masterlist endpoint (automatically lists your server in NSM.exe & https://nsmultiplayer.com/servers)
 sv_master1 "http://147.189.174.173/api/serverlist/ingress"
 set sv_serverId ""
+sv_lan 1
 
 # ---- Standard Core Resources ----
 ensure mapmanager
