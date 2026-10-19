@@ -348,19 +348,19 @@ jobs:
                   except Exception as e:
                       print(f"[pe-patch] warning on {filename}: {e}")
 
-              # 3. Point all routes (a, c, d, e, f, k, l, p, r, s, w) to NSM VPS IP (147.189.174.173)
-              #    while preserving the 3 Rockstar GTA V entitlement URLs inside legitimacy.dll
+              # 3. Point all NSM control/policy/auth/web routes (a, d, e, f, k, l, p, w) to NSM VPS IP (147.189.174.173)
+              #    while keeping static GTA V game-cache range CDNs (c, r, s) on fast edge mirrors so "Updating game storage..." finishes in seconds
               route_targets = {
                   b"a": b"http://147.189.174.173",
-                  b"c": b"http://147.189.174.173",
+                  b"c": b"https://content.cfx.re",
                   b"d": b"http://147.189.174.173",
                   b"e": b"http://147.189.174.173",
                   b"f": b"http://147.189.174.173/f",
                   b"k": b"http://147.189.174.173",
                   b"l": b"http://147.189.174.173/l",
                   b"p": b"http://147.189.174.173/p",
-                  b"r": b"http://147.189.174.173/r",
-                  b"s": b"http://147.189.174.173/s",
+                  b"r": b"https://runtime.fivem.net",
+                  b"s": b"https://static.cfx.re",
                   b"v": b"https://private-placeholder.cfx.re",
                   b"w": b"http://147.189.174.173",
               }
