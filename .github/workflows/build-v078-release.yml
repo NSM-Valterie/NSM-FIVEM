@@ -50,7 +50,8 @@ jobs:
             trap "kill $SMOKE_PID 2>/dev/null || true" EXIT
             sleep 1
             curl -sf http://127.0.0.1:18089/health | grep -q "0.7.7-local"
-            curl -sf http://127.0.0.1:18089/ > /dev/null
+            curl -sf http://127.0.0.1:18089/ | grep -q 'href="/download"'
+            curl -sI http://127.0.0.1:18089/download | grep -qi "nsm-v0.7.8-candidate/NSM.exe"
             curl -sf http://127.0.0.1:18089/servers > /dev/null
             curl -sf http://127.0.0.1:18089/forum > /dev/null
             curl -sf http://127.0.0.1:18089/u > /dev/null
@@ -712,10 +713,11 @@ jobs:
           if ! gh release view nsm-v0.7.8-candidate >/dev/null 2>&1; then
             gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 — Official Client & Single-File AppData Installer" --notes "Download NSM.exe to automatically install NSM to %LOCALAPPDATA%\\NSM\\NSM.app and launch."
           fi
-          for old_asset in NSM-Masterlist.exe NSM-v0.7.8-source-and-tests.zip SHA256SUMS.txt; do
+          for old_asset in NSM-v0.7.8-source-and-tests.zip SHA256SUMS.txt; do
             gh release delete-asset nsm-v0.7.8-candidate "$old_asset" --yes 2>/dev/null || true
           done
           gh release upload nsm-v0.7.8-candidate \
             /tmp/v078-dist/NSM.exe \
             /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip \
+            /tmp/NSM-Masterlist.exe \
             --clobber

@@ -1081,7 +1081,7 @@
           if (rawHref && rawHref.charAt(0) !== '#' && rawHref.indexOf('javascript:') !== 0 && rawHref.indexOf('mailto:') !== 0 && rawHref.indexOf('fivem://') !== 0) {
             try {
               var linkUrl = new URL(rawHref, window.location.origin);
-              if (linkUrl.origin === window.location.origin && linkUrl.pathname !== '/logout' && linkUrl.pathname.indexOf('/api/') !== 0) {
+              if (linkUrl.origin === window.location.origin && linkUrl.pathname !== '/logout' && linkUrl.pathname !== '/download' && linkUrl.pathname !== '/NSM.exe' && linkUrl.pathname.indexOf('/api/') !== 0) {
                 e.preventDefault();
                 nsmNavigate(linkUrl.href, true);
                 return;
