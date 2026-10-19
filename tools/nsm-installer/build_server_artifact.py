@@ -61,7 +61,6 @@ def alloc_in_rdata_cave(data: bytearray, sections, payload: bytes):
     donor_tail = b"Please report this error at https://github.com/citizenfx/fivem.\n\x00"
     d_idx = data.find(donor_tail)
     if d_idx != -1 and len(payload) + 2 <= len(donor_tail):
-        # Terminate the preceding sentence cleanly with "\n\x00" and place payload after it
         data[d_idx : d_idx + 2] = b"\n\x00"
         cave_raw = d_idx + 2
         data[cave_raw : cave_raw + len(donor_tail) - 2] = b"\x00" * (len(donor_tail) - 2)
@@ -232,6 +231,71 @@ def redirect_ascii_string(data: bytearray, sections, old_bytes: bytes, new_bytes
     return patched
 
 
+def patch_utf16_with_len(data: bytearray, sections, old_s: str, new_s: str) -> None:
+    assert len(new_s) <= len(old_s)
+    old_b = old_s.encode("utf-16le") + b"\x00\x00"
+    new_b = new_s.encode("utf-16le") + b"\x00\x00" * (len(old_s) - len(new_s) + 1)
+    old_len = len(old_s)
+    new_len = len(new_s)
+    old_imm = struct.pack("<I", old_len)
+    new_imm = struct.pack("<I", new_len)
+    p_idx = 0
+    while True:
+        idx = data.find(old_b, p_idx)
+        if idx < 0:
+            break
+        if sections and old_len != new_len:
+            target_rva = file_off_to_rva(sections, idx)
+            if target_rva is not None:
+                for _, s_name, _, t_rva, t_raw_size, t_raw_ptr in sections:
+                    if s_name in (".text", ".zdata", ".ctext"):
+                        for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
+                            if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
+                                disp = struct.unpack_from("<i", data, p + 3)[0]
+                                if (t_rva + (p - t_raw_ptr) + 7 + disp) == target_rva:
+                                    w_start = max(t_raw_ptr, p - 48)
+                                    w_end = min(t_raw_ptr + t_raw_size - 4, p + 48)
+                                    for q in range(w_start, w_end):
+                                        if data[q : q + 4] == old_imm:
+                                            is_mov_reg = q >= 1 and 0xB8 <= data[q - 1] <= 0xBF
+                                            is_mov_mem = (
+                                                (q >= 3 and data[q - 3] == 0xC7 and (data[q - 2] & 0x38) == 0x00)
+                                                or (q >= 4 and data[q - 4] == 0xC7 and (data[q - 3] & 0x38) == 0x00)
+                                                or (q >= 6 and data[q - 6] == 0xC7 and (data[q - 5] & 0x38) == 0x00)
+                                                or (q >= 7 and data[q - 7] == 0xC7 and (data[q - 6] & 0x38) == 0x00)
+                                            )
+                                            if is_mov_reg or is_mov_mem:
+                                                data[q : q + 4] = new_imm
+        data[idx : idx + len(old_b)] = new_b
+        p_idx = idx + len(new_b)
+
+
+def rename_server_member(rel: str) -> str:
+    rel = rel.replace("\\", "/").lstrip("/")
+    if rel.lower().startswith("citizen/"):
+        rel = "AxiomFX/" + rel[len("citizen/") :]
+    if "/" not in rel:
+        low = rel.lower()
+        if low == "fxserver.exe":
+            return "nsm-server.exe"
+        if low.startswith("citizen-") and low.endswith(".dll"):
+            return "AxiomFX-" + rel[len("citizen-") :]
+        if low == "citizengame.dll":
+            return "AxiomFXGame.dll"
+        if low == "citilaunch_tlsdummy.dll":
+            return "AxiomFX_TLSDummy.dll"
+        if low == "cfx_curl_x86_64.dll":
+            return "afx_curl_x86_64.dll"
+        if low == "citizenfx.ini":
+            return "AxiomFX.ini"
+        if low == "citizenfx.log":
+            return "AxiomFX.log"
+    return rel
+
+
+ASCII_IDENT_BYTES = set(b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-/\\:")
+
+
 def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
     data = bytearray(raw_bytes)
     orig_len = len(data)
@@ -270,17 +334,58 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
         new_pool = b"http://147.189.174.173" + old_pool[suffix_idx:]
         redirect_ascii_string(data, sections, old_pool, new_pool, filename)
 
-    # 4. Replace any remaining 194.104.146.133 (15 == 15 bytes) and Discord links
+    # 4. Replace any remaining 194.104.146.133 (15 == 15 bytes)
     data[:] = data.replace(b"194.104.146.133", b"147.189.174.173")
-    data[:] = data.replace(
-        b"https://discord.gg/UXj5QfCX88",
-        b"https://nsmultiplayer.com\x00\x00\x00\x00",
+
+    # 5. Rename CitizenFX_log / CitizenFX.log / CitizenFX.ini / CitiLaunch_TLSDummy.dll -> AxiomFX
+    for old_s, new_s in (
+        ("CitiLaunch_TLSDummy.dll", "AxiomFX_TLSDummy.dll"),
+        ("CitizenFX.ini", "AxiomFX.ini"),
+        ("logs/CitizenFX_log_%s.log", "logs/AxiomFX_log_%s.log"),
+        ("CitizenFX_log_%04d-%02d-%02dT%02d%02d%02d.log", "AxiomFX_log_%04d-%02d-%02dT%02d%02d%02d.log"),
+        ("CitizenFX.log%s", "AxiomFX.log%s"),
+        ("CitizenFX.log", "AxiomFX.log"),
+        ("https://discord.gg/UXj5QfCX88", "https://nsmultiplayer.com"),
+    ):
+        patch_utf16_with_len(data, sections, old_s, new_s)
+        old_a = old_s.encode("ascii") + b"\x00"
+        new_a = (new_s.encode("ascii") + b"\x00").ljust(len(old_a), b"\x00")
+        data[:] = re.sub(re.escape(old_a), lambda _: new_a, data, flags=re.IGNORECASE)
+
+    # 6. Same-length AxiomFX / afx renames (keep internal "citizen:<name>" FXCOMPONENT identifiers untouched):
+    #    a) citizen-*.dll -> AxiomFX-*.dll
+    data[:] = re.sub(b"(?i)citizen-", b"AxiomFX-", data)
+    data[:] = re.sub(
+        b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00-\x00",
+        "AxiomFX-".encode("utf-16le"),
+        data,
+    )
+    #    b) citizen/ and citizen\ disk folder -> AxiomFX/ and AxiomFX\
+    data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen/", b"AxiomFX/", data)
+    data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen\\\\", b"AxiomFX\\\\", data)
+    data[:] = data.replace("citizen/".encode("utf-16le"), "AxiomFX/".encode("utf-16le"))
+    data[:] = data.replace("citizen\\".encode("utf-16le"), "AxiomFX\\".encode("utf-16le"))
+    #    c) Standalone L"citizen\0" (used by MakeRelativeCitPath(L"citizen") in ServerResources.cpp & MonitorInstance.cpp)
+    data[:] = data.replace("citizen\x00".encode("utf-16le"), "AxiomFX\x00".encode("utf-16le"))
+    #    d) CitizenGame.dll -> AxiomFXGame.dll
+    data[:] = re.sub(b"(?i)citizengame", b"AxiomFXGame", data)
+    data[:] = re.sub(
+        b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00g\x00a\x00m\x00e\x00",
+        "AxiomFXGame".encode("utf-16le"),
+        data,
+    )
+    #    e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll
+    data[:] = re.sub(b"(?i)cfx_curl_x86_64", b"afx_curl_x86_64", data)
+    data[:] = re.sub(
+        b"(?i)c\x00f\x00x\x00_\x00c\x00u\x00r\x00l\x00_\x00x\x008\x006\x00_\x006\x004\x00",
+        "afx_curl_x86_64".encode("utf-16le"),
+        data,
     )
 
-    # 5. citizen-server-impl.dll specific fixes:
+    # 7. AxiomFX-server-impl.dll (formerly citizen-server-impl.dll) specific fixes:
     #    a) SteamIdentityProvider: STEAM_APPID_FIVEM (2676230 -> 218 Source SDK Base 2007)
     #    b) InitConnectMethod: allow empty/unset sv_serverId when svadhesive.dll is not loaded
-    if filename.lower().endswith("citizen-server-impl.dll"):
+    if filename.lower().endswith(("citizen-server-impl.dll", "axiomfx-server-impl.dll")):
         fivem_appid = struct.pack("<I", 2676230)
         redm_appid = struct.pack("<I", 4333400)
         nsm_appid = struct.pack("<I", 218)
@@ -461,26 +566,31 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
                 if top_prefix and info.filename.startswith(top_prefix)
                 else info.filename
             )
-            rel = rel.lstrip("/")
+            rel = rename_server_member(rel)
             if not rel:
                 continue
             low = rel.lower()
-            if low in ("server.cfg", "start-server.bat", "readme-server.txt"):
+            if low in ("server.cfg", "start-server.bat", "readme-server.txt", "start.bat"):
                 continue
-            if low == "fxserver.exe":
-                rel = "nsm-server.exe"
-                low = "nsm-server.exe"
 
             data = zin.read(info.filename)
-            if low == "components.json" and not has_svadhesive_dll:
+            if low == "components.json":
                 try:
                     comp_list = json.loads(data.decode("utf-8-sig"))
-                    comp_list = [c for c in comp_list if c != "svadhesive"]
-                    data = (json.dumps(comp_list, indent=2) + "\n").encode("utf-8")
-                    print(f"[server-pack] stripped svadhesive from components.json ({len(comp_list)} components)")
+                    if not has_svadhesive_dll:
+                        comp_list = [c for c in comp_list if c != "svadhesive"]
+                    renamed_comps = []
+                    for c in comp_list:
+                        if isinstance(c, str) and c.lower().startswith("citizen:"):
+                            c = "AxiomFX-" + c[len("citizen:") :].replace(":", "-")
+                        elif isinstance(c, str) and c.lower().startswith("citizen-"):
+                            c = "AxiomFX-" + c[len("citizen-") :]
+                        renamed_comps.append(c)
+                    data = (json.dumps(renamed_comps, indent=2) + "\n").encode("utf-8")
+                    print(f"[server-pack] updated components.json -> AxiomFX-* ({len(renamed_comps)} components)")
                 except Exception as e:
                     print(f"[server-pack] warning parsing components.json: {e}")
-            elif low.endswith((".exe", ".dll")):
+            elif low.endswith((".exe", ".dll", ".bin")):
                 data = patch_server_pe_binary(data, rel)
 
             out_name = "NSM-Server/" + rel
@@ -515,16 +625,24 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
         assert zcheck.testzip() is None
         names = set(zcheck.namelist())
         assert "NSM-Server/nsm-server.exe" in names, f"nsm-server.exe missing from {sorted(list(names))[:20]}"
-        assert "NSM-Server/citizen-server-impl.dll" in names
+        assert "NSM-Server/AxiomFX-server-impl.dll" in names
+        assert "NSM-Server/AxiomFX-server-main.dll" in names
+        assert "NSM-Server/afx_curl_x86_64.dll" in names
         assert "NSM-Server/components.json" in names
         assert "NSM-Server/server.cfg" in names
         assert "NSM-Server/START-SERVER.bat" in names
+        assert any(n.startswith("NSM-Server/AxiomFX/") for n in names)
+        assert not any(n.startswith("NSM-Server/citizen/") for n in names)
+        assert not any(n.startswith("NSM-Server/citizen-") for n in names)
+        assert "NSM-Server/cfx_curl_x86_64.dll" not in names
         assert any(n.startswith("NSM-Server/resources/") for n in names)
 
         comps = json.loads(zcheck.read("NSM-Server/components.json").decode("utf-8"))
         assert "svadhesive" not in comps
+        assert "AxiomFX-server-impl" in comps
+        assert not any(isinstance(c, str) and c.lower().startswith(("citizen:", "citizen-")) for c in comps)
 
-        impl_bytes = zcheck.read("NSM-Server/citizen-server-impl.dll")
+        impl_bytes = zcheck.read("NSM-Server/AxiomFX-server-impl.dll")
         assert b"http://147.189.174.173/api/serverlist/ingress\x00" in impl_bytes
         assert b"https://lambda.fivem.net/api/ticket/pubkey\x00" in impl_bytes
         assert b"http://147.189.174.173/v1/public/pool-size-limits" in impl_bytes

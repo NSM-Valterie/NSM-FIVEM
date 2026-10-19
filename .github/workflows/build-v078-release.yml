@@ -415,8 +415,8 @@ jobs:
               data[:] = data.replace("citizen/".encode("utf-16le"), "AxiomFX/".encode("utf-16le"))
               data[:] = data.replace("citizen\\".encode("utf-16le"), "AxiomFX\\".encode("utf-16le"))
               data[:] = data.replace(
-                  b"\x00\x00" + "citizen".encode("utf-16le") + b"\x00\x00",
-                  b"\x00\x00" + "AxiomFX".encode("utf-16le") + b"\x00\x00",
+                  "citizen\x00".encode("utf-16le"),
+                  "AxiomFX\x00".encode("utf-16le"),
               )
               # d) CitizenGame.dll -> AxiomFXGame.dll
               data[:] = re.sub(b"(?i)citizengame", b"AxiomFXGame", data)
