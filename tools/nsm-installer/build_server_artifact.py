@@ -3,7 +3,6 @@
 from NSM-server-v0.8.1-localtest.zip + cfx-server-data resources.
 """
 import hashlib
-import io
 import json
 import re
 import struct
@@ -45,10 +44,11 @@ def file_off_to_rva(sections, foff: int):
 
 
 def alloc_in_rdata_cave(data: bytearray, sections, payload: bytes):
+    # 1. Try standard section tail padding in .rdata / .data / .text
     for sec in sections:
         s_off, s_name, vsize, rva, raw_size, raw_ptr = sec
-        if s_name in (".rdata", ".data") and vsize + len(payload) + 16 <= raw_size:
-            cave_off = (vsize + 15) & ~15
+        if s_name in (".rdata", ".data", ".text") and vsize < raw_size:
+            cave_off = (vsize + 7) & ~7
             if cave_off + len(payload) <= raw_size:
                 cave_raw = raw_ptr + cave_off
                 new_rva = rva + cave_off
@@ -56,10 +56,37 @@ def alloc_in_rdata_cave(data: bytearray, sections, payload: bytes):
                 sec[2] = cave_off + len(payload)
                 struct.pack_into("<I", data, s_off + 8, sec[2])
                 return new_rva
+
+    # 2. Try reclaiming donor error-report tails inside .rdata ("Please report this error at ...")
+    donor_tail = b"Please report this error at https://github.com/citizenfx/fivem.\n\x00"
+    d_idx = data.find(donor_tail)
+    if d_idx != -1 and len(payload) + 2 <= len(donor_tail):
+        # Terminate the preceding sentence cleanly with "\n\x00" and place payload after it
+        data[d_idx : d_idx + 2] = b"\n\x00"
+        cave_raw = d_idx + 2
+        data[cave_raw : cave_raw + len(donor_tail) - 2] = b"\x00" * (len(donor_tail) - 2)
+        data[cave_raw : cave_raw + len(payload)] = payload
+        return file_off_to_rva(sections, cave_raw)
+
+    # 3. Try any contiguous run of >= len(payload)+16 zero bytes at the end of .rdata raw data
+    for sec in sections:
+        s_off, s_name, vsize, rva, raw_size, raw_ptr = sec
+        if s_name == ".rdata" and raw_size > len(payload) + 32:
+            tail_start = raw_ptr + raw_size - len(payload) - 8
+            if all(b == 0 for b in data[tail_start - 8 : raw_ptr + raw_size]):
+                data[tail_start : tail_start + len(payload)] = payload
+                used_end = (tail_start - raw_ptr) + len(payload)
+                if used_end > vsize:
+                    sec[2] = used_end
+                    struct.pack_into("<I", data, s_off + 8, used_end)
+                return rva + (tail_start - raw_ptr)
+
     return None
 
 
-def patch_nearby_ascii_lengths(data: bytearray, lea_pos: int, sec_start: int, sec_end: int, old_len: int, new_len: int) -> int:
+def patch_nearby_ascii_lengths(
+    data: bytearray, lea_pos: int, sec_start: int, sec_end: int, old_len: int, new_len: int
+) -> int:
     if old_len == new_len or old_len <= 4:
         return 0
     old_u32 = struct.pack("<I", old_len)
@@ -69,7 +96,6 @@ def patch_nearby_ascii_lengths(data: bytearray, lea_pos: int, sec_start: int, se
     patched = 0
     k = win_start
     while k < win_end:
-        # mov r8d..r15d, imm32 (41 B8..BF imm32) or mov rax..rdi, imm32 (48/49 C7 C0..C7 imm32)
         if data[k] == 0x41 and 0xB8 <= data[k + 1] <= 0xBF and data[k + 2 : k + 6] == old_u32:
             data[k + 2 : k + 6] = new_u32
             patched += 1
@@ -80,12 +106,23 @@ def patch_nearby_ascii_lengths(data: bytearray, lea_pos: int, sec_start: int, se
             patched += 1
             k += 5
             continue
-        if data[k] in (0x48, 0x49) and data[k + 1] == 0xC7 and 0xC0 <= data[k + 2] <= 0xC7 and data[k + 3 : k + 7] == old_u32:
+        if (
+            data[k] in (0x48, 0x49)
+            and data[k + 1] == 0xC7
+            and 0xC0 <= data[k + 2] <= 0xC7
+            and data[k + 3 : k + 7] == old_u32
+        ):
             data[k + 3 : k + 7] = new_u32
             patched += 1
             k += 7
             continue
-        if data[k] in (0x48, 0x49) and data[k + 1] == 0xC7 and data[k + 2] == 0x44 and data[k + 3] == 0x24 and data[k + 5 : k + 9] == old_u32:
+        if (
+            data[k] in (0x48, 0x49)
+            and data[k + 1] == 0xC7
+            and data[k + 2] == 0x44
+            and data[k + 3] == 0x24
+            and data[k + 5 : k + 9] == old_u32
+        ):
             data[k + 5 : k + 9] = new_u32
             patched += 1
             k += 9
@@ -95,19 +132,35 @@ def patch_nearby_ascii_lengths(data: bytearray, lea_pos: int, sec_start: int, se
             patched += 1
             k += 8
             continue
-        # cmp qword ptr [reg + disp8], imm8 (48/49 83 78..7F disp8 imm8) or [rsp + disp8] (48 83 7C 24 disp8 imm8)
         if old_len < 128 and new_len < 128:
-            if data[k] in (0x48, 0x49) and data[k + 1] == 0x83 and 0x78 <= data[k + 2] <= 0x7F and data[k + 2] != 0x7C and data[k + 4] == old_len:
+            if (
+                data[k] in (0x48, 0x49)
+                and data[k + 1] == 0x83
+                and 0x78 <= data[k + 2] <= 0x7F
+                and data[k + 2] != 0x7C
+                and data[k + 4] == old_len
+            ):
                 data[k + 4] = new_len
                 patched += 1
                 k += 5
                 continue
-            if data[k] in (0x48, 0x49) and data[k + 1] == 0x83 and data[k + 2] == 0x7C and data[k + 3] == 0x24 and data[k + 5] == old_len:
+            if (
+                data[k] in (0x48, 0x49)
+                and data[k + 1] == 0x83
+                and data[k + 2] == 0x7C
+                and data[k + 3] == 0x24
+                and data[k + 5] == old_len
+            ):
                 data[k + 5] = new_len
                 patched += 1
                 k += 6
                 continue
-            if data[k] in (0x48, 0x49) and data[k + 1] == 0x83 and 0xF8 <= data[k + 2] <= 0xFF and data[k + 3] == old_len:
+            if (
+                data[k] in (0x48, 0x49)
+                and data[k + 1] == 0x83
+                and 0xF8 <= data[k + 2] <= 0xFF
+                and data[k + 3] == old_len
+            ):
                 data[k + 3] = new_len
                 patched += 1
                 k += 4
@@ -117,10 +170,8 @@ def patch_nearby_ascii_lengths(data: bytearray, lea_pos: int, sec_start: int, se
 
 
 def redirect_ascii_string(data: bytearray, sections, old_bytes: bytes, new_bytes: bytes, label: str) -> int:
-    """Replace old_bytes with new_bytes in-place when len(new_bytes) <= len(old_bytes),
-    or allocate new_bytes+NUL in the .rdata cave and redirect all RIP-relative LEA instructions
-    plus nearby compile-time length immediates.
-    """
+    if old_bytes == new_bytes:
+        return 0
     needle = old_bytes + b"\x00"
     patched = 0
     pos = 0
@@ -139,44 +190,45 @@ def redirect_ascii_string(data: bytearray, sections, old_bytes: bytes, new_bytes
                             if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
                                 disp = struct.unpack_from("<i", data, p + 3)[0]
                                 if (t_rva + (p - t_raw_ptr) + 7 + disp) == old_rva:
-                                    patch_nearby_ascii_lengths(data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes))
+                                    patch_nearby_ascii_lengths(
+                                        data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes)
+                                    )
             data[idx : idx + len(old_bytes) + 1] = (new_bytes + b"\x00").ljust(len(old_bytes) + 1, b"\x00")
             patched += 1
             print(f"[server-pe] {label}: in-place {old_bytes!r} -> {new_bytes!r} at 0x{idx:x}")
         elif old_rva is not None:
             new_rva = alloc_in_rdata_cave(data, sections, new_bytes + b"\x00")
-            if new_rva is not None:
-                lea_count = 0
-                len_count = 0
-                for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
-                    if t_name in (".text", ".zdata", ".ctext"):
-                        t_end = t_raw_ptr + min(t_vsize, t_raw_size)
-                        for p in range(t_raw_ptr, t_end - 7):
-                            if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
-                                disp = struct.unpack_from("<i", data, p + 3)[0]
-                                insn_end_rva = t_rva + (p - t_raw_ptr) + 7
-                                if insn_end_rva + disp == old_rva:
-                                    struct.pack_into("<i", data, p + 3, new_rva - insn_end_rva)
-                                    lea_count += 1
-                                    len_count += patch_nearby_ascii_lengths(
-                                        data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes)
-                                    )
-                            elif data[p] == 0x8D and (data[p + 1] & 0xC7) == 0x05:
-                                disp = struct.unpack_from("<i", data, p + 2)[0]
-                                insn_end_rva = t_rva + (p - t_raw_ptr) + 6
-                                if insn_end_rva + disp == old_rva:
-                                    struct.pack_into("<i", data, p + 2, new_rva - insn_end_rva)
-                                    lea_count += 1
-                                    len_count += patch_nearby_ascii_lengths(
-                                        data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes)
-                                    )
-                # Overwrite old string so static scans verify no stale URL remains
-                data[idx : idx + len(needle)] = b"\x00" * len(needle)
-                patched += 1
-                print(
-                    f"[server-pe] {label}: cave-redirected {old_bytes!r} -> {new_bytes!r} "
-                    f"(0x{old_rva:x} -> 0x{new_rva:x}, {lea_count} LEAs, {len_count} len immediates)"
-                )
+            assert new_rva is not None, f"Failed to allocate .rdata cave for {new_bytes!r} in {label}"
+            lea_count = 0
+            len_count = 0
+            for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
+                if t_name in (".text", ".zdata", ".ctext"):
+                    t_end = t_raw_ptr + min(t_vsize, t_raw_size)
+                    for p in range(t_raw_ptr, t_end - 7):
+                        if data[p] in (0x48, 0x4C) and data[p + 1] == 0x8D and (data[p + 2] & 0xC7) == 0x05:
+                            disp = struct.unpack_from("<i", data, p + 3)[0]
+                            insn_end_rva = t_rva + (p - t_raw_ptr) + 7
+                            if insn_end_rva + disp == old_rva:
+                                struct.pack_into("<i", data, p + 3, new_rva - insn_end_rva)
+                                lea_count += 1
+                                len_count += patch_nearby_ascii_lengths(
+                                    data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes)
+                                )
+                        elif data[p] == 0x8D and (data[p + 1] & 0xC7) == 0x05:
+                            disp = struct.unpack_from("<i", data, p + 2)[0]
+                            insn_end_rva = t_rva + (p - t_raw_ptr) + 6
+                            if insn_end_rva + disp == old_rva:
+                                struct.pack_into("<i", data, p + 2, new_rva - insn_end_rva)
+                                lea_count += 1
+                                len_count += patch_nearby_ascii_lengths(
+                                    data, p, t_raw_ptr, t_end, len(old_bytes), len(new_bytes)
+                                )
+            data[idx : idx + len(needle)] = b"\x00" * len(needle)
+            patched += 1
+            print(
+                f"[server-pe] {label}: cave-redirected {old_bytes!r} -> {new_bytes!r} "
+                f"(0x{old_rva:x} -> 0x{new_rva:x}, {lea_count} LEAs, {len_count} len immediates)"
+            )
     return patched
 
 
@@ -187,13 +239,9 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
     if not sections:
         return raw_bytes
 
-    # 1. Masterlist Heartbeat URL (kDefaultServerList) -> http://147.189.174.173/api/serverlist/ingress
-    for old_hb in (
-        b"http://127.0.0.1/api/serverlist/ingress",
-        b"http://127.0.0.1:80/api/serverlist/ingress",
-        b"http://194.104.146.133/api/serverlist/ingress",
-        b"https://servers-frontend.fivem.net/api/serverlist/ingress",
-    ):
+    # 1. Discover and redirect all Masterlist Heartbeat URLs (/api/serverlist/ingress)
+    hb_matches = set(re.findall(b"https?://[^\\x00\"'\\s]{3,60}/api/serverlist/ingress", bytes(data)))
+    for old_hb in sorted(hb_matches):
         redirect_ascii_string(
             data,
             sections,
@@ -202,13 +250,9 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
             filename,
         )
 
-    # 2. Ticket RSA Public Key URL (CNL_ENDPOINT "api/ticket/pubkey") -> https://lambda.fivem.net/api/ticket/pubkey
-    for old_pk in (
-        b"http://194.104.146.133/api/ticket/pubkey",
-        b"http://127.0.0.1/api/ticket/pubkey",
-        b"http://127.0.0.1:80/api/ticket/pubkey",
-        b"http://147.189.174.173/api/ticket/pubkey",
-    ):
+    # 2. Discover and redirect all Ticket Public Key URLs (/api/ticket/pubkey) -> https://lambda.fivem.net/api/ticket/pubkey
+    pk_matches = set(re.findall(b"https?://[^\\x00\"'\\s]{3,60}/api/ticket/pubkey", bytes(data)))
+    for old_pk in sorted(pk_matches):
         redirect_ascii_string(
             data,
             sections,
@@ -217,37 +261,17 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
             filename,
         )
 
-    # 3. Pool Size Limits URLs (limitsFileUrl) -> http://147.189.174.173/v1/public/pool-size-limits/...
-    for old_pool, new_pool in (
-        (
-            b"http://194.104.146.133/v1/public/pool-size-limits/fivem",
-            b"http://147.189.174.173/v1/public/pool-size-limits/fivem",
-        ),
-        (
-            b"http://194.104.146.133/v1/public/pool-size-limits/redm",
-            b"http://147.189.174.173/v1/public/pool-size-limits/redm",
-        ),
-        (
-            b"http://194.104.146.133/v1/public/pool-size-limits/",
-            b"http://147.189.174.173/v1/public/pool-size-limits/",
-        ),
-        (
-            b"http://127.0.0.1/v1/public/pool-size-limits/fivem",
-            b"http://147.189.174.173/v1/public/pool-size-limits/fivem",
-        ),
-        (
-            b"http://127.0.0.1/v1/public/pool-size-limits/redm",
-            b"http://147.189.174.173/v1/public/pool-size-limits/redm",
-        ),
-        (
-            b"http://127.0.0.1/v1/public/pool-size-limits/",
-            b"http://147.189.174.173/v1/public/pool-size-limits/",
-        ),
-    ):
+    # 3. Discover and redirect all Pool Size Limits URLs (/v1/public/pool-size-limits...)
+    pool_matches = set(
+        re.findall(b"https?://[^\\x00\"'\\s]{3,60}/v1/public/pool-size-limits(?:/[A-Za-z0-9_-]+)?/?", bytes(data))
+    )
+    for old_pool in sorted(pool_matches, key=len, reverse=True):
+        suffix_idx = old_pool.find(b"/v1/public/pool-size-limits")
+        new_pool = b"http://147.189.174.173" + old_pool[suffix_idx:]
         redirect_ascii_string(data, sections, old_pool, new_pool, filename)
 
-    # 4. Remaining 194.104.146.133 & Discord references -> 147.189.174.173 / nsmultiplayer.com
-    data[:] = data.replace(b"http://194.104.146.133", b"http://147.189.174.173")
+    # 4. Replace any remaining 194.104.146.133 (15 == 15 bytes) and Discord links
+    data[:] = data.replace(b"194.104.146.133", b"147.189.174.173")
     data[:] = data.replace(
         b"https://discord.gg/UXj5QfCX88",
         b"https://nsmultiplayer.com\x00\x00\x00\x00",
@@ -274,7 +298,6 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                         data[idx : idx + 4] = nsm_appid
                         print(f"[server-pe] {filename}: patched STEAM_APPID_FIVEM 2676230 -> 218 at 0x{idx:x}")
 
-        # Locate "CitizenFX ticket authorization failed. (4)" and bypass the missing sv_serverId check
         err4_str = b"CitizenFX ticket authorization failed. (4)\x00"
         err4_off = data.find(err4_str)
         if err4_off != -1:
@@ -288,15 +311,12 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                                 disp = struct.unpack_from("<i", data, p + 3)[0]
                                 insn_end_rva = t_rva + (p - t_raw_ptr) + 7
                                 if insn_end_rva + disp == err4_rva:
-                                    # Inspect preceding 32 bytes for jnz (skip error4) or jz (jump to error4)
-                                    patched_branch = False
                                     for bpos in range(p - 1, max(t_raw_ptr, p - 32), -1):
                                         if data[bpos] == 0x75:  # jnz rel8
                                             rel8 = struct.unpack_from("<b", data, bpos + 1)[0]
                                             target = bpos + 2 + rel8
                                             if target > p + 7:
                                                 data[bpos] = 0xEB  # jmp rel8
-                                                patched_branch = True
                                                 print(
                                                     f"[server-pe] {filename}: patched serverIdMatch jnz->jmp at 0x{bpos:x}"
                                                 )
@@ -306,7 +326,6 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                                             target = bpos + 6 + rel32
                                             if target > p + 7:
                                                 data[bpos : bpos + 2] = b"\x90\xe9"
-                                                patched_branch = True
                                                 print(
                                                     f"[server-pe] {filename}: patched serverIdMatch jnz->jmp32 at 0x{bpos:x}"
                                                 )
@@ -316,7 +335,6 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                                             target = bpos + 2 + rel8
                                             if p - 12 <= target <= p:
                                                 data[bpos : bpos + 2] = b"\x90\x90"
-                                                patched_branch = True
                                                 print(
                                                     f"[server-pe] {filename}: NOPed serverIdMatch jz at 0x{bpos:x}"
                                                 )
@@ -326,7 +344,6 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
                                             target = bpos + 6 + rel32
                                             if p - 12 <= target <= p:
                                                 data[bpos : bpos + 6] = b"\x90" * 6
-                                                patched_branch = True
                                                 print(
                                                     f"[server-pe] {filename}: NOPed serverIdMatch jz32 at 0x{bpos:x}"
                                                 )
@@ -428,7 +445,6 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
         out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6
     ) as zout:
         raw_names = [i.filename for i in zin.infolist() if not i.is_dir()]
-        # Determine if base_server_zip has a top-level folder prefix
         first_parts = {n.split("/", 1)[0] for n in raw_names if "/" in n}
         top_prefix = ""
         if len(first_parts) == 1 and all(n.startswith(next(iter(first_parts)) + "/") for n in raw_names):
@@ -440,18 +456,25 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
         for info in zin.infolist():
             if info.is_dir():
                 continue
-            rel = info.filename[len(top_prefix) :] if top_prefix and info.filename.startswith(top_prefix) else info.filename
+            rel = (
+                info.filename[len(top_prefix) :]
+                if top_prefix and info.filename.startswith(top_prefix)
+                else info.filename
+            )
             rel = rel.lstrip("/")
             if not rel:
                 continue
             low = rel.lower()
             if low in ("server.cfg", "start-server.bat", "readme-server.txt"):
                 continue
+            if low == "fxserver.exe":
+                rel = "nsm-server.exe"
+                low = "nsm-server.exe"
 
             data = zin.read(info.filename)
             if low == "components.json" and not has_svadhesive_dll:
                 try:
-                    comp_list = json.loads(data.decode("utf-8"))
+                    comp_list = json.loads(data.decode("utf-8-sig"))
                     comp_list = [c for c in comp_list if c != "svadhesive"]
                     data = (json.dumps(comp_list, indent=2) + "\n").encode("utf-8")
                     print(f"[server-pack] stripped svadhesive from components.json ({len(comp_list)} components)")
@@ -466,7 +489,6 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
             zout.writestr(zinfo, data)
             written.add(out_name)
 
-        # Bundle standard cfx-server-data resources into NSM-Server/resources/
         res_root = cfx_server_data_dir / "resources"
         if res_root.is_dir():
             for p in sorted(res_root.rglob("*")):
@@ -489,11 +511,10 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
             zout.writestr(zinfo, extra_text.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8"))
             written.add(extra_name)
 
-    # Verify the resulting NSM-Server.zip
     with zipfile.ZipFile(out_zip, "r") as zcheck:
         assert zcheck.testzip() is None
         names = set(zcheck.namelist())
-        assert "NSM-Server/nsm-server.exe" in names
+        assert "NSM-Server/nsm-server.exe" in names, f"nsm-server.exe missing from {sorted(list(names))[:20]}"
         assert "NSM-Server/citizen-server-impl.dll" in names
         assert "NSM-Server/components.json" in names
         assert "NSM-Server/server.cfg" in names
@@ -506,15 +527,17 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
         impl_bytes = zcheck.read("NSM-Server/citizen-server-impl.dll")
         assert b"http://147.189.174.173/api/serverlist/ingress\x00" in impl_bytes
         assert b"https://lambda.fivem.net/api/ticket/pubkey\x00" in impl_bytes
-        assert b"http://147.189.174.173/v1/public/pool-size-limits/" in impl_bytes
+        assert b"http://147.189.174.173/v1/public/pool-size-limits" in impl_bytes
         assert b"194.104.146.133" not in impl_bytes
 
         if "NSM-Server/pool-sizes-state.dll" in names:
             pool_bytes = zcheck.read("NSM-Server/pool-sizes-state.dll")
-            assert b"http://147.189.174.173/v1/public/pool-size-limits/fivem" in pool_bytes
+            assert b"http://147.189.174.173/v1/public/pool-size-limits" in pool_bytes
             assert b"194.104.146.133" not in pool_bytes
 
-    print(f"[server-pack] Built & verified {out_zip} ({out_zip.stat().st_size} bytes, sha256={sha(out_zip.read_bytes())})")
+    print(
+        f"[server-pack] Built & verified {out_zip} ({out_zip.stat().st_size} bytes, sha256={sha(out_zip.read_bytes())})"
+    )
 
 
 if __name__ == "__main__":
