@@ -423,38 +423,8 @@ jobs:
                   "afx_curl_x86_64".encode("utf-16le"),
                   data,
               )
-              # f) Isolate shared memory, mutexes, events, and named pipes from any stale/hung background processes
-              data[:] = data.replace(b"CfxInitState", b"AfxInitSt080")
-              data[:] = data.replace(b"CfxUUIState", b"AfxUUISt080")
-              data[:] = data.replace(
-                  "CitizenFX_LauncherMutex".encode("utf-16le"),
-                  "AxiomFX80_LauncherMutex".encode("utf-16le"),
-              )
-              data[:] = data.replace(
-                  "CitizenFX_GTA5_ClearedForLaunch".encode("utf-16le"),
-                  "AxiomFX80_GTA5_ClearedForLaunch".encode("utf-16le"),
-              )
-              data[:] = data.replace(
-                  "Cfx_ROSServiceMutex_".encode("utf-16le"),
-                  "Afx8ROSServiceMutex_".encode("utf-16le"),
-              )
-              data[:] = data.replace(
-                  "Cfx_ROSServiceEvent_".encode("utf-16le"),
-                  "Afx8ROSServiceEvent_".encode("utf-16le"),
-              )
-              data[:] = data.replace(b"MTLService_FileMapping_CFX", b"MTLService_FileMapping_AF8")
-              data[:] = data.replace(b"MTLLauncher_Pipe_CFX", b"MTLLauncher_Pipe_AF8")
-              data[:] = data.replace(b"MTLService_Pipe_CFX", b"MTLService_Pipe_AF8")
-              data[:] = data.replace(
-                  "CitizenFX_LogMutex".encode("utf-16le"),
-                  "AxiomFX80_LogMutex".encode("utf-16le"),
-              )
-              data[:] = data.replace(
-                  "CitizenFX_GameMutex".encode("utf-16le"),
-                  "AxiomFX80_GameMutex".encode("utf-16le"),
-              )
 
-              # g) In legitimacy.dll, force MakeCfxSubProcess to always refresh subprocess binaries and
+              # f) In legitimacy.dll, force MakeCfxSubProcess to always refresh subprocess binaries and
               #    redirect MBA-obfuscated "citizen/ros/..." strings passed to net::TLSServer::TLSServer
               #    (0x1af023, 0x2bc7f3) and MakeRelativeCitPath (0x2dc9a) -> "AxiomFX/..."
               if filename.lower().endswith("legitimacy.dll") and data[:2] == b"MZ":
