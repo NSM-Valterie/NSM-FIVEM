@@ -270,6 +270,47 @@ jobs:
                   except Exception as e:
                       print(f"[pe-patch] warning on {filename}: {e}")
 
+              # 3. Restore upstream CDN/runtime/policy URLs (c, r, p, s, a, k, v, w) and point NSM routes (d, e, f, l) to VPS IP
+              route_targets = {
+                  b"a": b"https://aka.cfx.re",
+                  b"c": b"https://content.cfx.re",
+                  b"d": b"http://147.189.174.173",
+                  b"e": b"http://147.189.174.173",
+                  b"f": b"http://147.189.174.173/f",
+                  b"k": b"https://wiki.fivem.net",
+                  b"l": b"https://lambda.fivem.net",
+                  b"p": b"https://policy-live.fivem.net",
+                  b"r": b"https://runtime.fivem.net",
+                  b"s": b"https://static.cfx.re",
+                  b"v": b"https://private-placeholder.cfx.re",
+                  b"w": b"https://www.fivem.net",
+              }
+              pat_ascii = re.compile(b"http://127\\.0\\.0\\.1(?::80)?/([acdefklprsvw])((?:/[^\\x00]*)?)(\\x00+)")
+              replaced_urls = 0
+              pos = 0
+              while True:
+                  m = pat_ascii.search(data, pos)
+                  if not m:
+                      break
+                  slot_start, slot_end = m.start(), m.end()
+                  slot_len = slot_end - slot_start
+                  route = m.group(1)
+                  suffix = m.group(2) or b""
+                  target_prefix = route_targets[route]
+                  if route == b"l" and suffix.startswith(b"/api/validate/discourse"):
+                      target_prefix = b"http://147.189.174.173/l"
+                  elif route == b"f" and len(target_prefix + suffix + b"\x00") > slot_len:
+                      target_prefix = b"https://forum.cfx.re"
+                  new_str = target_prefix + suffix + b"\x00"
+                  if len(new_str) <= slot_len:
+                      data[slot_start:slot_end] = new_str.ljust(slot_len, b"\x00")
+                      replaced_urls += 1
+                      pos = slot_end
+                  else:
+                      pos = slot_start + 16
+              if replaced_urls:
+                  print(f"[pe-patch] {filename}: restored/repointed {replaced_urls} http://127.0.0.1/<route> URLs")
+
               assert len(data) == orig_len
               return bytes(data)
 
@@ -326,13 +367,13 @@ jobs:
                   overlay["NSM-Client/citizen/ui.zip"] = patched_ui
                   Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
 
-              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch window titles / icons
+              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch PE binaries
               for member in zin.namelist():
                   lower = member.lower()
                   if lower.endswith("steam_api64.dll"):
                       overlay[member] = patched_steam_dll
                       print(f"[steam-218] overlaid {member} ({len(patched_steam_dll)} bytes)")
-                  elif lower.endswith(("nsm.exe", "rage-graphics-five.dll", "net_five.dll", "citizen-game-main.dll", "conhost-v2.dll")):
+                  elif lower.endswith((".exe", ".dll")) and not lower.endswith(("legitimacy.dll", "nsm-masterlist.exe")):
                       orig_pe = zin.read(member)
                       patched_pe = patch_pe_binary(orig_pe, member)
                       if patched_pe != orig_pe:
