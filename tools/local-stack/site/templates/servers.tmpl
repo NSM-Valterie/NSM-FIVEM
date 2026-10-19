@@ -191,6 +191,7 @@
              data-maxclients="{{.MaxClients}}"
              data-upvotes="{{.Upvotes}}"
              data-burst="{{.BurstPower}}"
+             data-featured="{{if .Featured}}1{{else}}0{{end}}"
              data-locale="{{.Locale}}"
              data-country="{{.Country}}"
              data-onesync="{{.OneSync}}"
@@ -207,7 +208,10 @@
 
           <!-- Title + Description Loaf -->
           <div class="nsm-srv-title-col">
-            <span class="nsm-srv-hostname" data-colorize="{{.Hostname}}">{{.CleanName}}</span>
+            <div style="display:flex;align-items:center;gap:6px;min-width:0">
+              <span class="nsm-loaf" data-featured-badge="{{.EndPoint}}" style="{{if not .Featured}}display:none;{{end}}background:rgba(245,158,11,0.18);border:1px solid rgba(245,158,11,0.55);color:#fbbf24;font-weight:700;font-size:0.68rem;padding:1px 6px;flex-shrink:0">&#9733; FEATURED</span>
+              <span class="nsm-srv-hostname" data-colorize="{{.Hostname}}">{{.CleanName}}</span>
+            </div>
             {{if .Desc}}
             <span class="nsm-srv-desc-loaf">{{.Desc}}</span>
             {{else if .GameType}}
@@ -223,12 +227,17 @@
             {{end}}
           </div>
 
-          <!-- Actions (show-on-hover): Connect + Details -->
+          <!-- Actions (show-on-hover): Connect + Details + Owner Feature -->
           <div class="nsm-srv-actions show-on-hover" onclick="event.stopPropagation()">
             <button type="button" class="nsm-connect-btn" data-connect-ep="{{.EndPoint}}">
               <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Connect
             </button>
+            {{if and $.User $.User.IsFounderAccount}}
+            <button type="button" class="nsm-details-btn" data-feature-ep="{{.EndPoint}}" style="{{if .Featured}}background:rgba(245,158,11,0.24);border-color:#f59e0b;color:#fbbf24{{end}}" title="Owner (nta~): Toggle Featured Server">
+              &#9733; {{if .Featured}}Featured{{else}}Feature{{end}}
+            </button>
+            {{end}}
             <a href="/servers/{{.EndPoint}}" class="nsm-details-btn">Details</a>
           </div>
 
@@ -267,6 +276,39 @@
 
     <!-- Right: .pinned (NSM.exe PinnedServers + Live Selected Server Inspector Panel) -->
     <aside class="mp-pinned-pane" id="nsm-pinned-pane">
+      <!-- Featured Servers Box (PinnedServers in NSM.exe & Web) -->
+      <div class="mp-pinned-box" id="nsm-featured-servers-box" style="margin-bottom:14px;border-color:rgba(245,158,11,0.35);background:linear-gradient(180deg,rgba(245,158,11,0.08),rgba(15,23,42,0.75))">
+        <div class="mp-pinned-hdr">
+          <span style="color:#fbbf24;font-weight:700">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            FEATURED SERVERS
+          </span>
+          {{if and .User .User.IsFounderAccount}}
+          <span style="font-size:0.7rem;color:#fbbf24;opacity:0.9">Owner Controls Active (nta~)</span>
+          {{end}}
+        </div>
+        <div id="nsm-featured-servers-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          {{if .FeaturedServers}}
+            {{range .FeaturedServers}}
+            <div class="nsm-featured-card" data-featured-card="{{.EndPoint}}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35)">
+              <div style="min-width:0;flex:1">
+                <a href="/servers/{{.EndPoint}}" style="color:#fff;font-weight:700;font-size:0.86rem;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-colorize="{{.Hostname}}">{{.CleanName}}</a>
+                <div style="font-size:0.73rem;color:rgba(240,244,248,0.65);display:flex;gap:10px;margin-top:2px">
+                  <span>{{.Clients}}/{{.MaxClients}} players</span>
+                  <span style="color:#00f8b9">&#9889; <span data-upvote-count="{{.EndPoint}}">{{.Upvotes}}</span></span>
+                </div>
+              </div>
+              <button type="button" class="nsm-connect-btn" data-connect-ep="{{.EndPoint}}" style="padding:5px 10px;font-size:0.75rem">Connect</button>
+            </div>
+            {{end}}
+          {{else}}
+            <p id="nsm-featured-empty" style="font-size:0.78rem;color:rgba(240,244,248,0.55);margin:2px 0">
+              {{if and .User .User.IsFounderAccount}}Click <strong>&#9733; Feature</strong> on any server row or inspector below to pin it to Featured Servers on both nsmultiplayer.com and NSM.exe.{{else}}Official featured NSM servers pinned by nta~ appear here.{{end}}
+            </p>
+          {{end}}
+        </div>
+      </div>
+
       <div class="mp-inspector-card" id="nsm-inspector-card">
         <div class="mp-inspector-banner" id="nsm-insp-banner">
           <div class="mp-inspector-banner-overlay">
@@ -291,6 +333,11 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <span id="nsm-insp-upvotes">0</span>
             </button>
+            {{if and .User .User.IsFounderAccount}}
+            <button type="button" class="nsm-ctrl-btn" id="nsm-insp-feature" title="Owner (nta~): Toggle Featured Server" style="color:#fbbf24;border-color:rgba(245,158,11,0.45)">
+              <span id="nsm-insp-feature-label">&#9733; Feature</span>
+            </button>
+            {{end}}
             <a href="/servers" class="nsm-ctrl-btn" id="nsm-insp-fullpage" title="Open Full Server Page">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
@@ -312,6 +359,14 @@
             <div class="mp-insp-stat">
               <span class="lbl">Locale / Sync</span>
               <strong id="nsm-insp-locale">en-US &bull; OneSync</strong>
+            </div>
+          </div>
+
+          <div class="mp-insp-section">
+            <div class="mp-insp-sec-title">AFX Share / Join URL</div>
+            <div class="nsm-f8-box">
+              <code id="nsm-insp-join">https://nsmultiplayer.com/join/127.0.0.1:30120</code>
+              <button type="button" class="nsm-copy-mini" id="nsm-insp-copy-join">Copy</button>
             </div>
           </div>
 

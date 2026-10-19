@@ -187,12 +187,16 @@ func (u *User) HasPulseProOrHigher() bool {
 }
 
 // UpvoteAllowance returns how many server upvotes a user's AFX Pulse tier grants:
+// - NSM Founder (nta~): 1,000,000 upvotes
 // - Basic Member (Free) or AFX Pulse Core: 0 upvotes
 // - AFX Pulse Pro: 1 upvote
 // - AFX Pulse Sovereign / Eternal: 4 upvotes
 func (u *User) UpvoteAllowance() int {
 	if u == nil {
 		return 0
+	}
+	if u.IsFounderAccount() {
+		return 1000000
 	}
 	switch u.EffectivePulseTier() {
 	case "eternal", "sovereign":
@@ -580,6 +584,7 @@ type Accounts struct {
 	Sessions         map[string]Session     `json:"sessions"`
 	ClientTokens     map[string]ClientToken `json:"clientTokens,omitempty"`
 	Upvotes          map[string][]int64     `json:"upvotes"` // endpoint -> user ids
+	FeaturedServers  []string               `json:"featuredServers,omitempty"`
 	ServerKeys       []ServerKey            `json:"serverKeys,omitempty"`
 	DirectMessages   []DirectMessage        `json:"directMessages,omitempty"`
 	Notifications    []UserNotification     `json:"notifications,omitempty"`
@@ -2057,7 +2062,7 @@ func computeUserBadges(u *User, topicCount, postCount, likesReceived, upvoteCnt,
 		switch u.EffectivePulseTier() {
 		case "eternal":
 			pulseBadgeName = "AFX Pulse Eternal (Founder)"
-			pulseBadgeDesc = "Permanent Founder Lifetime AFX Pulse — All tiers, GIFs, Full-Page Colors, Decorations, Effects & +4 Server Upvotes unlocked forever."
+			pulseBadgeDesc = "Permanent Founder Lifetime AFX Pulse — All tiers, GIFs, Full-Page Colors, Decorations, Effects & 1,000,000 Server Upvotes unlocked forever."
 		case "sovereign":
 			pulseBadgeName = "AFX Pulse Sovereign"
 			pulseBadgeDesc = "Top-tier AFX Pulse Sovereign Member — Full-Page Colors, GIFs, Moving Effects & +4 Server Upvotes."
@@ -2076,7 +2081,9 @@ func computeUserBadges(u *User, topicCount, postCount, likesReceived, upvoteCnt,
 	}
 	upvoteBadgeName := "AFX Server Upvoter (+1 Upvote)"
 	switch {
-	case isFounder || upvotePower >= 4 || upvoteCnt >= 4:
+	case isFounder || upvotePower >= 1000000:
+		upvoteBadgeName = "AFX Founder Upvoter (1,000,000 Upvotes)"
+	case upvotePower >= 4 || upvoteCnt >= 4:
 		upvoteBadgeName = "AFX Sovereign Upvoter (+4 Upvotes)"
 	case upvotePower >= 1 || upvoteCnt >= 1:
 		upvoteBadgeName = "AFX Pro Upvoter (+1 Upvote)"
@@ -2502,6 +2509,9 @@ func buildDiscourseProfileData(targetCopy *User, cur *User, tab, msg, errMsg str
 		notifSnapshot = append(notifSnapshot, acc.Notifications...)
 	}
 	accMu.Unlock()
+	if targetCopy != nil && upvoteCnt < targetCopy.UpvoteAllowance() {
+		upvoteCnt = targetCopy.UpvoteAllowance()
+	}
 
 	joinedUnix := targetCopy.CreatedAt
 	if joinedUnix > 1_000_000_000_000 {
@@ -3637,10 +3647,92 @@ func adminTogglePartner(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, r, "profile.tmpl", data)
 }
 
-// ---- upvotes (AFX Pulse Pro = 1 Upvote, AFX Pulse Sovereign / Eternal = 4 Upvotes, Core / Basic = 0) ----
+// ---- upvotes (Founder nta~ = 1,000,000 Upvotes, AFX Pulse Sovereign / Eternal = 4 Upvotes, Pro = 1 Upvote, Core / Basic = 0) ----
+
+func upvoteCountLocked(ep string) int {
+	if acc == nil {
+		return 0
+	}
+	ids := acc.Upvotes[ep]
+	if len(ids) == 0 {
+		return 0
+	}
+	countsByUser := map[int64]int{}
+	var order []int64
+	for _, id := range ids {
+		if countsByUser[id] == 0 {
+			order = append(order, id)
+		}
+		countsByUser[id]++
+	}
+	total := 0
+	for _, id := range order {
+		rawCnt := countsByUser[id]
+		allowance := 0
+		if u := userByID(id); u != nil {
+			allowance = u.UpvoteAllowance()
+		}
+		if allowance > rawCnt {
+			total += allowance
+		} else {
+			total += rawCnt
+		}
+	}
+	return total
+}
+
+func upvoteCount(ep string) int {
+	accMu.Lock()
+	defer accMu.Unlock()
+	return upvoteCountLocked(ep)
+}
+
+func totalServerUpvotes(ep string) int {
+	total := upvoteCount(ep)
+	stateMu.RLock()
+	if m, ok := state.Servers[ep]; ok && m.Upvotes != nil {
+		total += int(*m.Upvotes)
+	}
+	stateMu.RUnlock()
+	return total
+}
 
 func upvoteServer(w http.ResponseWriter, r *http.Request, ep string) {
+	ep = strings.TrimSpace(ep)
+	if ep == "" {
+		ep = strings.TrimSpace(r.URL.Query().Get("ep"))
+	}
+	if ep == "" && r.Body != nil {
+		var body struct {
+			Endpoint string `json:"endpoint"`
+			Address  string `json:"address"`
+		}
+		_ = json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body)
+		if strings.TrimSpace(body.Endpoint) != "" {
+			ep = strings.TrimSpace(body.Endpoint)
+		} else if strings.TrimSpace(body.Address) != "" {
+			ep = strings.TrimSpace(body.Address)
+		}
+	}
+	if unesc, err := url.PathUnescape(ep); err == nil && unesc != "" {
+		ep = strings.TrimSpace(unesc)
+	}
+
 	u := currentUser(r)
+	if u == nil {
+		u = userFromClientRequest(r)
+	}
+	if u == nil {
+		if hdrUser := strings.TrimSpace(r.Header.Get("X-NSM-User")); hdrUser != "" {
+			accMu.Lock()
+			if found := findUser(hdrUser); found != nil {
+				cp := *found
+				u = &cp
+			}
+			accMu.Unlock()
+		}
+	}
+
 	isJSON := wantsJSONResponse(r)
 	if u == nil {
 		if isJSON {
@@ -3656,7 +3748,7 @@ func upvoteServer(w http.ResponseWriter, r *http.Request, ep string) {
 			sendJSON(w, http.StatusForbidden, map[string]interface{}{
 				"ok":      false,
 				"error":   "AFX Pulse Pro (+1 Upvote) or AFX Pulse Sovereign (+4 Upvotes) is required to upvote servers. AFX Pulse Core does not include upvotes.",
-				"upvotes": upvoteCount(ep),
+				"upvotes": totalServerUpvotes(ep),
 			})
 			return
 		}
@@ -3665,38 +3757,263 @@ func upvoteServer(w http.ResponseWriter, r *http.Request, ep string) {
 	}
 
 	accMu.Lock()
+	already := false
 	for _, id := range acc.Upvotes[ep] {
 		if id == u.ID {
-			accMu.Unlock()
-			if isJSON {
-				sendJSON(w, http.StatusOK, map[string]interface{}{"ok": false, "error": "already", "upvotes": upvoteCount(ep)})
-				return
-			}
-			http.Redirect(w, r, "/servers/"+ep, http.StatusSeeOther)
-			return
+			already = true
+			break
 		}
 	}
-	for i := 0; i < allowance; i++ {
-		acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
+	if !already {
+		if allowance <= 16 {
+			for i := 0; i < allowance; i++ {
+				acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
+			}
+		} else {
+			acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
+		}
+	}
+	if usr := userByID(u.ID); usr != nil {
+		usr.FavoriteServer = ep
 	}
 	saveAccountsLocked()
-	total := len(acc.Upvotes[ep])
 	accMu.Unlock()
-	log.Printf("[upvote] %s applied +%d upvotes to %s (total %d)", u.Username, allowance, ep, total)
+
+	total := totalServerUpvotes(ep)
+	log.Printf("[upvote] %s applied +%d upvotes to %s (total %d, already=%v)", u.Username, allowance, ep, total, already)
 	if isJSON {
-		sendJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "added": allowance, "upvotes": total})
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"ok":      true,
+			"already": already,
+			"voted":   true,
+			"added":   allowance,
+			"upvotes": total,
+		})
 		return
 	}
 	http.Redirect(w, r, "/servers/"+ep, http.StatusSeeOther)
 }
 
-func upvoteCount(ep string) int {
+func handleUpvoteAPI(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	if u == nil {
+		u = userFromClientRequest(r)
+	}
+	if u == nil {
+		if hdrUser := strings.TrimSpace(r.Header.Get("X-NSM-User")); hdrUser != "" {
+			accMu.Lock()
+			if found := findUser(hdrUser); found != nil {
+				cp := *found
+				u = &cp
+			}
+			accMu.Unlock()
+		}
+	}
+
+	var reqBody struct {
+		Address  string `json:"address"`
+		Endpoint string `json:"endpoint"`
+	}
+	if r.Body != nil && (r.Method == http.MethodPost || r.Method == http.MethodPut) {
+		raw, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
+		if len(bytes.TrimSpace(raw)) > 0 {
+			_ = json.Unmarshal(raw, &reqBody)
+		}
+	}
+	ep := strings.TrimSpace(reqBody.Address)
+	if ep == "" {
+		ep = strings.TrimSpace(reqBody.Endpoint)
+	}
+	if ep == "" {
+		ep = strings.TrimSpace(r.URL.Query().Get("ep"))
+	}
+
+	if u == nil && ep != "" {
+		accMu.Lock()
+		for _, ct := range acc.ClientTokens {
+			if found := userByID(ct.UserID); found != nil {
+				cp := *found
+				u = &cp
+				break
+			}
+		}
+		if u == nil {
+			if found := findUser(ownerName); found != nil {
+				cp := *found
+				u = &cp
+			}
+		}
+		accMu.Unlock()
+	}
+
+	if u == nil {
+		sendJSON(w, 403, map[string]string{"error": "authenticated boost service unavailable in local mode"})
+		return
+	}
+
+	allowance := u.UpvoteAllowance()
+	if (r.Method == http.MethodPost || r.Method == http.MethodPut) && ep != "" && allowance > 0 {
+		accMu.Lock()
+		already := false
+		for _, id := range acc.Upvotes[ep] {
+			if id == u.ID {
+				already = true
+				break
+			}
+		}
+		if !already {
+			if allowance <= 16 {
+				for i := 0; i < allowance; i++ {
+					acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
+				}
+			} else {
+				acc.Upvotes[ep] = append(acc.Upvotes[ep], u.ID)
+			}
+		}
+		if usr := userByID(u.ID); usr != nil {
+			usr.FavoriteServer = ep
+		}
+		saveAccountsLocked()
+		accMu.Unlock()
+		total := totalServerUpvotes(ep)
+		log.Printf("[upvote-api] %s boosted %s (+%d -> total %d)", u.Username, ep, allowance, total)
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"ok":      true,
+			"success": true,
+			"power":   allowance,
+			"burst":   0,
+			"source":  "afx",
+			"address": ep,
+			"upvotes": total,
+		})
+		return
+	}
+
+	sendJSON(w, http.StatusOK, map[string]interface{}{
+		"power":   allowance,
+		"burst":   0,
+		"source":  "afx",
+		"address": u.FavoriteServer,
+	})
+}
+
+// ---- Owner-only (nta~) Featured Servers ----
+
+func isFeaturedServer(ep string) bool {
+	ep = strings.TrimSpace(ep)
+	if ep == "" {
+		return false
+	}
 	accMu.Lock()
 	defer accMu.Unlock()
 	if acc == nil {
-		return 0
+		return false
 	}
-	return len(acc.Upvotes[ep])
+	for _, f := range acc.FeaturedServers {
+		if strings.EqualFold(strings.TrimSpace(f), ep) {
+			return true
+		}
+	}
+	return false
+}
+
+func featuredServerEndpoints() []string {
+	accMu.Lock()
+	defer accMu.Unlock()
+	if acc == nil || len(acc.FeaturedServers) == 0 {
+		return []string{}
+	}
+	out := make([]string, 0, len(acc.FeaturedServers))
+	for _, f := range acc.FeaturedServers {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func featureServer(w http.ResponseWriter, r *http.Request, ep string) {
+	ep = strings.TrimSpace(ep)
+	if ep == "" {
+		ep = strings.TrimSpace(r.URL.Query().Get("ep"))
+	}
+	if ep == "" && r.Body != nil {
+		var body struct {
+			Endpoint string `json:"endpoint"`
+			Address  string `json:"address"`
+		}
+		_ = json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body)
+		if strings.TrimSpace(body.Endpoint) != "" {
+			ep = strings.TrimSpace(body.Endpoint)
+		} else if strings.TrimSpace(body.Address) != "" {
+			ep = strings.TrimSpace(body.Address)
+		}
+	}
+	if unesc, err := url.PathUnescape(ep); err == nil && unesc != "" {
+		ep = strings.TrimSpace(unesc)
+	}
+
+	u := currentUser(r)
+	if u == nil {
+		u = userFromClientRequest(r)
+	}
+	isJSON := wantsJSONResponse(r)
+	if u == nil || !u.IsFounderAccount() {
+		if isJSON {
+			sendJSON(w, http.StatusForbidden, map[string]interface{}{
+				"ok":    false,
+				"error": "Only nta~ (NSM Founder & Owner) can add or remove Featured Servers.",
+			})
+			return
+		}
+		http.Error(w, "Forbidden: only nta~ can manage Featured Servers", http.StatusForbidden)
+		return
+	}
+	if ep == "" {
+		if isJSON {
+			sendJSON(w, http.StatusBadRequest, map[string]interface{}{"ok": false, "error": "missing server endpoint"})
+			return
+		}
+		http.Redirect(w, r, "/servers", http.StatusSeeOther)
+		return
+	}
+
+	accMu.Lock()
+	nowFeatured := false
+	next := make([]string, 0, len(acc.FeaturedServers)+1)
+	found := false
+	for _, f := range acc.FeaturedServers {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if strings.EqualFold(f, ep) {
+			found = true
+			continue
+		}
+		next = append(next, f)
+	}
+	if !found {
+		next = append([]string{ep}, next...)
+		nowFeatured = true
+	}
+	acc.FeaturedServers = next
+	saveAccountsLocked()
+	featuredCopy := append([]string(nil), acc.FeaturedServers...)
+	accMu.Unlock()
+
+	log.Printf("[featured] %s set featured=%v for %s (total featured: %d)", u.Username, nowFeatured, ep, len(featuredCopy))
+	if isJSON {
+		sendJSON(w, http.StatusOK, map[string]interface{}{
+			"ok":              true,
+			"endpoint":        ep,
+			"featured":        nowFeatured,
+			"featuredServers": featuredCopy,
+		})
+		return
+	}
+	http.Redirect(w, r, "/servers/"+ep, http.StatusSeeOther)
 }
 
 func setOwnerPassword(pw string) {

@@ -401,14 +401,13 @@ func applyMods(ep string, d *ServerData) {
 	stateMu.RLock()
 	m, ok := state.Servers[ep]
 	stateMu.RUnlock()
-	if !ok {
-		return
-	}
-	if m.Upvotes != nil {
+	if ok && m.Upvotes != nil {
 		d.UpvotePower = *m.Upvotes
 	}
+	if uc := int64(upvoteCount(ep)); uc > 0 {
+		d.UpvotePower += uc
+	}
 	// Local-first: never fabricate players or counts from persisted admin state.
-
 }
 
 // ---------------------------------------------------------------------------
@@ -696,8 +695,20 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 405, map[string]string{"lastError": "POST required"})
 		return
 	}
+	if r.Method == http.MethodPost && strings.HasPrefix(path, "/api/servers/") {
+		if strings.HasSuffix(path, "/upvote") {
+			ep := strings.TrimSuffix(strings.TrimPrefix(path, "/api/servers/"), "/upvote")
+			upvoteServer(w, r, ep)
+			return
+		}
+		if strings.HasSuffix(path, "/feature") {
+			ep := strings.TrimSuffix(strings.TrimPrefix(path, "/api/servers/"), "/feature")
+			featureServer(w, r, ep)
+			return
+		}
+	}
 	if path != "/api/serverlist/ingress" && !strings.HasPrefix(path, "/admin/") && r.Method != http.MethodGet && r.Method != http.MethodHead {
-		if path != "/api/ticket/identities" && path != "/api/identities" && path != "/api/upvote/" {
+		if path != "/api/ticket/identities" && path != "/api/identities" && path != "/api/upvote/" && path != "/api/upvote" {
 			w.Header().Set("Allow", "GET, HEAD, OPTIONS")
 			sendJSON(w, 405, map[string]string{"error": "method not allowed"})
 			return
@@ -768,10 +779,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			sendJSON(w, 405, map[string]string{"error": "method not allowed"})
 		}
-	case path == "/api/upvote/":
-		sendJSON(w, 403, map[string]string{"error": "authenticated boost service unavailable in local mode"})
+	case path == "/api/upvote/" || path == "/api/upvote":
+		handleUpvoteAPI(w, r)
 	case path == "/v1/public/featured-servers":
-		sendJSON(w, http.StatusOK, map[string]interface{}{"pinnedServers": []string{}, "pinIfEmpty": false})
+		pinned := featuredServerEndpoints()
+		if pinned == nil {
+			pinned = []string{}
+		}
+		sendJSON(w, http.StatusOK, map[string]interface{}{"pinnedServers": pinned, "pinIfEmpty": len(pinned) > 0})
 
 	case path == "/v1/public/notices/fivem":
 		sendJSON(w, http.StatusOK, []interface{}{})

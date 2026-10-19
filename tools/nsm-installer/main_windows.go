@@ -443,6 +443,9 @@ func extractPayload(exeFile *os.File, exePath string, payloadOffset, payloadSize
 
 	_ = os.WriteFile(filepath.Join(appDir, "NSM.installroot"), []byte(""), 0o644)
 	_ = os.WriteFile(filepath.Join(appDir, ".nsm-version"), []byte(buildID+"\n"), 0o644)
+	for _, sub := range []string{"Cache", "Code Cache"} {
+		_ = os.RemoveAll(filepath.Join(appDir, "data", "cache", "browser", sub))
+	}
 
 	appExe := filepath.Join(appDir, "NSM.exe")
 	ensureShortcuts(appExe, appDir)

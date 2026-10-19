@@ -56,7 +56,12 @@
               <span class="nsm-srv-icon-fallback" style="display:none">S</span>
             </div>
             <div style="flex:1;min-width:0">
-              <h1 style="margin:0 0 6px;font-size:1.7rem;color:#fff" data-colorize="{{.Srv.Hostname}}">{{.CleanName}}</h1>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                {{if .Featured}}
+                <span class="nsm-loaf" style="background:rgba(245,158,11,0.18);border:1px solid rgba(245,158,11,0.55);color:#fbbf24;font-weight:700">&#9733; FEATURED SERVER</span>
+                {{end}}
+                <h1 style="margin:0;font-size:1.7rem;color:#fff" data-colorize="{{.Srv.Hostname}}">{{.CleanName}}</h1>
+              </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 {{if .Srv.Gametype}}<span class="nsm-loaf">{{.Srv.Gametype}}</span>{{end}}
                 {{if .Srv.Mapname}}<span class="nsm-loaf">{{.Srv.Mapname}}</span>{{end}}
@@ -71,12 +76,17 @@
                 <div style="font-size:1.35rem;font-weight:700;color:#fff">{{.Srv.Clients}} <span style="opacity:0.45;font-size:0.95rem">/ {{.Srv.SVMaxclients}}</span></div>
                 <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(240,244,248,0.5)">Players Online</div>
               </div>
-              <form method="post" action="/servers/{{.EndPoint}}/upvote" style="display:inline">
-                <button class="nsm-ctrl-btn" type="submit" title="AFX Pulse Sovereign: +4 Upvotes | AFX Pulse Pro: +1 Upvote | Core: 0 Upvotes">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span>{{.Upvotes}} {{if .Voted}}Upvoted{{else}}Upvote{{if and .User (gt .User.UpvoteAllowance 0)}} (+{{.User.UpvoteAllowance}}){{end}}{{end}}</span>
+              <button class="nsm-ctrl-btn" type="button" data-upvote-ep="{{.EndPoint}}" title="Founder nta~: +1,000,000 Upvotes | AFX Pulse Sovereign: +4 Upvotes | AFX Pulse Pro: +1 Upvote">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span><span data-upvote-count="{{.EndPoint}}">{{.Upvotes}}</span> {{if .Voted}}Upvoted{{else}}Upvote{{if and .User (gt .User.UpvoteAllowance 0)}} (+{{.User.UpvoteAllowance}}){{end}}{{end}}</span>
+              </button>
+              {{if and .User .User.IsFounderAccount}}
+              <form method="post" action="/servers/{{.EndPoint}}/feature" style="display:inline">
+                <button class="nsm-ctrl-btn" type="submit" style="color:#fbbf24;border-color:rgba(245,158,11,0.45)" title="Owner (nta~): Toggle Featured Server">
+                  <span>&#9733; {{if .Featured}}Featured{{else}}Feature Server{{end}}</span>
                 </button>
               </form>
+              {{end}}
               <button type="button" class="nsm-btn nsm-btn-primary" data-connect-ep="{{.EndPoint}}">
                 <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 Connect in NSM.exe
@@ -98,6 +108,14 @@
               <h3>Loaded Resources ({{len .Srv.Resources}})</h3>
               <div class="nsm-tag-cloud">
                 {{range .Srv.Resources}}<span class="nsm-loaf">{{.}}</span>{{end}}
+              </div>
+            </div>
+
+            <div class="mp-details-box">
+              <h3>AFX Share / Join URL</h3>
+              <div class="nsm-f8-box">
+                <code>https://nsmultiplayer.com/join/{{.EndPoint}}</code>
+                <button type="button" class="nsm-copy-mini" onclick="navigator.clipboard.writeText('https://nsmultiplayer.com/join/{{.EndPoint}}');this.textContent='Copied!'">Copy</button>
               </div>
             </div>
 

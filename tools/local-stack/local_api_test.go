@@ -1150,6 +1150,106 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 	_ = ln.Close()
 }
 
+func TestUpvotesFeaturedAndJoinLinks(t *testing.T) {
+	h := setupTest(t)
+
+	// 1. Register a live server via heartbeat
+	wHB := request(h, "POST", "/api/serverlist/ingress", validHeartbeat)
+	if wHB.Code != 200 {
+		t.Fatalf("heartbeat failed: %d %s", wHB.Code, wHB.Body.String())
+	}
+
+	// 2. Verify nta~ has 1,000,000 upvote allowance & profile displays 1000000
+	var ownerSess string
+	accMu.Lock()
+	owner := findUser("nta~")
+	if owner == nil {
+		accMu.Unlock()
+		t.Fatal("nta~ user missing")
+	}
+	if got := owner.UpvoteAllowance(); got != 1000000 {
+		accMu.Unlock()
+		t.Fatalf("expected nta~ UpvoteAllowance 1000000, got %d", got)
+	}
+	ownerSess = newToken()
+	acc.Sessions[ownerSess] = Session{UserID: owner.ID, Expires: time.Now().Add(time.Hour).Unix()}
+	// Create a non-owner staff user to test owner-only Featured Server guard
+	acc.NextID++
+	staffID := acc.NextID
+	acc.Users = append(acc.Users, User{
+		ID:       staffID,
+		Username: "moduser",
+		Email:    "mod@nsm.local",
+		Role:     "admin",
+	})
+	staffSess := newToken()
+	acc.Sessions[staffSess] = Session{UserID: staffID, Expires: time.Now().Add(time.Hour).Unix()}
+	accMu.Unlock()
+
+	wProfile := request(h, "GET", "/u/nta~", "")
+	if wProfile.Code != 200 || !strings.Contains(wProfile.Body.String(), "1000000") {
+		t.Fatalf("expected /u/nta~ to display 1000000 upvotes, got code %d", wProfile.Code)
+	}
+
+	// 3. Upvote server as nta~ via POST /api/servers/upvote
+	reqUpv := httptest.NewRequest("POST", "/api/servers/upvote", strings.NewReader(`{"endpoint":"127.0.0.1:30120"}`))
+	reqUpv.RemoteAddr = "127.0.0.1:12345"
+	reqUpv.Header.Set("Accept", "application/json")
+	reqUpv.Header.Set("Content-Type", "application/json")
+	reqUpv.Header.Set("X-NSM-Session", ownerSess)
+	wUpv := httptest.NewRecorder()
+	h.ServeHTTP(wUpv, reqUpv)
+	if wUpv.Code != 200 || !strings.Contains(wUpv.Body.String(), `"upvotes":1000000`) {
+		t.Fatalf("POST /api/servers/upvote expected 1000000 upvotes, got %d: %s", wUpv.Code, wUpv.Body.String())
+	}
+
+	// 4. Verify /api/servers/single/127.0.0.1:30120 and /api/servers/live reflect 1,000,000 upvotes
+	wSingle := request(h, "GET", "/api/servers/single/127.0.0.1:30120", "")
+	if wSingle.Code != 200 || !strings.Contains(wSingle.Body.String(), `"upvotePower":1000000`) {
+		t.Fatalf("GET /api/servers/single expected upvotePower 1000000, got %d: %s", wSingle.Code, wSingle.Body.String())
+	}
+	wLive := request(h, "GET", "/api/servers/live", "")
+	if wLive.Code != 200 || !strings.Contains(wLive.Body.String(), `"upvotePower":1000000`) {
+		t.Fatalf("GET /api/servers/live expected upvotePower 1000000, got %d: %s", wLive.Code, wLive.Body.String())
+	}
+
+	// 5. Verify non-owner cannot feature servers (even an admin)
+	reqFeatDeny := httptest.NewRequest("POST", "/api/servers/feature", strings.NewReader(`{"endpoint":"127.0.0.1:30120"}`))
+	reqFeatDeny.RemoteAddr = "127.0.0.1:12345"
+	reqFeatDeny.Header.Set("Accept", "application/json")
+	reqFeatDeny.Header.Set("Content-Type", "application/json")
+	reqFeatDeny.Header.Set("X-NSM-Session", staffSess)
+	wFeatDeny := httptest.NewRecorder()
+	h.ServeHTTP(wFeatDeny, reqFeatDeny)
+	if wFeatDeny.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for non-nta~ feature request, got %d: %s", wFeatDeny.Code, wFeatDeny.Body.String())
+	}
+
+	// 6. Verify nta~ can feature servers and /v1/public/featured-servers returns it
+	reqFeat := httptest.NewRequest("POST", "/api/servers/feature", strings.NewReader(`{"endpoint":"127.0.0.1:30120"}`))
+	reqFeat.RemoteAddr = "127.0.0.1:12345"
+	reqFeat.Header.Set("Accept", "application/json")
+	reqFeat.Header.Set("Content-Type", "application/json")
+	reqFeat.Header.Set("X-NSM-Session", ownerSess)
+	wFeat := httptest.NewRecorder()
+	h.ServeHTTP(wFeat, reqFeat)
+	if wFeat.Code != 200 || !strings.Contains(wFeat.Body.String(), `"featured":true`) {
+		t.Fatalf("POST /api/servers/feature by nta~ failed: %d %s", wFeat.Code, wFeat.Body.String())
+	}
+
+	wFeaturedPub := request(h, "GET", "/v1/public/featured-servers", "")
+	if wFeaturedPub.Code != 200 || !strings.Contains(wFeaturedPub.Body.String(), `"127.0.0.1:30120"`) {
+		t.Fatalf("GET /v1/public/featured-servers missing featured server: %d %s", wFeaturedPub.Code, wFeaturedPub.Body.String())
+	}
+
+	// 7. Verify GET /join/{ep} sets X-CitizenFX-Url and renders nsmultiplayer.com/join/{ep}
+	wJoin := request(h, "GET", "/join/127.0.0.1:30120", "")
+	if wJoin.Code != 200 || wJoin.Header().Get("X-CitizenFX-Url") != "http://127.0.0.1:30120/" || !strings.Contains(wJoin.Body.String(), "https://nsmultiplayer.com/join/127.0.0.1:30120") {
+		t.Fatalf("GET /join/127.0.0.1:30120 failed: code=%d hdr=%q", wJoin.Code, wJoin.Header().Get("X-CitizenFX-Url"))
+	}
+}
+
+
 
 
 

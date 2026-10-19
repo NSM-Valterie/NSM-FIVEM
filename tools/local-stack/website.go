@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -111,8 +112,9 @@ func liveServers() []map[string]interface{} {
 		scriptHook := d.Vars["sv_scriptHookAllowed"]
 		bannerDetail := d.Vars["banner_detail"]
 		bannerConnecting := d.Vars["banner_connecting"]
-		upv := upvoteCount(ep) + int(d.UpvotePower)
+		upv := int(d.UpvotePower)
 		burst := int(d.BurstPower)
+		featured := isFeaturedServer(ep)
 		out = append(out, map[string]interface{}{
 			// Template fields
 			"EndPoint":         ep,
@@ -126,6 +128,7 @@ func liveServers() []map[string]interface{} {
 			"MapName":          d.Mapname,
 			"Upvotes":          upv,
 			"BurstPower":       burst,
+			"Featured":         featured,
 			"Tags":             tags,
 			"Locale":           locale,
 			"Country":          country,
@@ -169,16 +172,22 @@ func liveServers() []map[string]interface{} {
 			"upvotes":          upv,
 			"upvotePower":      upv,
 			"burstPower":       burst,
+			"featured":         featured,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
-		ci, cj := out[i]["Clients"].(int64), out[j]["Clients"].(int64)
-		if ci != cj {
-			return ci > cj
+		fi, _ := out[i]["Featured"].(bool)
+		fj, _ := out[j]["Featured"].(bool)
+		if fi != fj {
+			return fi
 		}
 		ui, uj := out[i]["Upvotes"].(int), out[j]["Upvotes"].(int)
 		if ui != uj {
 			return ui > uj
+		}
+		ci, cj := out[i]["Clients"].(int64), out[j]["Clients"].(int64)
+		if ci != cj {
+			return ci > cj
 		}
 		return out[i]["CleanName"].(string) < out[j]["CleanName"].(string)
 	})
@@ -239,7 +248,11 @@ func serversPage(w http.ResponseWriter, r *http.Request) {
 	srvs := liveServers()
 	tagSet := map[string]bool{}
 	var allTags []string
+	var featuredSrvs []map[string]interface{}
 	for _, s := range srvs {
+		if f, _ := s["Featured"].(bool); f {
+			featuredSrvs = append(featuredSrvs, s)
+		}
 		if tags, ok := s["Tags"].([]string); ok {
 			for _, t := range tags {
 				if !tagSet[t] {
@@ -251,14 +264,18 @@ func serversPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(allTags)
 	renderPage(w, r, "servers.tmpl", map[string]interface{}{
-		"Title":   "Server List - NSM",
-		"Servers": srvs,
-		"Tags":    allTags,
+		"Title":           "Server List - NSM",
+		"Servers":         srvs,
+		"FeaturedServers": featuredSrvs,
+		"Tags":            allTags,
 	})
 }
 
 func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 	ep := r.PathValue("ep")
+	if unesc, err := url.PathUnescape(ep); err == nil && unesc != "" {
+		ep = strings.TrimSpace(unesc)
+	}
 	d := reg.get(ep)
 	if d == nil {
 		renderPage(w, r, "server_missing.tmpl", map[string]interface{}{"Title": "Server Offline - NSM", "EndPoint": ep})
@@ -292,8 +309,9 @@ func serverDetailPage(w http.ResponseWriter, r *http.Request) {
 		"CleanName":     cleanHostname(d.Hostname),
 		"EndPoint":      ep,
 		"Srv":           d,
-		"Upvotes":       upvoteCount(ep) + int(d.UpvotePower),
+		"Upvotes":       int(d.UpvotePower),
 		"Voted":         voted,
+		"Featured":      isFeaturedServer(ep),
 		"OwnerUsername": ownerUsername,
 	})
 }
@@ -395,9 +413,10 @@ func apiServersLive(w http.ResponseWriter, r *http.Request) {
 	srvs := liveServers()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"servers": srvs,
-		"players": totalPlayers(),
-		"count":   len(srvs),
+		"servers":         srvs,
+		"featuredServers": featuredServerEndpoints(),
+		"players":         totalPlayers(),
+		"count":           len(srvs),
 	})
 }
 
@@ -418,7 +437,21 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /{$}", homePage)
 	mux.HandleFunc("GET /servers", serversPage)
 	mux.HandleFunc("GET /servers/{ep}", serverDetailPage)
+	mux.HandleFunc("GET /join/{ep}", func(w http.ResponseWriter, r *http.Request) {
+		ep := strings.TrimSpace(r.PathValue("ep"))
+		if unesc, err := url.PathUnescape(ep); err == nil && unesc != "" {
+			ep = strings.TrimSpace(unesc)
+		}
+		if ep != "" {
+			w.Header().Set("X-CitizenFX-Url", "http://"+ep+"/")
+			w.Header().Set("Location", "https://nsmultiplayer.com/join/"+ep)
+		}
+		serverDetailPage(w, r)
+	})
 	mux.HandleFunc("POST /servers/{ep}/upvote", func(w http.ResponseWriter, r *http.Request) { upvoteServer(w, r, r.PathValue("ep")) })
+	mux.HandleFunc("POST /servers/{ep}/feature", func(w http.ResponseWriter, r *http.Request) { featureServer(w, r, r.PathValue("ep")) })
+	mux.HandleFunc("POST /api/servers/upvote", func(w http.ResponseWriter, r *http.Request) { upvoteServer(w, r, "") })
+	mux.HandleFunc("POST /api/servers/feature", func(w http.ResponseWriter, r *http.Request) { featureServer(w, r, "") })
 	mux.HandleFunc("GET /login", loginPage)
 	mux.HandleFunc("POST /login", apiLogin)
 	mux.HandleFunc("GET /register", registerPage)

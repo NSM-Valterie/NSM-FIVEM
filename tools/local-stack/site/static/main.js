@@ -151,16 +151,21 @@
     window.location.href = proto;
   }
 
-  // ---- Upvote / Boost helper ----
+  // ---- Upvote / Boost & Owner Featured Server helpers ----
   function upvoteServerByEp(ep) {
     if (!ep) return;
-    fetch('/api/servers/' + encodeURIComponent(ep) + '/upvote', {
+    fetch('/api/servers/upvote', {
       method: 'POST',
-      headers: { 'Accept': 'application/json' }
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ endpoint: ep })
     })
       .then(function (r) {
         if (r.status === 401) {
-          window.open('/login?next=' + encodeURIComponent(window.location.pathname), '_blank');
+          window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
           return null;
         }
         return r.json();
@@ -180,6 +185,84 @@
         if (inspUp && inspEp && inspEp.textContent === ep) {
           inspUp.textContent = String(data.upvotes);
         }
+        updateTabCounters();
+        filterAndSortRows();
+      })
+      .catch(function () {});
+  }
+
+  function renderFeaturedServersBoxFromDOM() {
+    var listEl = document.getElementById('nsm-featured-servers-list');
+    if (!listEl) return;
+    var rows = getRowsArray();
+    var featRows = [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].getAttribute('data-featured') === '1') {
+        featRows.push(rows[i]);
+      }
+    }
+    if (featRows.length === 0) {
+      listEl.innerHTML = '<p id="nsm-featured-empty" style="font-size:0.78rem;color:rgba(240,244,248,0.55);margin:2px 0">Official featured NSM servers pinned by nta~ appear here.</p>';
+      return;
+    }
+    var html = '';
+    for (var j = 0; j < featRows.length; j++) {
+      var r = featRows[j];
+      var ep = r.getAttribute('data-ep') || '';
+      var rawName = r.getAttribute('data-raw-name') || r.getAttribute('data-name') || ep;
+      var clients = r.getAttribute('data-clients') || '0';
+      var maxClients = r.getAttribute('data-maxclients') || '48';
+      var upv = r.getAttribute('data-upvotes') || '0';
+      html += '<div class="nsm-featured-card" data-featured-card="' + escapeHtml(ep) + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35)">'
+        + '<div style="min-width:0;flex:1">'
+        + '<a href="/servers/' + encodeURIComponent(ep) + '" style="color:#fff;font-weight:700;font-size:0.86rem;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + colorizeHostname(rawName) + '</a>'
+        + '<div style="font-size:0.73rem;color:rgba(240,244,248,0.65);display:flex;gap:10px;margin-top:2px">'
+        + '<span>' + escapeHtml(clients) + '/' + escapeHtml(maxClients) + ' players</span>'
+        + '<span style="color:#00f8b9">&#9889; <span data-upvote-count="' + escapeHtml(ep) + '">' + escapeHtml(upv) + '</span></span>'
+        + '</div></div>'
+        + '<button type="button" class="nsm-connect-btn" data-connect-ep="' + escapeHtml(ep) + '" style="padding:5px 10px;font-size:0.75rem">Connect</button>'
+        + '</div>';
+    }
+    listEl.innerHTML = html;
+  }
+
+  function featureServerByEp(ep) {
+    if (!ep) return;
+    fetch('/api/servers/feature', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ endpoint: ep })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) return;
+        var isFeat = !!data.featured;
+        var row = document.querySelector('.nsm-server-row[data-ep="' + ep + '"]');
+        if (row) {
+          row.setAttribute('data-featured', isFeat ? '1' : '0');
+        }
+        var badges = document.querySelectorAll('[data-featured-badge="' + ep + '"]');
+        for (var b = 0; b < badges.length; b++) {
+          badges[b].style.display = isFeat ? '' : 'none';
+        }
+        var btns = document.querySelectorAll('[data-feature-ep="' + ep + '"]');
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].innerHTML = '&#9733; ' + (isFeat ? 'Featured' : 'Feature');
+          btns[i].style.background = isFeat ? 'rgba(245,158,11,0.24)' : '';
+          btns[i].style.borderColor = isFeat ? '#f59e0b' : '';
+          btns[i].style.color = isFeat ? '#fbbf24' : '';
+        }
+        var inspFeatLbl = document.getElementById('nsm-insp-feature-label');
+        var inspEp = document.getElementById('nsm-insp-ep');
+        if (inspFeatLbl && inspEp && inspEp.textContent === ep) {
+          inspFeatLbl.innerHTML = '&#9733; ' + (isFeat ? 'Featured' : 'Feature');
+        }
+        renderFeaturedServersBoxFromDOM();
+        filterAndSortRows();
       })
       .catch(function () {});
   }
@@ -231,9 +314,12 @@
     var resEl = document.getElementById('nsm-insp-res');
     var locEl = document.getElementById('nsm-insp-locale');
     var f8El = document.getElementById('nsm-insp-f8');
+    var joinEl = document.getElementById('nsm-insp-join');
     var upvEl = document.getElementById('nsm-insp-upvotes');
+    var featLblEl = document.getElementById('nsm-insp-feature-label');
     var fullLink = document.getElementById('nsm-insp-fullpage');
     var tagsEl = document.getElementById('nsm-insp-tags');
+    var isFeat = row.getAttribute('data-featured') === '1';
 
     if (titleEl) titleEl.innerHTML = colorizeHostname(rawName);
     if (descEl) descEl.textContent = desc;
@@ -243,7 +329,9 @@
     if (resEl) resEl.textContent = resCount + ' loaded';
     if (locEl) locEl.textContent = locale + (onesync ? ' • OneSync' : '');
     if (f8El) f8El.textContent = 'connect ' + ep;
+    if (joinEl) joinEl.textContent = 'https://nsmultiplayer.com/join/' + ep;
     if (upvEl) upvEl.textContent = upvotes;
+    if (featLblEl) featLblEl.innerHTML = '&#9733; ' + (isFeat ? 'Featured' : 'Feature');
     if (fullLink) fullLink.setAttribute('href', '/servers/' + encodeURIComponent(ep));
 
     if (tagsEl) {
@@ -450,6 +538,9 @@
     }
 
     rows.sort(function (a, b) {
+      var fa = a.getAttribute('data-featured') === '1' ? 1 : 0;
+      var fb = b.getAttribute('data-featured') === '1' ? 1 : 0;
+      if (fa !== fb) return fb - fa;
       var dir = state.sortDir;
       if (state.sortBy === 'name') {
         var na = (a.getAttribute('data-name') || '').toLowerCase();
@@ -464,6 +555,9 @@
       var pa = parseInt(a.getAttribute('data-clients') || '0', 10);
       var pb = parseInt(b.getAttribute('data-clients') || '0', 10);
       if (pa !== pb) return (pa - pb) * dir;
+      var ua = parseInt(a.getAttribute('data-upvotes') || '0', 10);
+      var ub = parseInt(b.getAttribute('data-upvotes') || '0', 10);
+      if (ua !== ub) return ub - ua;
       return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
     });
 
@@ -613,6 +707,25 @@
       inspBoost.dataset.nsmBound = '1';
       inspBoost.addEventListener('click', function () {
         if (state.selectedEp) upvoteServerByEp(state.selectedEp);
+      });
+    }
+    var inspFeature = document.getElementById('nsm-insp-feature');
+    if (inspFeature && !inspFeature.dataset.nsmBound) {
+      inspFeature.dataset.nsmBound = '1';
+      inspFeature.addEventListener('click', function () {
+        if (state.selectedEp) featureServerByEp(state.selectedEp);
+      });
+    }
+    var inspCopyJoin = document.getElementById('nsm-insp-copy-join');
+    if (inspCopyJoin && !inspCopyJoin.dataset.nsmBound) {
+      inspCopyJoin.dataset.nsmBound = '1';
+      inspCopyJoin.addEventListener('click', function () {
+        var ep = state.selectedEp || '127.0.0.1:30120';
+        try {
+          navigator.clipboard.writeText('https://nsmultiplayer.com/join/' + ep);
+          inspCopyJoin.textContent = 'Copied!';
+          setTimeout(function () { inspCopyJoin.textContent = 'Copy'; }, 1400);
+        } catch (e) {}
       });
     }
     var inspCopy = document.getElementById('nsm-insp-copy');
@@ -997,6 +1110,14 @@
         return;
       }
 
+      // Owner Feature button (nta~ only)
+      var featBtn = target.closest('[data-feature-ep]');
+      if (featBtn) {
+        e.stopPropagation();
+        featureServerByEp(featBtn.getAttribute('data-feature-ep'));
+        return;
+      }
+
       // Favorite star
       var favBtn = target.closest('[data-fav-ep]');
       if (favBtn) {
@@ -1092,7 +1213,7 @@
       }
     });
 
-    // Live polling every 8s to keep player/server counts fresh
+    // Live polling every 8s to keep player/server/upvote counts fresh
     setInterval(function () {
       fetch('/api/servers/live', { headers: { 'Accept': 'application/json' } })
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -1102,6 +1223,30 @@
           for (var i = 0; i < pEls.length; i++) pEls[i].textContent = String(data.players || 0);
           var sEls = document.querySelectorAll('[data-stat="servers"]');
           for (var j = 0; j < sEls.length; j++) sEls[j].textContent = String(data.count || 0);
+          if (Array.isArray(data.servers)) {
+            for (var k = 0; k < data.servers.length; k++) {
+              var srv = data.servers[k];
+              var ep = srv.EndPoint || srv.id;
+              if (!ep) continue;
+              var upv = typeof srv.Upvotes === 'number' ? srv.Upvotes : (srv.upvotes || 0);
+              var upNodes = document.querySelectorAll('[data-upvote-count="' + ep + '"]');
+              for (var u = 0; u < upNodes.length; u++) {
+                upNodes[u].textContent = String(upv);
+              }
+              var row = document.querySelector('.nsm-server-row[data-ep="' + ep + '"]');
+              if (row) {
+                row.setAttribute('data-upvotes', String(upv));
+                row.setAttribute('data-clients', String(srv.Clients || srv.players || 0));
+                var curEl = row.querySelector('.nsm-srv-players .cur');
+                if (curEl) curEl.textContent = String(srv.Clients || srv.players || 0);
+              }
+              var inspUp = document.getElementById('nsm-insp-upvotes');
+              var inspEp = document.getElementById('nsm-insp-ep');
+              if (inspUp && inspEp && inspEp.textContent === ep) {
+                inspUp.textContent = String(upv);
+              }
+            }
+          }
         })
         .catch(function () {});
     }, 8000);
