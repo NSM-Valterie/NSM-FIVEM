@@ -766,8 +766,8 @@ func TestDiscourseInAppLoginAndCravenzOwnerClaim(t *testing.T) {
 		path   string
 		marker string
 	}{
-		{"/", `id="nsm-mp-app"`},
-		{"/servers", `<title>Server List - NSM</title>`},
+		{"/", `DOWNLOAD CLIENT`},
+		{"/servers", `id="nsm-mp-app"`},
 		{"/login", `<title>Login - AFX Portal</title>`},
 		{"/keymaster", `AFX <strong>Portal</strong>`},
 		{"/support", `<title>AFX Support</title>`},
