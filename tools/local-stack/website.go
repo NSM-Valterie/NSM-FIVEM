@@ -394,7 +394,7 @@ func serveClientDownload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.7.8-candidate/NSM.exe", http.StatusFound)
+	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.8.0-candidate/NSM.exe", http.StatusFound)
 }
 
 func serveServerDownload(w http.ResponseWriter, r *http.Request) {
@@ -406,7 +406,19 @@ func serveServerDownload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.7.8-candidate/NSM-Server.zip", http.StatusFound)
+	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.8.0-candidate/NSM-Server.zip", http.StatusFound)
+}
+
+func serveLocalPolicy(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, http.StatusOK, []string{
+		"subdir_file_mapping",
+		"onesync",
+		"onesync_plus",
+		"onesync_medium",
+		"onesync_big",
+		"onesync_platinum",
+		"local_evaluation",
+	})
 }
 
 func apiServersLive(w http.ResponseWriter, r *http.Request) {
@@ -588,11 +600,29 @@ func buildMux() *http.ServeMux {
 		http.Error(w, "no updates (NSM local stack - keeping current build)", http.StatusNotFound)
 	})
 
+	// independent NSM server feature policy & root mirror/patch cache routes
+	mux.HandleFunc("/p/api/policy/", serveLocalPolicy)
+	mux.HandleFunc("/api/policy/", serveLocalPolicy)
+	mux.HandleFunc("/mirrors/", func(w http.ResponseWriter, r *http.Request) {
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = "/c" + r.URL.Path
+		serveProxy(w, r2, "c", proxyRoutes["c"])
+	})
+	mux.HandleFunc("/patches/", func(w http.ResponseWriter, r *http.Request) {
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = "/r" + r.URL.Path
+		serveProxy(w, r2, "r", proxyRoutes["r"])
+	})
+
 	// game-cache proxy routes (/f/ and /e/ are handled locally by our Discourse & Forum service)
 	for route, upstream := range proxyRoutes {
 		rt, up := route, upstream
 		if rt == "f" || rt == "e" {
 			mux.HandleFunc("/"+rt+"/", serveDiscourseRouter)
+			continue
+		}
+		if rt == "p" {
+			mux.HandleFunc("/p/", serveLocalPolicy)
 			continue
 		}
 		mux.HandleFunc("/"+rt+"/", func(w http.ResponseWriter, r *http.Request) {

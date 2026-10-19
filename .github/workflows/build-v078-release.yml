@@ -54,9 +54,11 @@ jobs:
             curl -sf http://127.0.0.1:18089/ -o /tmp/smoke-index.html
             grep -q 'href="/download"' /tmp/smoke-index.html
             curl -sI http://127.0.0.1:18089/download -o /tmp/smoke-dl.hdr
-            grep -qi "nsm-v0.7.8-candidate/NSM.exe" /tmp/smoke-dl.hdr
+            grep -qi "nsm-v0.8.0-candidate/NSM.exe" /tmp/smoke-dl.hdr
             curl -sI http://127.0.0.1:18089/download-server -o /tmp/smoke-dlsrv.hdr
-            grep -qi "nsm-v0.7.8-candidate/NSM-Server.zip" /tmp/smoke-dlsrv.hdr
+            grep -qi "nsm-v0.8.0-candidate/NSM-Server.zip" /tmp/smoke-dlsrv.hdr
+            curl -sf http://127.0.0.1:18089/p/api/policy/test -o /tmp/smoke-policy.json
+            grep -q "subdir_file_mapping" /tmp/smoke-policy.json
             curl -sf http://127.0.0.1:18089/servers > /dev/null
             curl -sf http://127.0.0.1:18089/forum > /dev/null
             curl -sf http://127.0.0.1:18089/u > /dev/null
@@ -346,20 +348,21 @@ jobs:
                   except Exception as e:
                       print(f"[pe-patch] warning on {filename}: {e}")
 
-              # 3. Restore upstream CDN/runtime/policy URLs (c, r, p, s, a, k, v, w) and point NSM routes (d, e, f, l) to VPS IP
+              # 3. Point all non-Rockstar routes (a, c, d, e, f, k, p, r, s, w) to NSM VPS IP (147.189.174.173)
+              #    while preserving Rockstar GTA V entitlement validation (l) on https://lambda.fivem.net
               route_targets = {
-                  b"a": b"https://aka.cfx.re",
-                  b"c": b"https://content.cfx.re",
+                  b"a": b"http://147.189.174.173",
+                  b"c": b"http://147.189.174.173",
                   b"d": b"http://147.189.174.173",
                   b"e": b"http://147.189.174.173",
                   b"f": b"http://147.189.174.173/f",
-                  b"k": b"https://wiki.fivem.net",
+                  b"k": b"http://147.189.174.173",
                   b"l": b"https://lambda.fivem.net",
-                  b"p": b"https://policy-live.fivem.net",
-                  b"r": b"https://runtime.fivem.net",
-                  b"s": b"https://static.cfx.re",
+                  b"p": b"http://147.189.174.173/p",
+                  b"r": b"http://147.189.174.173/r",
+                  b"s": b"http://147.189.174.173/s",
                   b"v": b"https://private-placeholder.cfx.re",
-                  b"w": b"https://www.fivem.net",
+                  b"w": b"http://147.189.174.173",
               }
               pat_ascii = re.compile(b"http://127\\.0\\.0\\.1(?::80)?/([acdefklprsvw])((?:/[^\\x00]*)?)(\\x00+)")
               replaced_urls = 0
@@ -375,8 +378,8 @@ jobs:
                   target_prefix = route_targets[route]
                   if route == b"l" and suffix.startswith(b"/api/validate/discourse"):
                       target_prefix = b"http://147.189.174.173/l"
-                  elif route == b"f" and len(target_prefix + suffix + b"\x00") > slot_len:
-                      target_prefix = b"https://forum.cfx.re"
+                  elif len(target_prefix + suffix + b"\x00") > slot_len:
+                      target_prefix = b"http://147.189.174.173"
                   new_str = target_prefix + suffix + b"\x00"
                   if len(new_str) <= slot_len:
                       data[slot_start:slot_end] = new_str.ljust(slot_len, b"\x00")
@@ -588,6 +591,28 @@ jobs:
                           assert data[hoff:hoff+8] == b"\x49\x89\xc1\x72\x03\x4c\x8b\x08"
                           data[hoff:hoff+8] = b"\xe9" + struct.pack("<i", cave2_rva - (0x2dc9a + 5)) + b"\x90\x90\x90"
                           print(f"[pe-patch] {filename}: hooked TLSServer & MakeRelativeCitPath MBA paths -> AxiomFX/")
+
+              # g) In net-five.dll, unlock subdir_file_mapping (EUP & subfolder streaming) for all NSM servers regardless of maxClients
+              if filename.lower().endswith("net-five.dll") and pe_sections:
+                  sfm_idx = data.find(b"subdir_file_mapping\x00")
+                  if sfm_idx != -1:
+                      sfm_rva = None
+                      for _, _, rva, raw_size, raw_ptr in pe_sections:
+                          if raw_ptr <= sfm_idx < raw_ptr + raw_size:
+                              sfm_rva = rva + (sfm_idx - raw_ptr)
+                              break
+                      if sfm_rva is not None:
+                          for s_name, _, t_rva, t_raw_size, t_raw_ptr in pe_sections:
+                              if s_name in (".text", ".zdata", ".ctext"):
+                                  for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
+                                      if data[p] in (0x48, 0x4C) and data[p+1] == 0x8D and (data[p+2] & 0xC7) == 0x05:
+                                          disp = struct.unpack_from("<i", data, p + 3)[0]
+                                          if (t_rva + (p - t_raw_ptr) + 7 + disp) == sfm_rva:
+                                              for bpos in range(max(t_raw_ptr, p - 32), p):
+                                                  if data[bpos] == 0x7F and bpos >= 3 and data[bpos-1] == 0x0A:
+                                                      data[bpos:bpos+2] = b"\x90\x90"
+                                                      print(f"[pe-patch] {filename}: unlocked subdir_file_mapping at 0x{bpos:x}")
+                                                      break
 
               assert len(data) == orig_len
               return bytes(data)
@@ -822,19 +847,17 @@ jobs:
             /tmp/cfx-server-data \
             /tmp/v078-dist/NSM-Server.zip
 
-      - name: Upload clean release assets (NSM.exe, NSM-Server.zip, NSM-client-v0.7.8-candidate.zip, NSM-Masterlist.exe) to nsm-v0.7.8-candidate
+      - name: Upload clean release assets (NSM.exe, NSM-Server.zip, NSM-client-v0.8.0-candidate.zip, NSM-Masterlist.exe) to nsm-v0.8.0-candidate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view nsm-v0.7.8-candidate >/dev/null 2>&1; then
-            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 — Official Client, Single-File AppData Installer & Dedicated Server" --notes "Download NSM.exe to install the client to %LOCALAPPDATA%\\NSM\\NSM.app, or NSM-Server.zip to host an NSM dedicated server."
+          cp /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip /tmp/v078-dist/NSM-client-v0.8.0-candidate.zip
+          if ! gh release view nsm-v0.8.0-candidate >/dev/null 2>&1; then
+            gh release create nsm-v0.8.0-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.8.0 — 100% Independent NSM/AFX Stack, Client Installer & Dedicated Server" --notes "100% independent NSM/AFX stack (website, masterlist, AFX Portal Keymaster, server feature policy, EUP/subdir_file_mapping, OneSync up to 2048 slots, and runtime/mirror caching on nsmultiplayer.com). Previous release nsm-v0.7.8-candidate is preserved unchanged."
           fi
-          for old_asset in NSM-v0.7.8-source-and-tests.zip SHA256SUMS.txt; do
-            gh release delete-asset nsm-v0.7.8-candidate "$old_asset" --yes 2>/dev/null || true
-          done
-          gh release upload nsm-v0.7.8-candidate \
+          gh release upload nsm-v0.8.0-candidate \
             /tmp/v078-dist/NSM.exe \
             /tmp/v078-dist/NSM-Server.zip \
-            /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip \
+            /tmp/v078-dist/NSM-client-v0.8.0-candidate.zip \
             /tmp/NSM-Masterlist.exe \
             --clobber

@@ -39,7 +39,7 @@
 #include "NetEvent.h"
 
 #ifndef POLICY_LIVE_ENDPOINT
-#define POLICY_LIVE_ENDPOINT "https://policy-live.fivem.net/"
+#define POLICY_LIVE_ENDPOINT "http://147.189.174.173/p/"
 #endif
 
 #ifdef GTA_FIVE
@@ -1402,9 +1402,9 @@ concurrency::task<void> NetLibrary::ConnectToServer(const std::string& rootUrl)
 									auto policySuccess = [this, maxClients]()
 									{
 										// add forced policies
-										if (maxClients <= 10)
+										if (maxClients <= 4096)
 										{
-											// development/testing servers (<= 10 clients max - see ZAP defaults) get subdir_file_mapping granted
+											// NSM servers get subdir_file_mapping (EUP & subfolder streaming) granted automatically
 											policies.insert("subdir_file_mapping");
 										}
 

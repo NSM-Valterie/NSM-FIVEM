@@ -513,10 +513,6 @@ endpoint_add_udp "0.0.0.0:30120"
 # 1. Visit https://nsmultiplayer.com/keymaster and sign in to your AFX account.
 # 2. Click "Generate Server Key" and paste your nsm_srv_... key below:
 sets sv_nsmServerKey ""
-
-# Live NSM Masterlist endpoint (automatically lists your server in NSM.exe & https://nsmultiplayer.com/servers)
-sv_master1 "http://147.189.174.173:80/api/serverlist/ingress"
-set sv_serverId ""
 sv_lan 1
 
 # ---- Standard Core Resources ----
