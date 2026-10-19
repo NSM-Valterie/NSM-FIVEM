@@ -48,11 +48,15 @@ jobs:
             /tmp/smoke-dir/nsm-masterlist-smoke -bind 127.0.0.1 -port 18089 &
             SMOKE_PID=$!
             trap "kill $SMOKE_PID 2>/dev/null || true" EXIT
-            sleep 1
-            curl -sf http://127.0.0.1:18089/health | grep -q "0.7.7-local"
-            curl -sf http://127.0.0.1:18089/ | grep -q 'href="/download"'
-            curl -sI http://127.0.0.1:18089/download | grep -qi "nsm-v0.7.8-candidate/NSM.exe"
-            curl -sI http://127.0.0.1:18089/download-server | grep -qi "nsm-v0.7.8-candidate/NSM-Server.zip"
+            sleep 2
+            curl -sf http://127.0.0.1:18089/health -o /tmp/smoke-health.json
+            grep -q "0.7.7-local" /tmp/smoke-health.json
+            curl -sf http://127.0.0.1:18089/ -o /tmp/smoke-index.html
+            grep -q 'href="/download"' /tmp/smoke-index.html
+            curl -sI http://127.0.0.1:18089/download -o /tmp/smoke-dl.hdr
+            grep -qi "nsm-v0.7.8-candidate/NSM.exe" /tmp/smoke-dl.hdr
+            curl -sI http://127.0.0.1:18089/download-server -o /tmp/smoke-dlsrv.hdr
+            grep -qi "nsm-v0.7.8-candidate/NSM-Server.zip" /tmp/smoke-dlsrv.hdr
             curl -sf http://127.0.0.1:18089/servers > /dev/null
             curl -sf http://127.0.0.1:18089/forum > /dev/null
             curl -sf http://127.0.0.1:18089/u > /dev/null
