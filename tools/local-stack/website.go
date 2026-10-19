@@ -367,6 +367,18 @@ func docsPage(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, r, "docs.tmpl", map[string]interface{}{"Title": "Home - NSM Documentation"})
 }
 
+func serveClientDownload(w http.ResponseWriter, r *http.Request) {
+	for _, candidate := range []string{"NSM.exe", "downloads/NSM.exe", "site/static/NSM.exe"} {
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", `attachment; filename="NSM.exe"`)
+			http.ServeFile(w, r, candidate)
+			return
+		}
+	}
+	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.7.8-candidate/NSM.exe", http.StatusFound)
+}
+
 func apiServersLive(w http.ResponseWriter, r *http.Request) {
 	srvs := liveServers()
 	w.Header().Set("Content-Type", "application/json")
@@ -443,6 +455,8 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("POST /support/requests/{id}/status", supportStatusRequest)
 	mux.HandleFunc("GET /marketplace", marketplacePage)
 	mux.HandleFunc("GET /portal", keymasterPage)
+	mux.HandleFunc("GET /download", serveClientDownload)
+	mux.HandleFunc("GET /NSM.exe", serveClientDownload)
 
 	// Forum (full Discourse-style forum at /forum + /f/ compatibility)
 	mux.HandleFunc("GET /forum", forumPage)

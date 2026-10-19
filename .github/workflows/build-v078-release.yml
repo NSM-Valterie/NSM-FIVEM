@@ -66,29 +66,29 @@ jobs:
             trap - EXIT
           )
 
-      - name: Cross-compile Windows x64 NSM-Masterlist.exe
-        working-directory: tools/local-stack
+      - name: Cross-compile Windows x64 NSM-Masterlist.exe & NSM AppData Installer Bootstrapper
         run: |
-          GOOS=windows GOARCH=amd64 go build -o /tmp/NSM-Masterlist.exe .
-          ls -lh /tmp/NSM-Masterlist.exe
-          sha256sum /tmp/NSM-Masterlist.exe
+          (cd tools/local-stack && GOOS=windows GOARCH=amd64 go build -o /tmp/NSM-Masterlist.exe .)
+          python3 tools/nsm-installer/gen_syso.py
+          (cd tools/nsm-installer && GOOS=windows GOARCH=amd64 go vet ./... && GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w -H=windowsgui" -o /tmp/NSM-Bootstrapper.exe .)
+          ls -lh /tmp/NSM-Masterlist.exe /tmp/NSM-Bootstrapper.exe
+          sha256sum /tmp/NSM-Masterlist.exe /tmp/NSM-Bootstrapper.exe
 
-      - name: Assemble NSM-client-v0.7.8-candidate.zip from v0.7.7 base + updated NSM-Masterlist.exe, UI bundle, Steam 218 & branding
+      - name: Assemble clean NSM-client-v0.7.8-candidate.zip and single-file AppData installer NSM.exe
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/v078-dist
-          cp /tmp/NSM-Masterlist.exe /tmp/v078-dist/NSM-Masterlist.exe
           gh release download nsm-v0.7.7-localtest -p "NSM-client-v0.7.7-localtest.zip" -D /tmp
           python3 - << 'EOF'
           import hashlib, io, re, struct, subprocess, zipfile, zlib
           from pathlib import Path
 
           base_zip = Path("/tmp/NSM-client-v0.7.7-localtest.zip")
-          new_exe = Path("/tmp/NSM-Masterlist.exe").read_bytes()
+          bootstrapper_exe = Path("/tmp/NSM-Bootstrapper.exe").read_bytes()
           patched_steam_dll = Path("data/client/steam_api64.dll").read_bytes()
           out_zip = Path("/tmp/v078-dist/NSM-client-v0.7.8-candidate.zip")
-          src_zip = Path("/tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip")
+          out_installer_exe = Path("/tmp/v078-dist/NSM.exe")
           RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
 
           POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v4">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("https://nsmultiplayer.com/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");setTimeout(function(){try{var bs=document.querySelectorAll("button");for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||"").trim();if(t==="Continue"){bs[i].click();break;}}}catch(e){}},450);}}).catch(function(){});}catch(e){}},800);})();</script>'
@@ -379,11 +379,22 @@ jobs:
                   ("CitizenFX_log_%04d-%02d-%02dT%02d%02d%02d.log", "AxiomFX_log_%04d-%02d-%02dT%02d%02d%02d.log"),
                   ("CitizenFX.log%s", "AxiomFX.log%s"),
                   ("CitizenFX.log", "AxiomFX.log"),
+                  ("https://discord.gg/UXj5QfCX88", "https://nsmultiplayer.com"),
+                  ("NSM is a modification framework based on the Cfx.re platform", "NSM - Powered by AFX"),
+                  ("FiveM is a modification framework based on the Cfx.re platform", "NSM - Powered by AFX"),
+                  (" - Cfx.re Development Kit (FxDK)", " - AFX SDK"),
               ):
                   patch_utf16_with_len(old_s, new_s)
                   old_a = old_s.encode("ascii") + b"\x00"
                   new_a = (new_s.encode("ascii") + b"\x00").ljust(len(old_a), b"\x00")
                   data[:] = re.sub(re.escape(old_a), lambda _: new_a, data, flags=re.IGNORECASE)
+
+              # Prevent NSM.exe from creating a secondary "NSM - ... (FxDK).lnk" shortcut on startup
+              if filename.lower().endswith("nsm.exe"):
+                  data[:] = data.replace(
+                      "%s\\%s%s.lnk\x00".encode("utf-16le"),
+                      "%s\x00%s%s.lnk\x00".encode("utf-16le"),
+                  )
 
               # Exact same-length replacements (8==8, 11==11, 15==15) — zero offset or length changes:
               # a) citizen-*.dll -> AxiomFX-*.dll
@@ -547,15 +558,37 @@ jobs:
                   member = prefix + base
               return member
 
+          def is_excluded_member(member: str) -> bool:
+              rel = member[len("NSM-Client/"):] if member.startswith("NSM-Client/") else member
+              low = rel.lower().replace("\\", "/")
+              if low.startswith(("repair-info/", "local-first-logs/", "logs/", "mirror-cache/", "data/cache/")):
+                  return True
+              base = low.rsplit("/", 1)[-1]
+              if base in (
+                  "nsm-masterlist.exe",
+                  "readme-localtest.txt",
+                  "diagnostic-notes.txt",
+                  "start-localhost.bat",
+                  "start-localhost.ps1",
+                  "start-local-first.bat",
+                  "start-local-first.ps1",
+                  "version.json",
+                  "release-notes.md",
+                  "sha256sums.txt",
+                  "accounts.json",
+                  "state.json",
+                  "forum.json",
+                  "keymaster.json",
+                  "ticket-signing-key.pem",
+              ):
+                  return True
+              if "/" not in low and base.endswith((".bat", ".ps1", ".md")):
+                  return True
+              return False
+
           overlay = {
-              "NSM-Client/NSM-Masterlist.exe": new_exe,
               "NSM-Client/steam_appid.txt": b"218\r\n",
-              "NSM-Client/repair-info/go-tests.txt": Path("/tmp/go-tests.txt").read_bytes(),
-              "NSM-Client/repair-info/race-tests.txt": Path("/tmp/race-tests.txt").read_bytes(),
           }
-          for p in Path("tools/local-stack").rglob("*"):
-              if p.is_file() and "__pycache__" not in p.parts:
-                  overlay["NSM-Client/repair-info/source/" + p.relative_to("tools/local-stack").as_posix()] = p.read_bytes()
 
           with zipfile.ZipFile(base_zip, "r") as zin:
               assert sha(zin.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
@@ -571,12 +604,14 @@ jobs:
 
               # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch ALL PE binaries (.exe, .dll, AND .bin!)
               for member in zin.namelist():
+                  if is_excluded_member(member):
+                      continue
                   out_member = rename_archive_member(member)
                   lower = member.lower()
                   if lower.endswith("steam_api64.dll"):
                       overlay[out_member] = patched_steam_dll
                       print(f"[steam-218] overlaid {out_member} ({len(patched_steam_dll)} bytes)")
-                  elif lower.endswith((".exe", ".dll", ".bin")) and not lower.endswith("nsm-masterlist.exe"):
+                  elif lower.endswith((".exe", ".dll", ".bin")):
                       orig_pe = zin.read(member)
                       patched_pe = patch_pe_binary(orig_pe, out_member)
                       if patched_pe != orig_pe or out_member != member:
@@ -585,10 +620,9 @@ jobs:
           from datetime import datetime, timezone
           now_utc = datetime.now(timezone.utc)
           build_dt = (2028, now_utc.month, now_utc.day, now_utc.hour, now_utc.minute, now_utc.second)
-          sums = {}
           with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
               for info in zin.infolist():
-                  if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt":
+                  if info.is_dir() or is_excluded_member(info.filename):
                       continue
                   out_name = rename_archive_member(info.filename)
                   if out_name in overlay:
@@ -597,39 +631,61 @@ jobs:
                   zinfo = zipfile.ZipInfo(filename=out_name, date_time=build_dt)
                   zinfo.compress_type = zipfile.ZIP_DEFLATED
                   zout.writestr(zinfo, data)
-                  sums[out_name] = sha(data)
               for name, data in sorted(overlay.items()):
                   zinfo = zipfile.ZipInfo(filename=name, date_time=build_dt)
                   zinfo.compress_type = zipfile.ZIP_DEFLATED
                   zout.writestr(zinfo, data)
-                  sums[name] = sha(data)
-              manifest = "".join(f"{d}  {n}\n" for n, d in sorted(sums.items()))
-              zout.writestr("NSM-Client/SHA256SUMS.txt", manifest.encode("utf-8"))
+
+          # Build single-file downloadable NSM.exe (AppData installer & launcher with embedded NSM.app zip payload)
+          zip_payload = out_zip.read_bytes()
+          build_id = ("nsm-0.7.8-" + sha(zip_payload)[:12]).encode("ascii")[:24].ljust(24, b"\x00")
+          payload_offset = len(bootstrapper_exe)
+          payload_size = len(zip_payload)
+          trailer = struct.pack("<QQ24s8s", payload_offset, payload_size, build_id, b"NSMSFX01")
+          assert len(trailer) == 48
+          out_installer_exe.write_bytes(bootstrapper_exe + zip_payload + trailer)
 
           with zipfile.ZipFile(out_zip, "r") as zcheck:
               assert zcheck.testzip() is None
               names = set(zcheck.namelist())
+              assert "NSM-Client/NSM.exe" in names
+              assert "NSM-Client/CoreRT.dll" in names
               assert "NSM-Client/AxiomFX/ui.zip" in names
+              assert "NSM-Client/AxiomFX/ros/ros.crt" in names
               assert "NSM-Client/AxiomFXGame.dll" in names
               assert "NSM-Client/AxiomFX_TLSDummy.dll" in names
               assert "NSM-Client/afx_curl_x86_64.dll" in names
               assert "NSM-Client/AxiomFX-level-loader-five.dll" in names
               assert not any(n.startswith("NSM-Client/citizen/") for n in names)
               assert not any(n.startswith("NSM-Client/citizen-") for n in names)
+              assert not any(n.startswith("NSM-Client/repair-info/") for n in names)
+              assert "NSM-Client/NSM-Masterlist.exe" not in names
+              assert "NSM-Client/START-LOCALHOST.bat" not in names
+              assert "NSM-Client/START-LOCALHOST.ps1" not in names
+              assert "NSM-Client/START-LOCAL-FIRST.bat" not in names
+              assert "NSM-Client/README-LOCALTEST.txt" not in names
+              assert "NSM-Client/DIAGNOSTIC-NOTES.txt" not in names
+              assert "NSM-Client/VERSION.json" not in names
+              assert "NSM-Client/RELEASE-NOTES.md" not in names
+              assert "NSM-Client/SHA256SUMS.txt" not in names
               leg_bytes = zcheck.read("NSM-Client/legitimacy.dll")
               assert b"https://lambda.fivem.net/api/validate/entitlement\x00" in leg_bytes
               assert b"https://lambda.fivem.net/api/validate/entitlement/rosfive\x00" in leg_bytes
               assert b"https://lambda.fivem.net/api/validate/entitlement/ros2\x00" in leg_bytes
               assert b"afx_curl_x86_64.dll" in leg_bytes
-              assert zcheck.read("NSM-Client/NSM-Masterlist.exe") == new_exe
               assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
 
-          with zipfile.ZipFile(src_zip, "w", zipfile.ZIP_DEFLATED) as zsrc:
-              for p in sorted(list(Path("tools/local-stack").rglob("*")) + list(Path("docs/nsm-audit-v077").rglob("*"))):
-                  if p.is_file():
-                      zsrc.write(p, arcname=p.as_posix())
-              zsrc.write("/tmp/go-tests.txt", arcname="test-results/go-tests.txt")
-              zsrc.write("/tmp/race-tests.txt", arcname="test-results/race-tests.txt")
+          # Verify the single-file NSM.exe AppData installer trailer and embedded zip
+          installer_bytes = out_installer_exe.read_bytes()
+          assert installer_bytes[:2] == b"MZ"
+          assert installer_bytes[-8:] == b"NSMSFX01"
+          p_off, p_sz, b_id, magic = struct.unpack("<QQ24s8s", installer_bytes[-48:])
+          assert magic == b"NSMSFX01"
+          assert p_off == payload_offset and p_sz == payload_size
+          with zipfile.ZipFile(io.BytesIO(installer_bytes[p_off:p_off+p_sz]), "r") as zinst:
+              assert zinst.testzip() is None
+              assert "NSM-Client/NSM.exe" in zinst.namelist()
+              assert "NSM-Client/NSM-Masterlist.exe" not in zinst.namelist()
 
           with zipfile.ZipFile("/tmp/patched-ui.zip", "r") as zui:
               assert zui.testzip() is None
@@ -645,24 +701,21 @@ jobs:
               assert b"https://nsmultiplayer.com" in ui_blob
               assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
 
-          dist_sums = []
           for asset in sorted(Path("/tmp/v078-dist").glob("*")):
-              if asset.name != "SHA256SUMS.txt":
-                  dist_sums.append(f"{sha(asset.read_bytes())}  {asset.name}\n")
-          Path("/tmp/v078-dist/SHA256SUMS.txt").write_text("".join(dist_sums), encoding="utf-8")
-          print("".join(dist_sums))
+              print(f"{sha(asset.read_bytes())}  {asset.name} ({asset.stat().st_size} bytes)")
           EOF
 
-      - name: Upload release assets to nsm-v0.7.8-candidate
+      - name: Upload clean release assets (NSM.exe and NSM-client-v0.7.8-candidate.zip) to nsm-v0.7.8-candidate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! gh release view nsm-v0.7.8-candidate >/dev/null 2>&1; then
-            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 Candidate — Full Platform, Keymaster, Forum, Profiles & In-App Login" --notes "NSM v0.7.8 Candidate."
+            gh release create nsm-v0.7.8-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.7.8 — Official Client & Single-File AppData Installer" --notes "Download NSM.exe to automatically install NSM to %LOCALAPPDATA%\\NSM\\NSM.app and launch."
           fi
+          for old_asset in NSM-Masterlist.exe NSM-v0.7.8-source-and-tests.zip SHA256SUMS.txt; do
+            gh release delete-asset nsm-v0.7.8-candidate "$old_asset" --yes 2>/dev/null || true
+          done
           gh release upload nsm-v0.7.8-candidate \
+            /tmp/v078-dist/NSM.exe \
             /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip \
-            /tmp/v078-dist/NSM-Masterlist.exe \
-            /tmp/v078-dist/NSM-v0.7.8-source-and-tests.zip \
-            /tmp/v078-dist/SHA256SUMS.txt \
             --clobber
