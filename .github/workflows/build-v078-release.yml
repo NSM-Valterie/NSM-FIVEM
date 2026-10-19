@@ -247,7 +247,7 @@ jobs:
                           new_bytes = (target_title + "\x00").encode("utf-16le")
                           if new_rva is None:
                               for s_off, s_name, vsize, rva, raw_size, raw_ptr in sections:
-                                  if s_name in (".rdata", ".data") and vsize + len(new_bytes) + 16 <= raw_size:
+                                  if s_name in (".rdata", ".data", ".clr", ".cld") and vsize + len(new_bytes) + 16 <= raw_size:
                                       cave_off = (vsize + 15) & ~15
                                       if cave_off + len(new_bytes) <= raw_size:
                                           cave_raw = raw_ptr + cave_off
@@ -257,7 +257,7 @@ jobs:
                                           break
                           if new_rva is not None and old_rva is not None:
                               for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
-                                  if t_name == ".text":
+                                  if t_name in (".text", ".zdata", ".ctext"):
                                       end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
                                       for pos in range(t_raw_ptr, end):
                                           if data[pos] in (0x48, 0x4C) and data[pos+1] == 0x8D and (data[pos+2] & 0xC7) == 0x05:
@@ -350,13 +350,13 @@ jobs:
                                   break
                           if target_rva is not None:
                               for s_name, _, t_rva, t_raw_size, t_raw_ptr in pe_sections:
-                                  if s_name == ".text":
+                                  if s_name in (".text", ".zdata", ".ctext"):
                                       for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
                                           if data[p] in (0x48, 0x4C) and data[p+1] == 0x8D and (data[p+2] & 0xC7) == 0x05:
                                               disp = struct.unpack_from("<i", data, p + 3)[0]
                                               if (t_rva + (p - t_raw_ptr) + 7 + disp) == target_rva:
-                                                  w_start = max(t_raw_ptr, p - 28)
-                                                  w_end = min(t_raw_ptr + t_raw_size - 4, p + 36)
+                                                  w_start = max(t_raw_ptr, p - 48)
+                                                  w_end = min(t_raw_ptr + t_raw_size - 4, p + 48)
                                                   for q in range(w_start, w_end):
                                                       if data[q:q+4] == old_imm:
                                                           is_mov_reg = (q >= 1 and 0xB8 <= data[q-1] <= 0xBF)
@@ -371,7 +371,7 @@ jobs:
                       data[idx:idx+len(old_b)] = new_b
                       p_idx = idx + len(new_b)
 
-              # Shorter-length UTF-16LE strings (with .text LEA length immediate patching) + ASCII equivalents
+              # Shorter-length UTF-16LE strings (with .text/.zdata LEA length immediate patching) + ASCII equivalents
               for old_s, new_s in (
                   ("CitiLaunch_TLSDummy.dll", "AxiomFX_TLSDummy.dll"),
                   ("CitizenFX.ini", "AxiomFX.ini"),
@@ -505,14 +505,14 @@ jobs:
                   comp_raw = zin.read("NSM-Client/components.json")
                   overlay["NSM-Client/components.json"] = re.sub(b"citizen:(?=[A-Za-z])", b"AxiomFX:", comp_raw)
 
-              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch PE binaries
+              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch ALL PE binaries (.exe, .dll, AND .bin!)
               for member in zin.namelist():
                   out_member = rename_archive_member(member)
                   lower = member.lower()
                   if lower.endswith("steam_api64.dll"):
                       overlay[out_member] = patched_steam_dll
                       print(f"[steam-218] overlaid {out_member} ({len(patched_steam_dll)} bytes)")
-                  elif lower.endswith((".exe", ".dll")) and not lower.endswith("nsm-masterlist.exe"):
+                  elif lower.endswith((".exe", ".dll", ".bin")) and not lower.endswith("nsm-masterlist.exe"):
                       orig_pe = zin.read(member)
                       patched_pe = patch_pe_binary(orig_pe, out_member)
                       if patched_pe != orig_pe or out_member != member:
@@ -527,10 +527,14 @@ jobs:
                   if out_name in overlay:
                       continue
                   data = zin.read(info.filename)
-                  zout.writestr(out_name, data)
+                  zinfo = zipfile.ZipInfo(filename=out_name, date_time=(2027, 1, 1, 0, 0, 0))
+                  zinfo.compress_type = zipfile.ZIP_DEFLATED
+                  zout.writestr(zinfo, data)
                   sums[out_name] = sha(data)
               for name, data in sorted(overlay.items()):
-                  zout.writestr(name, data)
+                  zinfo = zipfile.ZipInfo(filename=name, date_time=(2027, 1, 1, 0, 0, 0))
+                  zinfo.compress_type = zipfile.ZIP_DEFLATED
+                  zout.writestr(zinfo, data)
                   sums[name] = sha(data)
               manifest = "".join(f"{d}  {n}\n" for n, d in sorted(sums.items()))
               zout.writestr("NSM-Client/SHA256SUMS.txt", manifest.encode("utf-8"))
