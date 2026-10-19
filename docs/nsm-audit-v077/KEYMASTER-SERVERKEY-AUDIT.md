@@ -117,28 +117,9 @@ For NSM's *own* masterlist/services only:
 | No key (localtest mode) | Current behavior preserved, clearly labelled local-only |
 | Key of another account | Accepted for listing only under its own registration; ownership shown correctly; cannot mutate others' entries (IDOR check) |
 
-## 4. Direct Implementation in `tools/local-stack/` (`NSM-Masterlist.exe`)
+## 4. What was NOT done in this pass
 
-Per explicit user instruction, §3 above is implemented directly inside the
-v0.7.7 Go masterlist & website (`tools/local-stack/`):
-
-- `tools/local-stack/keymaster.go` + `tools/local-stack/site/templates/keymaster.tmpl`:
-  Replaces the `/keymaster` stub page with the live NSM Keymaster Portal
-  (`GET /keymaster`, `POST /keymaster/create`, `POST /keymaster/{id}/revoke`)
-  and JSON APIs (`GET /api/keymaster/keys`, `POST /api/keymaster/issue`,
-  `POST /api/keymaster/revoke`, `POST /api/nsm/servers/register`).
-- `tools/local-stack/accounts.go`: Stores `ServerKeys` with per-key random
-  128-bit salts and 100,000-round HMAC-SHA256 digests (`subtle.ConstantTimeCompare`);
-  plaintext secrets are shown once at issuance and never persisted or logged.
-- `tools/local-stack/masterlist.go`: Validates `nsm_srv_<id>.<secret>` keys
-  on `POST /api/serverlist/ingress` (accepted via `Authorization: Bearer`,
-  `X-NSM-Server-Key`, `listingToken`, or `sets sv_nsmServerKey` in `server.cfg`),
-  strips secret vars from public server data, enforces per-account endpoint
-  ownership (anti-IDOR), immediately evicts listings when a key is revoked
-  or expires, and supports `-require-keys` (`NSM_REQUIRE_KEYS=1`) for public
-  fail-closed deployments.
-- `tools/local-stack/site/templates/{servers,server}.tmpl`: Rebranded join
-  links from `fivem://connect/` to `nsm://connect/` matching `LauncherConfig.h`.
-- Verified with `go test -race -v ./...` in `tools/local-stack/` (12/12 test
-  suites PASS, including `TestKeymasterFullMatrix`) and cross-compiled to
-  Windows x64 `NSM-Masterlist.exe`.
+No licensing, heartbeat, registration, or entitlement code was changed.
+No endpoint was contacted. No key was issued, removed, or bypassed.
+Implementation of §3 requires explicit owner approval and a separate
+candidate with locked-path gate PASS.

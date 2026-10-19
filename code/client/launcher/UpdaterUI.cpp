@@ -146,12 +146,12 @@ auto theme_TitleFg = 0xABABAB;
 auto theme_SubtitleFg = 0xABABAB;
 auto theme_ProgressBg = 0x090A09;
 #if defined(GTA_FIVE)
-auto theme_ProgressFg = 0x2F7BFF;
+auto theme_ProgressFg = 0x66AD43;
 auto theme_Icon = LR"(
 <Viewbox Height="150" Margin="0,0,0,60" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 	<Path
-		Data="M24 190V10H62L138 122V10H170V190H132L56 78V190H24Z" Stretch="Fill"
-		Fill="#2F7BFF"
+		Data="M37.97 86.09L108.57 15.84L113.3 30.07L28.37 114.9L37.97 86.09ZM106.1 8.42L103.3 0H71.84C68.74 0 66 1.97 65.03 4.91L42.9 71.31L106.1 8.42ZM18.48 144.56L0 200H40.41L73.07 90.04L18.48 144.56ZM118.25 44.92L91.49 71.65L129.41 200H169.85L118.25 44.92Z" Stretch="Fill"
+		Fill="#66AD43"
 	>
 	</Path>
 </Viewbox>

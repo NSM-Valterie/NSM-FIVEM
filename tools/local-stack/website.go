@@ -379,6 +379,18 @@ func serveClientDownload(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.7.8-candidate/NSM.exe", http.StatusFound)
 }
 
+func serveServerDownload(w http.ResponseWriter, r *http.Request) {
+	for _, candidate := range []string{"NSM-Server.zip", "downloads/NSM-Server.zip", "site/static/NSM-Server.zip"} {
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			w.Header().Set("Content-Type", "application/zip")
+			w.Header().Set("Content-Disposition", `attachment; filename="NSM-Server.zip"`)
+			http.ServeFile(w, r, candidate)
+			return
+		}
+	}
+	http.Redirect(w, r, "https://github.com/platinum-cfx/NSM-FIVEM/releases/download/nsm-v0.7.8-candidate/NSM-Server.zip", http.StatusFound)
+}
+
 func apiServersLive(w http.ResponseWriter, r *http.Request) {
 	srvs := liveServers()
 	w.Header().Set("Content-Type", "application/json")
@@ -457,6 +469,8 @@ func buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /portal", keymasterPage)
 	mux.HandleFunc("GET /download", serveClientDownload)
 	mux.HandleFunc("GET /NSM.exe", serveClientDownload)
+	mux.HandleFunc("GET /download-server", serveServerDownload)
+	mux.HandleFunc("GET /NSM-Server.zip", serveServerDownload)
 
 	// Forum (full Discourse-style forum at /forum + /f/ compatibility)
 	mux.HandleFunc("GET /forum", forumPage)

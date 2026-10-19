@@ -1,99 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - AFX Portal</title>
-  <link rel="icon" type="image/png" href="/img/afx-icon.png">
-  <link rel="stylesheet" href="/css/style.css?v=078m">
-</head>
-<body class="afx-portal-auth-body">
-  <div class="afx-portal-topbar">
-    <a href="/" class="afx-portal-brand">
-      <img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px">
-      <span>AFX <strong>Portal</strong></span>
-    </a>
-    <div class="afx-portal-top-links">
-      <a href="/servers">Server List</a>
-      <a href="/forum">AFX Forum</a>
-      <a href="/marketplace">Marketplace</a>
-      <a href="/docs">Documentation</a>
-      <a href="/support">AFX Support</a>
+{{template "head" .}}
+<section class="features">
+  <div class="container"><div class="spacer">
+    <div class="form-card">
+      <h1 style="margin-bottom:20px">Log in</h1>
+      <form method="POST" action="/login">
+        <div class="form-row"><label>Username</label><input type="text" name="username" required></div>
+        <div class="form-row"><label>Password</label><input type="password" name="password" required></div>
+        <button class="btn btn-accent" style="width:100%">LOG IN</button>
+      </form>
+      <p class="muted mt center">No account? <a href="/register">Register</a></p>
     </div>
-  </div>
-
-  <main class="afx-portal-auth-main">
-    <div class="afx-portal-auth-card">
-      <div class="afx-portal-auth-logo">
-        <img src="/img/afx-icon.png" alt="AFX" style="width:44px;height:44px;border-radius:10px">
-        <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:36px;width:auto">
-      </div>
-
-      {{if .Require2FA}}
-        <h1>Two-Step Verification</h1>
-        <p class="muted" style="margin:0 0 20px;font-size:0.9rem;line-height:1.5">
-          Enter the 6-digit security code for <strong>@{{.PrefillUser}}</strong> to complete sign-in.
-        </p>
-
-        {{if .Error}}<div class="alert alert-err" style="margin-bottom:16px">{{.Error}}</div>{{end}}
-
-        <form method="post" action="/login" class="form">
-          <input type="hidden" name="username" value="{{.PrefillUser}}">
-          <input type="hidden" name="password" value="{{.PendingPassword}}">
-          <input type="hidden" name="next" value="{{.Next}}">
-          <label>6-Digit Security Code (2FA)
-            <input type="text" name="totp_code" class="inp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000" style="font-size:1.35rem;letter-spacing:0.32em;text-align:center;font-weight:700">
-          </label>
-          <button type="submit" class="btn btn-primary btn-block" style="padding:12px 18px;font-size:0.95rem">Verify &amp; Sign In</button>
-        </form>
-
-        <div class="afx-portal-auth-links">
-          <a href="/login">Back to Sign In</a>
-        </div>
-      {{else}}
-        <h1>Sign in to AFX Portal</h1>
-        <p class="muted" style="margin:0 0 20px;font-size:0.9rem;line-height:1.5">
-          Manage your NSM server registration keys, granted assets, community forum profile, and <code>NSM.exe</code> desktop client authentication.
-        </p>
-
-        {{if .Error}}<div class="alert alert-err" style="margin-bottom:16px">{{.Error}}</div>{{end}}
-
-        <form method="post" action="/login" class="form">
-          <input type="hidden" name="next" value="{{.Next}}">
-          <label>AFX Username or Email
-            <input type="text" name="username" class="inp" value="{{.PrefillUser}}" placeholder="e.g. nta~ or nta@owner.local" required autofocus>
-          </label>
-          <label>Password
-            <input type="password" name="password" class="inp" placeholder="Enter your password" required>
-          </label>
-          <button type="submit" class="btn btn-primary btn-block" style="padding:12px 18px;font-size:0.95rem">Continue to AFX Portal</button>
-        </form>
-
-        <div class="afx-portal-auth-links">
-          <span>Don't have an AFX account? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create Account</a></span>
-          <span>&bull;</span>
-          <a href="/user-api-key/new">Link NSM.exe App</a>
-        </div>
-
-        {{if .ShowOwnerSetup}}
-        <div class="owner-claim-box" style="margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.1)">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <strong style="font-size:0.86rem;color:#fff">One-Time Founder Setup (<code style="color:#00f8b9">nta~</code>)</strong>
-            <span class="role role-owner">owner</span>
-          </div>
-          <p class="muted" style="font-size:0.78rem;margin:0 0 10px;line-height:1.45">
-            Local stack owner on <code>127.0.0.1</code>: choose the password for your <strong>nta~</strong> founder account below. Once set, this setup popup will not appear again.
-          </p>
-          <form method="post" action="/account/claim-owner" class="form" style="gap:8px">
-            <input type="hidden" name="next" value="{{if .Next}}{{.Next}}{{else}}/keymaster{{end}}">
-            <input type="password" name="password" class="inp" required minlength="6" placeholder="Choose nta~ password (6+ characters)">
-            <button type="submit" class="btn btn-ghost btn-block btn-sm">Set nta~ Password &amp; Sign In</button>
-          </form>
-        </div>
-        {{end}}
-      {{end}}
-    </div>
-  </main>
-  <script src="/js/main.js?v=078m"></script>
-</body>
-</html>
+  </div></div>
+</section>
+{{template "foot" .}}

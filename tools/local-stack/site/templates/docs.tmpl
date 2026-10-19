@@ -100,8 +100,9 @@
       <section id="server-setup" class="afx-docs-section">
         <h2>Setting Up an NSM Dedicated Server</h2>
         <p style="color:rgba(240,244,248,0.8);line-height:1.65" id="keymaster-guide">
-          1. Open <a href="/keymaster" style="color:#00f8b9">AFX Portal (/keymaster)</a> and generate a Server Registration Key (<code>nsm_srv_...</code>).<br>
-          2. Add the key to your <code>server-local.cfg</code> or <code>server.cfg</code>:
+          1. Download the ready-to-run <a href="/download-server" data-no-spa="1" style="color:#00f8b9;font-weight:600"><code>NSM-Server.zip</code></a> artifact (includes <code>nsm-server.exe</code>, standard resources, <code>server.cfg</code>, and <code>START-SERVER.bat</code>).<br>
+          2. Open <a href="/keymaster" style="color:#00f8b9">AFX Portal (/keymaster)</a> and generate a Server Registration Key (<code>nsm_srv_...</code>).<br>
+          3. Paste the key into your <code>server.cfg</code> and run <code>START-SERVER.bat</code> (or <code>nsm-server.exe +exec server.cfg</code>):
         </p>
         <pre id="server-cfg" class="afx-code-block"><code>endpoint_add_tcp "0.0.0.0:30120"
 endpoint_add_udp "0.0.0.0:30120"

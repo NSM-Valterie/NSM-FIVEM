@@ -1,152 +1,33 @@
 {{template "head" .}}
-
-<section class="wrap section">
-  {{if .User}}
-  <div class="sec-head">
-    <div>
-      <h1>Account &amp; Custom Profile</h1>
-      <p class="muted">Customize how your profile, avatar, and badge appear across the website, forum, and inside the NSM client</p>
-    </div>
-    <div style="display:flex;gap:8px">
-      <a href="/u/{{.User.Username}}" class="btn btn-ghost btn-sm">View Public Profile (/u/{{.User.Username}})</a>
-      <form method="post" action="/account/connect-client" style="display:inline">
-        <button type="submit" class="btn btn-primary btn-sm">Sync Login to NSM App</button>
-      </form>
-    </div>
-  </div>
-
-  {{if .Msg}}<div class="alert alert-ok" style="margin-bottom:18px">{{.Msg}}</div>{{end}}
-  {{if .Error}}<div class="alert alert-err" style="margin-bottom:18px">{{.Error}}</div>{{end}}
-
-  <!-- Live Profile Banner Preview -->
-  <div class="profile-hero-card" style="--banner-color:{{.User.EffectiveBannerColor}};{{if .User.BannerURL}}background-image:linear-gradient(180deg,rgba(11,13,18,.35),rgba(11,13,18,.92)),url('{{.User.BannerURL}}');background-size:cover;background-position:center;{{end}}">
-    <div class="profile-hero-inner">
-      <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="profile-big-avatar">
-      <div class="profile-hero-meta">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <h2 style="margin:0;font-size:24px">{{.User.EffectiveDisplayName}}</h2>
-          <span class="muted">@{{.User.Username}}</span>
-          <span class="role role-{{.User.Role}}">{{.User.Role}}</span>
-        </div>
-        <div class="profile-title-badge">{{.User.EffectiveTitle}}</div>
-        {{if .User.Bio}}<p style="margin-top:8px;max-width:680px">{{.User.Bio}}</p>{{end}}
-        <div class="profile-quick-facts">
-          {{if .User.Location}}<span>&#128205; {{.User.Location}}</span>{{end}}
-          {{if .User.DiscordTag}}<span>&#127918; Discord: {{.User.DiscordTag}}</span>{{end}}
-          {{if .User.FavoriteServer}}<span>&#9889; Server: {{.User.FavoriteServer}}</span>{{end}}
-          {{if .User.Website}}<a href="{{.User.Website}}" target="_blank" rel="noopener">&#128279; {{.User.Website}}</a>{{end}}
-        </div>
+<section class="features">
+  <div class="container"><div class="spacer">
+    {{if .User}}
+    <h1>My account</h1>
+    <div class="fx">
+      <div class="c-lg-6 c-xs-12">
+        <table class="stat-table">
+          <tr><td><span class="stat">Username</span></td><td>{{.User.Username}}</td></tr>
+          <tr><td><span class="stat">Role</span></td><td>{{.User.Role}}</td></tr>
+          <tr><td><span class="stat">Email</span></td><td>{{.User.Email}}</td></tr>
+        </table>
+        {{if eq .User.Role "owner"}}<p class="muted mt">You are the NSM owner. <a href="/admin/users">Manage staff</a></p>{{end}}
       </div>
-    </div>
-  </div>
-
-  <div class="detail-cols" style="margin-top:22px">
-    <!-- Left Column: Profile & Avatar Customization -->
-    <div class="detail-box">
-      <h3>Customize Profile &amp; Avatar</h3>
-      <form method="post" action="/account/profile" enctype="multipart/form-data" class="form" style="margin-top:12px">
-        <label>Display Name
-          <input type="text" name="display_name" value="{{.User.EffectiveDisplayName}}" class="inp" maxlength="48" placeholder="Your display name">
-        </label>
-        <label>Custom Title / Badge Subtitle
-          <input type="text" name="title" value="{{.User.Title}}" class="inp" maxlength="64" placeholder="e.g. Server Developer, Roleplay Veteran, Community Creator">
-        </label>
-        <label>Bio / About Me
-          <textarea name="bio" class="inp" rows="4" maxlength="600" placeholder="Tell the NSM community about yourself, your servers, or your resources...">{{.User.Bio}}</textarea>
-        </label>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Upload Custom Avatar Image (PNG/JPG/GIF)
-            <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/gif,image/webp" class="inp">
-          </label>
-          <label>Or External Avatar Image URL
-            <input type="url" name="avatar_url" value="{{.User.AvatarURL}}" class="inp" placeholder="https://example.com/avatar.png">
-          </label>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-          <label>Generated Avatar Color
-            <input type="color" name="avatar_color" value="{{.User.EffectiveAvatarColor}}" class="inp" style="height:42px;padding:4px">
-          </label>
-          <label>Profile Banner Color
-            <input type="color" name="banner_color" value="{{.User.EffectiveBannerColor}}" class="inp" style="height:42px;padding:4px">
-          </label>
-          <label>Banner Image URL (optional)
-            <input type="url" name="banner_url" value="{{.User.BannerURL}}" class="inp" placeholder="https://...">
-          </label>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Location
-            <input type="text" name="location" value="{{.User.Location}}" class="inp" maxlength="64" placeholder="e.g. Miami, FL">
-          </label>
-          <label>Discord Username / Tag
-            <input type="text" name="discord_tag" value="{{.User.DiscordTag}}" class="inp" maxlength="64" placeholder="e.g. cravenz">
-          </label>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Website / GitHub URL
-            <input type="url" name="website" value="{{.User.Website}}" class="inp" maxlength="160" placeholder="https://...">
-          </label>
-          <label>Favorite Server
-            <input type="text" name="favorite_server" value="{{.User.FavoriteServer}}" class="inp" maxlength="80" placeholder="e.g. NSM Local Test Server">
-          </label>
-        </div>
-
-        {{if or .User.AvatarData .User.AvatarURL}}
-        <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" name="clear_avatar" value="1">
-          <span>Reset custom avatar back to generated NSM monogram avatar</span>
-        </label>
-        {{end}}
-
-        <button class="btn btn-primary" type="submit">Save Profile Changes</button>
-      </form>
-    </div>
-
-    <!-- Right Column: NSM Client Link, Keymaster Shortcut, & Security -->
-    <div style="display:flex;flex-direction:column;gap:18px">
-      <div class="detail-box">
-        <h3>NSM Desktop Client Sign-In</h3>
-        <p class="muted" style="margin:8px 0 14px">
-          Clicking <strong>Sign In / Link Account</strong> inside the NSM app opens this website instead of Discord. You can also push your active login directly to a waiting NSM client below:
-        </p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <form method="post" action="/account/connect-client">
-            <button type="submit" class="btn btn-primary">Authorize Waiting NSM Client</button>
+      <div class="c-lg-6 c-xs-12">
+        <div class="form-card">
+          <h1 style="margin-bottom:20px">Change password</h1>
+          {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+          {{if .Msg}}<p class="lead">{{.Msg}}</p>{{end}}
+          <form method="POST" action="/account/password">
+            <div class="form-row"><label>Current password</label><input type="password" name="old" required></div>
+            <div class="form-row"><label>New password</label><input type="password" name="new" minlength="6" required></div>
+            <button class="btn btn-accent" style="width:100%">UPDATE</button>
           </form>
-          <a href="/user-api-key/new" class="btn btn-ghost">Open Client Auth Page</a>
-          <a href="/keymaster" class="btn btn-ghost">Manage Server Keys</a>
         </div>
       </div>
-
-      <div class="detail-box">
-        <h3>Account Details &amp; Security</h3>
-        <dl class="kv" style="margin:10px 0 16px">
-          <dt>Account ID</dt><dd>#{{.User.ID}}</dd>
-          <dt>Username</dt><dd>@{{.User.Username}}</dd>
-          <dt>Role</dt><dd><span class="role role-{{.User.Role}}">{{.User.Role}}</span></dd>
-          <dt>Email</dt><dd>{{if .User.Email}}{{.User.Email}}{{else}}<span class="muted">not set</span>{{end}}</dd>
-        </dl>
-        <h4 style="margin-bottom:8px">Change Password</h4>
-        <form method="post" action="/account/password" class="form">
-          <label>Current Password
-            <input type="password" name="old" class="inp" required>
-          </label>
-          <label>New Password (6+ characters)
-            <input type="password" name="new" class="inp" required minlength="6">
-          </label>
-          <button class="btn btn-ghost" type="submit">Update Password</button>
-        </form>
-      </div>
     </div>
-  </div>
-  {{else}}
-  <div class="empty">
-    <p>You are not logged in. <a href="/login">Sign in</a> or <a href="/register">create an account</a>.</p>
-  </div>
-  {{end}}
+    {{else}}
+    <p class="lead">You are not logged in. <a href="/login">Log in</a> or <a href="/register">register</a>.</p>
+    {{end}}
+  </div></div>
 </section>
-
 {{template "foot" .}}

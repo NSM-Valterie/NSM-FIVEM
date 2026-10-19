@@ -14,7 +14,7 @@
 #include <UrlConfirmationExport.h>
 
 #if defined(GTA_FIVE)
-#define PRODUCT_NAME "NSM"
+#define PRODUCT_NAME "FiveM"
 #elif defined(IS_RDR3)
 #define PRODUCT_NAME "RedM"
 #endif
