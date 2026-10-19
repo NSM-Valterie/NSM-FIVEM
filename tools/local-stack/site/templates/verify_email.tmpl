@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email - AFX Portal</title>
+  <link rel="icon" type="image/png" href="/img/afx-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
+</head>
+<body class="afx-portal-auth-body">
+  <div class="afx-portal-topbar">
+    <a href="/" class="afx-portal-brand">
+      <img src="/img/afx-icon.png" alt="AFX" style="width:28px;height:28px;border-radius:6px">
+      <span>AFX <strong>Portal</strong></span>
+    </a>
+    <div class="afx-portal-top-links">
+      <a href="/servers">Server List</a>
+      <a href="/forum">AFX Forum</a>
+      <a href="/marketplace">Marketplace</a>
+      <a href="/docs">Documentation</a>
+      <a href="/support">AFX Support</a>
+      {{if .User}}
+      <a href="/u/{{.User.Username}}">@{{.User.Username}}</a>
+      {{end}}
+    </div>
+  </div>
+
+  <main class="afx-portal-auth-main">
+    <div class="afx-portal-auth-card" style="max-width:500px">
+      <div class="afx-portal-auth-logo">
+        <img src="/img/afx-icon.png" alt="AFX" style="width:44px;height:44px;border-radius:10px">
+        <img src="/img/nsm-afx-logo.png" alt="NSM Community" style="height:36px;width:auto">
+      </div>
+
+      {{if .Msg}}<div class="alert alert-ok" style="margin-bottom:16px">{{.Msg}}</div>{{end}}
+      {{if .Error}}<div class="alert alert-err" style="margin-bottom:16px">{{.Error}}</div>{{end}}
+
+      {{if .User.EmailVerified}}
+        <h1>Email Verified</h1>
+        <p class="muted" style="margin:0 0 20px;font-size:0.9rem;line-height:1.5">
+          Your email address <strong>{{.User.Email}}</strong> is verified and active on <strong>@{{.User.Username}}</strong>.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a class="btn btn-primary btn-block" href="{{if .Next}}{{.Next}}{{else}}/u/{{.User.Username}}{{end}}">Continue to Your Profile</a>
+        </div>
+      {{else}}
+        <h1>Verify Your Email Address</h1>
+        <p class="muted" style="margin:0 0 16px;font-size:0.9rem;line-height:1.5">
+          We issued a 6-digit verification code for <strong>{{.User.Email}}</strong> on account <strong>@{{.User.Username}}</strong>. Enter your 6-digit code below to verify your email.
+        </p>
+
+        {{if .User.EmailVerifyCode}}
+        <div style="margin-bottom:16px;padding:12px 14px;border-radius:8px;background:rgba(47,123,255,0.14);border:1px solid rgba(47,123,255,0.4);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5eead4">Verification Dispatch ({{.User.Email}})</div>
+            <div class="muted" style="font-size:0.8rem;margin-top:2px">Your 6-digit AFX Email Verification Code:</div>
+          </div>
+          <code style="font-size:1.3rem;font-weight:800;letter-spacing:0.22em;padding:5px 12px;border-radius:6px;background:rgba(15,23,42,0.92);color:#fff;border:1px solid rgba(94,234,212,0.5)">{{.User.EmailVerifyCode}}</code>
+        </div>
+        {{end}}
+
+        <form method="post" action="/account/verify-email" class="form">
+          <input type="hidden" name="next" value="{{.Next}}">
+          <label>6-Digit Verification Code
+            <input type="text" name="code" class="inp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus value="{{.User.EmailVerifyCode}}" placeholder="000000" style="font-size:1.35rem;letter-spacing:0.32em;text-align:center;font-weight:800">
+          </label>
+          <button type="submit" class="btn btn-primary btn-block" style="padding:12px 18px;font-size:0.95rem">Verify Email Address</button>
+        </form>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1)">
+          <form method="post" action="/account/verify-email/resend" class="form" style="gap:8px">
+            <input type="hidden" name="next" value="{{.Next}}">
+            <label>Need a new code or want to update your email?
+              <input type="email" name="email" class="inp" value="{{.User.Email}}" placeholder="you@example.com">
+            </label>
+            <button type="submit" class="btn btn-ghost btn-block btn-sm">Resend Verification Code</button>
+          </form>
+        </div>
+
+        <div class="afx-portal-auth-links" style="margin-top:14px">
+          <a href="{{if .Next}}{{.Next}}{{else}}/u/{{.User.Username}}{{end}}">Skip for now &amp; continue to NSM &rarr;</a>
+        </div>
+      {{end}}
+    </div>
+  </main>
+  <script src="/js/main.js?v=078m"></script>
+</body>
+</html>

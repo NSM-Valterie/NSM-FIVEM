@@ -364,7 +364,7 @@ void NetLibrary::ProcessOOB(const NetAddress& from, const char* oob, size_t leng
 #ifndef IS_RDR3
 				SetWindowText(CoreGetGameWindow(), va(
 #ifdef GTA_FIVE
-					L"FiveM® by Cfx.re"
+					L"NSM - Powered by AFX"
 #elif defined(IS_RDR3)
 					L"RedM® by Cfx.re"
 #endif
@@ -2124,6 +2124,7 @@ __declspec(dllexport) fwEvent<> NetLibrary::OnBuildMessage;
 NetLibrary* NetLibrary::Create()
 {
 	cfx::legitimacy::InitSteamSDKConnection();
+	cfx::legitimacy::SetSteamAppId(true);
 
 	auto lib = new NetLibrary();
 

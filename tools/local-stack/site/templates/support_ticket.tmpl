@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <link rel="icon" type="image/png" href="/img/afx-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
+</head>
+<body class="afx-hc-body">
+  <!-- Zendesk Help Center Header -->
+  <header class="afx-hc-header">
+    <div class="wrap afx-hc-hbar">
+      <a href="/support" class="afx-hc-brand">
+        <img src="/img/afx-icon.png" alt="AFX" style="width:30px;height:30px;border-radius:7px">
+        <img src="/img/nsm-icon.png" alt="NSM" style="width:26px;height:26px">
+        <span>AFX <strong>Support</strong></span>
+      </a>
+
+      <div class="afx-hc-nav">
+        <a href="/">NSM Home</a>
+        <a href="/servers">Server List</a>
+        <a href="/keymaster">AFX Portal</a>
+        <a href="/forum">Community Forum</a>
+        <a href="/support#my-requests">My Requests</a>
+        <a href="/support#submit-ticket" class="btn btn-ghost btn-sm">Submit a request</a>
+        {{if .User}}
+        <a href="/u/{{.User.Username}}" class="user-chip">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="nav-avatar">
+          <span>{{.User.EffectiveDisplayName}}</span>
+        </a>
+        {{else}}
+        <a href="/login?next=/support" class="btn btn-primary btn-sm">Sign in</a>
+        {{end}}
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding:32px 24px 64px">
+    <!-- Breadcrumbs -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:22px;font-size:0.86rem;color:#94a3b8">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <a href="/support" style="color:#60a5fa;text-decoration:none;font-weight:600">AFX Support Center</a>
+        <span>&rsaquo;</span>
+        <a href="/support#my-requests" style="color:#cbd5e1;text-decoration:none">My Requests</a>
+        <span>&rsaquo;</span>
+        <span style="color:#fff;font-weight:700">Request #{{.Ticket.ID}}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        {{if .IsStaff}}
+        <a class="btn btn-ghost btn-sm" href="/admin/users">Staff Panel Queue</a>
+        {{end}}
+        <a class="btn btn-ghost btn-sm" href="/support#submit-ticket">+ Submit Another Request</a>
+      </div>
+    </div>
+
+    {{if .Msg}}<div class="alert alert-ok" style="margin-bottom:18px">{{.Msg}}</div>{{end}}
+    {{if .Error}}<div class="alert alert-err" style="margin-bottom:18px">{{.Error}}</div>{{end}}
+
+    <!-- Two-Column Zendesk Request Layout -->
+    <div class="afx-hc-two-col" style="grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start">
+      <!-- Left Column: Subject, Conversation Thread & Reply Box -->
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="afx-portal-card" style="padding:24px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;padding:3px 10px;border-radius:6px;background:rgba(47,123,255,0.18);color:#60a5fa">
+              REQUEST #{{.Ticket.ID}}
+            </span>
+            <span class="zd-status-pill status-{{.Ticket.Status}}">{{.Ticket.Status}}</span>
+            <span class="muted" style="font-size:0.82rem">{{.Ticket.Category}}</span>
+          </div>
+          <h1 style="margin:0;font-size:1.55rem;font-weight:800;color:#fff;line-height:1.3">{{.Ticket.Subject}}</h1>
+        </div>
+
+        <!-- Messages Thread -->
+        {{range .Ticket.Messages}}
+        <div class="afx-portal-card" style="padding:22px;{{if .IsStaff}}border:1px solid rgba(56,189,248,0.45);background:linear-gradient(145deg,rgba(15,23,42,0.95),rgba(14,116,144,0.14)){{end}}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
+            <a href="/u/{{.AuthorUsername}}" style="display:inline-flex;align-items:center;gap:12px;text-decoration:none;color:#fff">
+              <img src="{{.AuthorAvatar}}" alt="{{.AuthorUsername}}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid {{if .IsStaff}}#38bdf8{{else}}#2F7BFF{{end}}">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <strong style="font-size:0.98rem">{{.AuthorDisplay}}</strong>
+                  <span class="muted" style="font-size:0.84rem">@{{.AuthorUsername}}</span>
+                  {{if .IsStaff}}
+                  <span style="padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.2);border:1px solid rgba(56,189,248,0.5);color:#7dd3fc;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em">
+                    {{.RoleLabel}}
+                  </span>
+                  {{else}}
+                  <span style="padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.07);color:#cbd5e1;font-size:0.7rem;font-weight:600">
+                    Requester
+                  </span>
+                  {{end}}
+                </div>
+                <div class="muted" style="font-size:0.78rem;margin-top:2px">{{.CreatedStr}} ({{.RelativeStr}})</div>
+              </div>
+            </a>
+          </div>
+          <div style="font-size:0.95rem;line-height:1.65;color:#e2e8f0;white-space:pre-wrap">{{.Body}}</div>
+        </div>
+        {{end}}
+
+        <!-- Reply Form (Available to Requester & Staff/Admins/Owners) -->
+        <div class="afx-portal-card" style="padding:24px">
+          <h3 style="margin:0 0 6px;font-size:1.15rem;color:#fff">
+            {{if .IsStaff}}Post Official AFX Staff / Owner Reply{{else}}Add a Reply to Your Request{{end}}
+          </h3>
+          <p class="muted" style="margin:0 0 14px;font-size:0.86rem">
+            Replying as <strong>{{.User.EffectiveDisplayName}} (@{{.User.Username}})</strong>
+          </p>
+          <form method="post" action="/support/requests/{{.Ticket.ID}}/reply" class="form">
+            <textarea name="body" class="inp" rows="5" required placeholder="{{if .IsStaff}}Write an official staff response to help resolve this request...{{else}}Add additional information or reply to AFX Support...{{end}}"></textarea>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              {{if .IsStaff}}
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="muted" style="font-size:0.82rem;font-weight:600">Update Status:</span>
+                <select name="status" class="inp" style="width:170px;margin:0;padding:6px 10px">
+                  <option value="Answered" selected>Answered</option>
+                  <option value="Open">Open</option>
+                  <option value="Solved">Solved</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+              {{else}}
+              <div></div>
+              {{end}}
+              <button type="submit" class="btn btn-primary">
+                {{if .IsStaff}}Submit Official Staff Reply{{else}}Post Reply{{end}}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right Sidebar: Zendesk Request Details & Metadata -->
+      <aside class="afx-portal-card" style="padding:22px;position:sticky;top:24px">
+        <h3 style="margin:0 0 14px;font-size:0.85rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08)">
+          Request Details
+        </h3>
+
+        <dl style="margin:0;display:flex;flex-direction:column;gap:14px;font-size:0.88rem">
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Requester</dt>
+            <dd style="margin:0;font-weight:700;color:#fff">
+              <a href="/u/{{.Ticket.RequesterUsername}}" style="color:#60a5fa;text-decoration:none">{{.Ticket.RequesterDisplay}} (@{{.Ticket.RequesterUsername}})</a>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Requester Email</dt>
+            <dd style="margin:0;font-family:var(--mono);color:#e2e8f0;word-break:break-all">{{.Ticket.RequesterEmail}}</dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Ticket ID</dt>
+            <dd style="margin:0;font-family:var(--mono);font-weight:700;color:#fff">#{{.Ticket.ID}}</dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Status</dt>
+            <dd style="margin:0">
+              <span class="zd-status-pill status-{{.Ticket.Status}}">{{.Ticket.Status}}</span>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Category</dt>
+            <dd style="margin:0;color:#e2e8f0">{{.Ticket.Category}}</dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Priority</dt>
+            <dd style="margin:0;font-weight:700;color:{{if eq .Ticket.Priority "Urgent"}}#f87171{{else if eq .Ticket.Priority "High"}}#fbbf24{{else}}#e2e8f0{{end}}">{{.Ticket.Priority}}</dd>
+          </div>
+
+          {{if .Ticket.ServerEndpoint}}
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Server / Key</dt>
+            <dd style="margin:0;font-family:var(--mono);color:#5eead4">{{.Ticket.ServerEndpoint}}</dd>
+          </div>
+          {{end}}
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Created</dt>
+            <dd style="margin:0;color:#cbd5e1">{{.Ticket.CreatedStr}}</dd>
+          </div>
+
+          <div>
+            <dt class="muted" style="font-size:0.76rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">Last Activity</dt>
+            <dd style="margin:0;color:#cbd5e1">{{.Ticket.UpdatedStr}}</dd>
+          </div>
+        </dl>
+
+        {{if .IsStaff}}
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08)">
+          <div style="font-size:0.76rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#38bdf8;margin-bottom:8px">Staff Quick Status</div>
+          <form method="post" action="/support/requests/{{.Ticket.ID}}/status" style="display:flex;gap:8px">
+            <select name="status" class="inp" style="flex:1;margin:0;padding:6px 10px">
+              <option value="Open" {{if eq .Ticket.Status "Open"}}selected{{end}}>Open</option>
+              <option value="Answered" {{if eq .Ticket.Status "Answered"}}selected{{end}}>Answered</option>
+              <option value="Solved" {{if eq .Ticket.Status "Solved"}}selected{{end}}>Solved</option>
+              <option value="Closed" {{if eq .Ticket.Status "Closed"}}selected{{end}}>Closed</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </form>
+        </div>
+        {{end}}
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer" style="margin-top:0">
+    <div class="footer-bottom">
+      <span>&copy; {{.Year}} AFX Support &amp; NSM Platform.</span>
+      <div style="display:flex;gap:16px">
+        <a href="/" style="color:rgba(240,244,248,0.65)">NSM Home</a>
+        <a href="/servers" style="color:rgba(240,244,248,0.65)">Server List</a>
+        <a href="/keymaster" style="color:rgba(240,244,248,0.65)">AFX Portal</a>
+        <a href="/forum" style="color:rgba(240,244,248,0.65)">AFX Forum</a>
+      </div>
+    </div>
+  </footer>
+  <script src="/js/main.js?v=078m"></script>
+</body>
+</html>
