@@ -171,16 +171,86 @@ jobs:
                   + png_chunk(b"IEND", b"")
               )
 
+          def render_nsm_pixel(x: int, y: int, dim: int):
+              pad = max(1, dim // 12)
+              x0, x1 = int(dim * 0.22), int(dim * 0.78)
+              y0, y1 = int(dim * 0.18), int(dim * 0.82)
+              stroke = max(2, int(dim * 0.14))
+              if x < pad or x >= dim - pad or y < pad or y >= dim - pad:
+                  return (0, 0, 0, 0)
+              in_n = False
+              if y0 <= y < y1 and x0 <= x < x1:
+                  if x < x0 + stroke or x >= x1 - stroke:
+                      in_n = True
+                  else:
+                      t = (y - y0) / max(1, (y1 - y0 - 1))
+                      diag_x = x0 + t * (x1 - stroke - x0)
+                      if diag_x <= x < diag_x + stroke * 1.15:
+                          in_n = True
+              if in_n:
+                  return (0xFF, 0xFF, 0xFF, 0xFF) if (x + y) % 5 == 0 else (0x2F, 0x7B, 0xFF, 0xFF)
+              elif x < pad + max(1, dim // 16) or x >= dim - pad - max(1, dim // 16) or y < pad + max(1, dim // 16) or y >= dim - pad - max(1, dim // 16):
+                  return (0x1F, 0x57, 0xC3, 0xFF)
+              else:
+                  return (0x12, 0x17, 0x23, 0xFF)
+
+          def render_nsm_icon_dib(dim: int, target_size: int) -> bytes:
+              mask_row_bytes = ((dim + 31) // 32) * 4
+              xor_size = dim * dim * 4
+              and_size = dim * mask_row_bytes
+              header = struct.pack(
+                  "<IIIHHIIIIII",
+                  40,
+                  dim,
+                  dim * 2,
+                  1,
+                  32,
+                  0,
+                  xor_size + and_size,
+                  0,
+                  0,
+                  0,
+                  0,
+              )
+              xor_buf = bytearray()
+              and_buf = bytearray()
+              for y in range(dim - 1, -1, -1):
+                  mask_row = bytearray(mask_row_bytes)
+                  for x in range(dim):
+                      r, g, b, a = render_nsm_pixel(x, y, dim)
+                      xor_buf += bytes((b, g, r, a))
+                      if a == 0:
+                          mask_row[x // 8] |= (1 << (7 - (x % 8)))
+                  and_buf += mask_row
+              out = header + bytes(xor_buf) + bytes(and_buf)
+              assert len(out) == target_size, f"DIB size mismatch: {len(out)} != {target_size}"
+              return out
+
           old_backdrop = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/backdrop.png"])
           new_backdrop_padded = pad_png_to_exact_size(Path("code/client/launcher/backdrop.png").read_bytes(), len(old_backdrop))
-          old_ico = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/fivem.ico"])
           ico_replacements = []
-          for i in range(6):
-              w, h, colors, res, planes, bpp, size, offset = struct.unpack_from("<BBBBHHII", old_ico, 6 + i * 16)
-              dim = w or 256
-              old_entry = old_ico[offset:offset+size]
-              if old_entry[:8] == b"\x89PNG\r\n\x1a\n":
-                  ico_replacements.append((old_entry, pad_png_to_exact_size(render_nsm_icon_png(dim), size)))
+          seen_ico_entries = set()
+          for ico_git_path in (
+              "code/client/launcher/fivem.ico",
+              "code/client/launcher/snail.ico",
+              "code/client/diag/diagutil.ico",
+              "code/client/launcher/fivem_sdk.ico",
+              "code/client/launcher/fivem_sp.ico",
+          ):
+              old_ico = subprocess.check_output(["git", "show", f"1e5549c:{ico_git_path}"])
+              _, _, ico_count = struct.unpack_from("<HHH", old_ico, 0)
+              for i in range(ico_count):
+                  w, h, colors, res, planes, bpp, size, offset = struct.unpack_from("<BBBBHHII", old_ico, 6 + i * 16)
+                  dim = w or 256
+                  old_entry = old_ico[offset:offset+size]
+                  if old_entry in seen_ico_entries:
+                      continue
+                  if old_entry[:8] == b"\x89PNG\r\n\x1a\n":
+                      seen_ico_entries.add(old_entry)
+                      ico_replacements.append((old_entry, pad_png_to_exact_size(render_nsm_icon_png(dim), size)))
+                  elif bpp == 32:
+                      seen_ico_entries.add(old_entry)
+                      ico_replacements.append((old_entry, render_nsm_icon_dib(dim, size)))
 
           def patch_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
               data = bytearray(raw_bytes)
@@ -396,11 +466,19 @@ jobs:
                   data[:] = re.sub(re.escape(old_a), lambda _: new_a, data, flags=re.IGNORECASE)
 
               # Prevent NSM.exe from creating a secondary "NSM - ... (FxDK).lnk" shortcut on startup
+              # and switch SHGetSetFolderCustomSettings iIconIndex from -IDI_SNAIL (-201 / 0xffffff37) to -IDI_ICON1 (-1 / 0xffffffff)
               if filename.lower().endswith("nsm.exe"):
                   data[:] = data.replace(
                       "%s\\%s%s.lnk\x00".encode("utf-16le"),
                       "%s\x00%s%s.lnk\x00".encode("utf-16le"),
                   )
+                  ids_pos = data.find(b"\x41\xb8\x65\x00\x00\x00")
+                  if ids_pos != -1:
+                      win_start = max(0, ids_pos - 96)
+                      snail_off = data.find(b"\x37\xff\xff\xff", win_start, ids_pos + 32)
+                      if snail_off != -1:
+                          data[snail_off:snail_off+4] = b"\xff\xff\xff\xff"
+                          print(f"[pe-patch] {filename}: patched SHGetSetFolderCustomSettings iIconIndex -201 -> -1")
 
               # Exact same-length replacements (8==8, 11==11, 15==15) — zero offset or length changes:
               # a) citizen-*.dll -> AxiomFX-*.dll
@@ -693,6 +771,12 @@ jobs:
               nsm_exe_bytes = zcheck.read("NSM-Client/NSM.exe")
               assert "AFXCrashDump".encode("utf-16le") in nsm_exe_bytes
               assert "CfxCrashDump".encode("utf-16le") not in nsm_exe_bytes
+              snail_ico_raw = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/snail.ico"])
+              assert snail_ico_raw[86:86+8015] not in nsm_exe_bytes
+              if "NSM-Client/NSM_Diag.exe" in names:
+                  diag_bytes = zcheck.read("NSM-Client/NSM_Diag.exe")
+                  diag_ico_raw = subprocess.check_output(["git", "show", "1e5549c:code/client/diag/diagutil.ico"])
+                  assert diag_ico_raw[102:102+270376] not in diag_bytes
               assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
 
           # Verify the single-file NSM.exe AppData installer trailer and embedded zip

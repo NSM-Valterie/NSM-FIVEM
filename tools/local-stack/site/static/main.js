@@ -213,9 +213,9 @@
       var clients = r.getAttribute('data-clients') || '0';
       var maxClients = r.getAttribute('data-maxclients') || '48';
       var upv = r.getAttribute('data-upvotes') || '0';
-      html += '<div class="nsm-featured-card" data-featured-card="' + escapeHtml(ep) + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35)">'
+      html += '<div class="nsm-featured-card" data-featured-card="' + escapeHtml(ep) + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35);cursor:pointer">'
         + '<div style="min-width:0;flex:1">'
-        + '<a href="/servers/' + encodeURIComponent(ep) + '" style="color:#fff;font-weight:700;font-size:0.86rem;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + colorizeHostname(rawName) + '</a>'
+        + '<span style="color:#fff;font-weight:700;font-size:0.86rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + colorizeHostname(rawName) + '</span>'
         + '<div style="font-size:0.73rem;color:rgba(240,244,248,0.65);display:flex;gap:10px;margin-top:2px">'
         + '<span>' + escapeHtml(clients) + '/' + escapeHtml(maxClients) + ' players</span>'
         + '<span style="color:#00f8b9">&#9889; <span data-upvote-count="' + escapeHtml(ep) + '">' + escapeHtml(upv) + '</span></span>'
@@ -1123,6 +1123,15 @@
       if (favBtn) {
         e.stopPropagation();
         toggleFavorite(favBtn.getAttribute('data-fav-ep'));
+        return;
+      }
+
+      // Featured Server card click -> select in Inspector
+      var featCard = target.closest('.nsm-featured-card');
+      if (featCard && !target.closest('a') && !target.closest('button')) {
+        var fEp = featCard.getAttribute('data-featured-card');
+        var fRow = fEp ? document.querySelector('.nsm-server-row[data-ep="' + fEp + '"]') : null;
+        if (fRow) updateInspectorFromRow(fRow);
         return;
       }
 

@@ -57,7 +57,9 @@ var (
 	procCreateFontW             = gdi32.NewProc("CreateFontW")
 	procSelectObject            = gdi32.NewProc("SelectObject")
 	procGetModuleHandleW        = kernel32.NewProc("GetModuleHandleW")
+	procSetFileAttributesW      = kernel32.NewProc("SetFileAttributesW")
 	procSHGetSpecialFolderPathW = shell32.NewProc("SHGetSpecialFolderPathW")
+	procSHChangeNotify          = shell32.NewProc("SHChangeNotify")
 	procCoInitializeEx          = ole32.NewProc("CoInitializeEx")
 	procCoUninitialize          = ole32.NewProc("CoUninitialize")
 	procCoCreateInstance        = ole32.NewProc("CoCreateInstance")
@@ -313,6 +315,21 @@ func ensureShortcuts(appExe, appDir string) {
 	}
 	if programs := specialFolderPath(CSIDL_PROGRAMS); programs != "" {
 		createShortcut(filepath.Join(programs, "NSM.lnk"), appExe, appDir, "NSM - Powered by AFX")
+	}
+	if appDir != "" && appExe != "" {
+		desktopIni := filepath.Join(appDir, "desktop.ini")
+		if iniU16, err := syscall.UTF16PtrFromString(desktopIni); err == nil {
+			procSetFileAttributesW.Call(uintptr(unsafe.Pointer(iniU16)), 0x80) // FILE_ATTRIBUTE_NORMAL
+		}
+		iniContent := fmt.Sprintf("[.ShellClassInfo]\r\nIconResource=%s,0\r\nIconFile=%s\r\nIconIndex=0\r\nLocalizedResourceName=@%s,-101\r\n", appExe, appExe, appExe)
+		_ = os.WriteFile(desktopIni, []byte(iniContent), 0o644)
+		if iniU16, err := syscall.UTF16PtrFromString(desktopIni); err == nil {
+			procSetFileAttributesW.Call(uintptr(unsafe.Pointer(iniU16)), 0x02|0x04) // FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM
+		}
+		if dirU16, err := syscall.UTF16PtrFromString(appDir); err == nil {
+			procSetFileAttributesW.Call(uintptr(unsafe.Pointer(dirU16)), 0x01) // FILE_ATTRIBUTE_READONLY (enables desktop.ini icon in Explorer)
+		}
+		procSHChangeNotify.Call(0x08000000, 0x0000, 0, 0) // SHCNE_ASSOCCHANGED
 	}
 }
 

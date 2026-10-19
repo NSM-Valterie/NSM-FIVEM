@@ -227,7 +227,7 @@
             {{end}}
           </div>
 
-          <!-- Actions (show-on-hover): Connect + Details + Owner Feature -->
+          <!-- Actions (show-on-hover): Connect + Owner Feature -->
           <div class="nsm-srv-actions show-on-hover" onclick="event.stopPropagation()">
             <button type="button" class="nsm-connect-btn" data-connect-ep="{{.EndPoint}}">
               <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -238,7 +238,6 @@
               &#9733; {{if .Featured}}Featured{{else}}Feature{{end}}
             </button>
             {{end}}
-            <a href="/servers/{{.EndPoint}}" class="nsm-details-btn">Details</a>
           </div>
 
           <!-- Country Flag + Power (Upvote/Burst) -->
@@ -290,9 +289,9 @@
         <div id="nsm-featured-servers-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
           {{if .FeaturedServers}}
             {{range .FeaturedServers}}
-            <div class="nsm-featured-card" data-featured-card="{{.EndPoint}}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35)">
+            <div class="nsm-featured-card" data-featured-card="{{.EndPoint}}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.35);cursor:pointer">
               <div style="min-width:0;flex:1">
-                <a href="/servers/{{.EndPoint}}" style="color:#fff;font-weight:700;font-size:0.86rem;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-colorize="{{.Hostname}}">{{.CleanName}}</a>
+                <span style="color:#fff;font-weight:700;font-size:0.86rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-colorize="{{.Hostname}}">{{.CleanName}}</span>
                 <div style="font-size:0.73rem;color:rgba(240,244,248,0.65);display:flex;gap:10px;margin-top:2px">
                   <span>{{.Clients}}/{{.MaxClients}} players</span>
                   <span style="color:#00f8b9">&#9889; <span data-upvote-count="{{.EndPoint}}">{{.Upvotes}}</span></span>
@@ -338,9 +337,6 @@
               <span id="nsm-insp-feature-label">&#9733; Feature</span>
             </button>
             {{end}}
-            <a href="/servers" class="nsm-ctrl-btn" id="nsm-insp-fullpage" title="Open Full Server Page">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
           </div>
 
           <div class="mp-insp-stats-grid">
