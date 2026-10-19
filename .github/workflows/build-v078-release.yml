@@ -311,6 +311,119 @@ jobs:
               if replaced_urls:
                   print(f"[pe-patch] {filename}: restored/repointed {replaced_urls} http://127.0.0.1/<route> URLs")
 
+              # 4. Rename citizen/ folder, citizen-*.dll, CitizenGame.dll, CitiLaunch_TLSDummy.dll,
+              #    cfx_curl_x86_64.dll, CitizenFX.ini, and CitizenFX_log / CitizenFX.log -> AxiomFX / afx
+              pe_sections = []
+              if data[:2] == b"MZ":
+                  try:
+                      pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                      if pe_off + 24 < len(data) and data[pe_off:pe_off+4] == b"PE\x00\x00":
+                          num_sec = struct.unpack_from("<H", data, pe_off + 6)[0]
+                          opt_size = struct.unpack_from("<H", data, pe_off + 20)[0]
+                          sec_table = pe_off + 24 + opt_size
+                          for i in range(num_sec):
+                              s_off = sec_table + i * 40
+                              s_name = data[s_off:s_off+8].rstrip(b"\x00").decode("ascii", errors="ignore")
+                              vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, s_off + 8)
+                              pe_sections.append((s_name, vsize, rva, raw_size, raw_ptr))
+                  except Exception:
+                      pe_sections = []
+
+              def patch_utf16_with_len(old_s, new_s):
+                  assert len(new_s) <= len(old_s)
+                  old_b = old_s.encode("utf-16le") + b"\x00\x00"
+                  new_b = new_s.encode("utf-16le") + b"\x00\x00" * (len(old_s) - len(new_s) + 1)
+                  old_len = len(old_s)
+                  new_len = len(new_s)
+                  old_imm = struct.pack("<I", old_len)
+                  new_imm = struct.pack("<I", new_len)
+                  p_idx = 0
+                  while True:
+                      idx = data.find(old_b, p_idx)
+                      if idx < 0:
+                          break
+                      if pe_sections and old_len != new_len:
+                          target_rva = None
+                          for _, _, rva, raw_size, raw_ptr in pe_sections:
+                              if raw_ptr <= idx < raw_ptr + raw_size:
+                                  target_rva = rva + (idx - raw_ptr)
+                                  break
+                          if target_rva is not None:
+                              for s_name, _, t_rva, t_raw_size, t_raw_ptr in pe_sections:
+                                  if s_name == ".text":
+                                      for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
+                                          if data[p] in (0x48, 0x4C) and data[p+1] == 0x8D and (data[p+2] & 0xC7) == 0x05:
+                                              disp = struct.unpack_from("<i", data, p + 3)[0]
+                                              if (t_rva + (p - t_raw_ptr) + 7 + disp) == target_rva:
+                                                  w_start = max(t_raw_ptr, p - 28)
+                                                  w_end = min(t_raw_ptr + t_raw_size - 4, p + 36)
+                                                  for q in range(w_start, w_end):
+                                                      if data[q:q+4] == old_imm:
+                                                          is_mov_reg = (q >= 1 and 0xB8 <= data[q-1] <= 0xBF)
+                                                          is_mov_mem = (
+                                                              (q >= 3 and data[q-3] == 0xC7 and (data[q-2] & 0x38) == 0x00) or
+                                                              (q >= 4 and data[q-4] == 0xC7 and (data[q-3] & 0x38) == 0x00) or
+                                                              (q >= 6 and data[q-6] == 0xC7 and (data[q-5] & 0x38) == 0x00) or
+                                                              (q >= 7 and data[q-7] == 0xC7 and (data[q-6] & 0x38) == 0x00)
+                                                          )
+                                                          if is_mov_reg or is_mov_mem:
+                                                              data[q:q+4] = new_imm
+                      data[idx:idx+len(old_b)] = new_b
+                      p_idx = idx + len(new_b)
+
+              # Shorter-length UTF-16LE strings (with .text LEA length immediate patching) + ASCII equivalents
+              for old_s, new_s in (
+                  ("CitiLaunch_TLSDummy.dll", "AxiomFX_TLSDummy.dll"),
+                  ("CitizenFX.ini", "AxiomFX.ini"),
+                  ("logs/CitizenFX_log_%s.log", "logs/AxiomFX_log_%s.log"),
+                  ("CitizenFX_log_%04d-%02d-%02dT%02d%02d%02d.log", "AxiomFX_log_%04d-%02d-%02dT%02d%02d%02d.log"),
+                  ("CitizenFX.log%s", "AxiomFX.log%s"),
+                  ("CitizenFX.log", "AxiomFX.log"),
+              ):
+                  patch_utf16_with_len(old_s, new_s)
+                  old_a = old_s.encode("ascii") + b"\x00"
+                  new_a = (new_s.encode("ascii") + b"\x00").ljust(len(old_a), b"\x00")
+                  data[:] = re.sub(re.escape(old_a), lambda _: new_a, data, flags=re.IGNORECASE)
+
+              # Exact same-length replacements (8==8, 11==11, 15==15) — zero offset or length changes:
+              # a) citizen-*.dll -> AxiomFX-*.dll
+              data[:] = re.sub(b"(?i)citizen-", b"AxiomFX-", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00-\x00",
+                  "AxiomFX-".encode("utf-16le"),
+                  data,
+              )
+              # b) citizen:<component> -> AxiomFX:<component> (preserves citizen:/ VFS scheme!)
+              data[:] = re.sub(b"citizen:(?=[A-Za-z])", b"AxiomFX:", data)
+              data[:] = re.sub(
+                  b"c\x00i\x00t\x00i\x00z\x00e\x00n\x00:\x00(?=[A-Za-z]\x00)",
+                  "AxiomFX:".encode("utf-16le"),
+                  data,
+              )
+              # c) citizen/ and citizen\ disk folder -> AxiomFX/ and AxiomFX\
+              data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen/", b"AxiomFX/", data)
+              data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen\\\\", b"AxiomFX\\\\", data)
+              data[:] = data.replace("citizen/".encode("utf-16le"), "AxiomFX/".encode("utf-16le"))
+              data[:] = data.replace("citizen\\".encode("utf-16le"), "AxiomFX\\".encode("utf-16le"))
+              data[:] = data.replace(
+                  b"\x00\x00" + "citizen".encode("utf-16le") + b"\x00\x00",
+                  b"\x00\x00" + "AxiomFX".encode("utf-16le") + b"\x00\x00",
+              )
+              # d) CitizenGame.dll -> AxiomFXGame.dll
+              data[:] = re.sub(b"(?i)citizengame", b"AxiomFXGame", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00g\x00a\x00m\x00e\x00",
+                  "AxiomFXGame".encode("utf-16le"),
+                  data,
+              )
+              # e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll
+              data[:] = re.sub(b"(?i)cfx_curl_x86_64", b"afx_curl_x86_64", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00f\x00x\x00_\x00c\x00u\x00r\x00l\x00_\x00x\x008\x006\x00_\x006\x004\x00",
+                  "afx_curl_x86_64".encode("utf-16le"),
+                  data,
+              )
+
               assert len(data) == orig_len
               return bytes(data)
 
@@ -350,6 +463,26 @@ jobs:
                       zout.writestr(info.filename, body)
               return buf.getvalue()
 
+          def rename_archive_member(member):
+              if member.startswith("NSM-Client/citizen/"):
+                  member = "NSM-Client/AxiomFX/" + member[len("NSM-Client/citizen/"):]
+              prefix = "NSM-Client/"
+              if member.startswith(prefix) and "/" not in member[len(prefix):]:
+                  base = member[len(prefix):]
+                  low = base.lower()
+                  if low.startswith("citizen-") and low.endswith(".dll"):
+                      base = "AxiomFX-" + base[len("citizen-"):]
+                  elif low == "citizengame.dll":
+                      base = "AxiomFXGame.dll"
+                  elif low == "citilaunch_tlsdummy.dll":
+                      base = "AxiomFX_TLSDummy.dll"
+                  elif low == "cfx_curl_x86_64.dll":
+                      base = "afx_curl_x86_64.dll"
+                  elif low == "citizenfx.ini":
+                      base = "AxiomFX.ini"
+                  member = prefix + base
+              return member
+
           overlay = {
               "NSM-Client/NSM-Masterlist.exe": new_exe,
               "NSM-Client/steam_appid.txt": b"218\r\n",
@@ -361,32 +494,41 @@ jobs:
                   overlay["NSM-Client/repair-info/source/" + p.relative_to("tools/local-stack").as_posix()] = p.read_bytes()
 
           with zipfile.ZipFile(base_zip, "r") as zin:
-              # Only patch citizen/ui.zip (never ui-big.zip)
+              assert sha(zin.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
+              # Only patch citizen/ui.zip -> AxiomFX/ui.zip (never ui-big.zip)
               if "NSM-Client/citizen/ui.zip" in zin.namelist():
                   patched_ui = patch_ui_archive(zin.read("NSM-Client/citizen/ui.zip"))
-                  overlay["NSM-Client/citizen/ui.zip"] = patched_ui
+                  overlay["NSM-Client/AxiomFX/ui.zip"] = patched_ui
                   Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
+
+              if "NSM-Client/components.json" in zin.namelist():
+                  comp_raw = zin.read("NSM-Client/components.json")
+                  overlay["NSM-Client/components.json"] = re.sub(b"citizen:(?=[A-Za-z])", b"AxiomFX:", comp_raw)
 
               # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch PE binaries
               for member in zin.namelist():
+                  out_member = rename_archive_member(member)
                   lower = member.lower()
                   if lower.endswith("steam_api64.dll"):
-                      overlay[member] = patched_steam_dll
-                      print(f"[steam-218] overlaid {member} ({len(patched_steam_dll)} bytes)")
-                  elif lower.endswith((".exe", ".dll")) and not lower.endswith(("legitimacy.dll", "nsm-masterlist.exe")):
+                      overlay[out_member] = patched_steam_dll
+                      print(f"[steam-218] overlaid {out_member} ({len(patched_steam_dll)} bytes)")
+                  elif lower.endswith((".exe", ".dll")) and not lower.endswith("nsm-masterlist.exe"):
                       orig_pe = zin.read(member)
-                      patched_pe = patch_pe_binary(orig_pe, member)
-                      if patched_pe != orig_pe:
-                          overlay[member] = patched_pe
+                      patched_pe = patch_pe_binary(orig_pe, out_member)
+                      if patched_pe != orig_pe or out_member != member:
+                          overlay[out_member] = patched_pe
 
           sums = {}
           with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
               for info in zin.infolist():
-                  if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt" or info.filename in overlay:
+                  if info.is_dir() or info.filename == "NSM-Client/SHA256SUMS.txt":
+                      continue
+                  out_name = rename_archive_member(info.filename)
+                  if out_name in overlay:
                       continue
                   data = zin.read(info.filename)
-                  zout.writestr(info, data)
-                  sums[info.filename] = sha(data)
+                  zout.writestr(out_name, data)
+                  sums[out_name] = sha(data)
               for name, data in sorted(overlay.items()):
                   zout.writestr(name, data)
                   sums[name] = sha(data)
@@ -395,7 +537,19 @@ jobs:
 
           with zipfile.ZipFile(out_zip, "r") as zcheck:
               assert zcheck.testzip() is None
-              assert sha(zcheck.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
+              names = set(zcheck.namelist())
+              assert "NSM-Client/AxiomFX/ui.zip" in names
+              assert "NSM-Client/AxiomFXGame.dll" in names
+              assert "NSM-Client/AxiomFX_TLSDummy.dll" in names
+              assert "NSM-Client/afx_curl_x86_64.dll" in names
+              assert "NSM-Client/AxiomFX-level-loader-five.dll" in names
+              assert not any(n.startswith("NSM-Client/citizen/") for n in names)
+              assert not any(n.startswith("NSM-Client/citizen-") for n in names)
+              leg_bytes = zcheck.read("NSM-Client/legitimacy.dll")
+              assert b"https://lambda.fivem.net/api/validate/entitlement\x00" in leg_bytes
+              assert b"https://lambda.fivem.net/api/validate/entitlement/rosfive\x00" in leg_bytes
+              assert b"https://lambda.fivem.net/api/validate/entitlement/ros2\x00" in leg_bytes
+              assert b"afx_curl_x86_64.dll" in leg_bytes
               assert zcheck.read("NSM-Client/NSM-Masterlist.exe") == new_exe
               assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
 

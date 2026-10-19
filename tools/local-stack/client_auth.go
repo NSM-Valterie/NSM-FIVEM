@@ -1264,6 +1264,9 @@ func patchLocalUIBundlesOnDisk() {
 		}
 	}
 	relCandidates := []string{
+		"AxiomFX/ui.zip",
+		"NSM.app/AxiomFX/ui.zip",
+		"../AxiomFX/ui.zip",
 		"citizen/ui.zip",
 		"NSM.app/citizen/ui.zip",
 		"../citizen/ui.zip",
