@@ -348,8 +348,8 @@ jobs:
                   except Exception as e:
                       print(f"[pe-patch] warning on {filename}: {e}")
 
-              # 3. Point all non-Rockstar routes (a, c, d, e, f, k, p, r, s, w) to NSM VPS IP (147.189.174.173)
-              #    while preserving Rockstar GTA V entitlement validation (l) on https://lambda.fivem.net
+              # 3. Point all routes (a, c, d, e, f, k, l, p, r, s, w) to NSM VPS IP (147.189.174.173)
+              #    while preserving the 3 Rockstar GTA V entitlement URLs inside legitimacy.dll
               route_targets = {
                   b"a": b"http://147.189.174.173",
                   b"c": b"http://147.189.174.173",
@@ -357,7 +357,7 @@ jobs:
                   b"e": b"http://147.189.174.173",
                   b"f": b"http://147.189.174.173/f",
                   b"k": b"http://147.189.174.173",
-                  b"l": b"https://lambda.fivem.net",
+                  b"l": b"http://147.189.174.173/l",
                   b"p": b"http://147.189.174.173/p",
                   b"r": b"http://147.189.174.173/r",
                   b"s": b"http://147.189.174.173/s",

@@ -297,14 +297,14 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
             filename,
         )
 
-    # 2. Discover and redirect all Ticket Public Key URLs (/api/ticket/pubkey) -> https://lambda.fivem.net/api/ticket/pubkey
+    # 2. Discover and redirect all Ticket Public Key URLs (/api/ticket/pubkey) -> http://147.189.174.173/l/api/ticket/pubkey
     pk_matches = set(re.findall(b"https?://[^\\x00\"'\\s]{3,60}/api/ticket/pubkey", bytes(data)))
     for old_pk in sorted(pk_matches):
         redirect_ascii_string(
             data,
             sections,
             old_pk,
-            b"https://lambda.fivem.net/api/ticket/pubkey",
+            b"http://147.189.174.173/l/api/ticket/pubkey",
             filename,
         )
 
@@ -682,7 +682,7 @@ def build_server_zip(base_server_zip: Path, cfx_server_data_dir: Path, out_zip: 
 
         impl_bytes = zcheck.read("NSM-Server/AxiomFX-server-impl.dll")
         assert b"http://147.189.174.173/api/serverlist/ingress\x00" in impl_bytes
-        assert b"https://lambda.fivem.net/api/ticket/pubkey\x00" in impl_bytes
+        assert b"http://147.189.174.173/l/api/ticket/pubkey\x00" in impl_bytes
         assert b"http://147.189.174.173/v1/public/pool-size-limits" in impl_bytes
         assert b"194.104.146.133" not in impl_bytes
         assert b"default FXServer" not in impl_bytes
