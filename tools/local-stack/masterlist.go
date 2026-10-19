@@ -515,14 +515,30 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 		hostname = "NSM Server"
 	}
 
+	maxClients := asInt(dyn["svMaxclients"], 0)
+	if maxClients <= 0 {
+		maxClients = asInt(dyn["sv_maxclients"], 0)
+	}
+	if maxClients <= 0 {
+		if v, ok := vars["sv_maxClients"]; ok {
+			maxClients = asInt(v, 48)
+		} else {
+			maxClients = 48
+		}
+	}
+	serverVer := redactServerKeys(asString(info["version"]))
+	if serverVer == "" {
+		serverVer = redactServerKeys(asString(info["server"]))
+	}
+
 	return ServerData{
-		SVMaxclients:        asInt(dyn["svMaxclients"], 48),
+		SVMaxclients:        maxClients,
 		Clients:             clients,
 		Hostname:            hostname,
 		Gametype:            redactServerKeys(asString(dyn["gametype"])),
 		Mapname:             redactServerKeys(asString(dyn["mapname"])),
 		Resources:           append([]string{}, asStringSlice(info["resources"])...),
-		Server:              redactServerKeys(asString(info["version"])),
+		Server:              serverVer,
 		Vars:                vars,
 		EnhancedHostSupport: info["enhancedHostSupport"] == true || asInt(info["enhancedHostSupport"], 0) != 0,
 		UpvotePower:         0,
@@ -807,6 +823,18 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// GameServer.cpp marks heartbeats to a custom master as "private".
 		// This loopback-only service is that explicitly selected local master;
 		// accept the record locally, never publish it to an upstream master.
+		if hb.FallbackData.Info != nil {
+			infoMap := unwrapData(hb.FallbackData.Info, "info")
+			if v, ok := infoMap["version"]; ok {
+				if num, isNum := v.(json.Number); isNum {
+					if srv, okSrv := infoMap["server"].(string); okSrv && srv != "" {
+						infoMap["version"] = srv
+					} else {
+						infoMap["version"] = num.String()
+					}
+				}
+			}
+		}
 		if err := validateHeartbeat(hb); err != nil {
 			sendJSON(w, 400, map[string]string{"lastError": err.Error()})
 			return

@@ -368,9 +368,12 @@ def patch_server_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
     )
 
     # 7. AxiomFX-server-impl.dll (formerly citizen-server-impl.dll) specific fixes:
-    #    a) SteamIdentityProvider: STEAM_APPID_FIVEM (2676230 -> 218 Source SDK Base 2007)
-    #    b) InitConnectMethod: allow empty/unset sv_serverId when svadhesive.dll is not loaded
+    #    a) InfoHttpHandler: rename integer "version" key -> "infoVer" (7 == 7 chars) so
+    #       validateHeartbeat ("version must be a string") on NSM-Masterlist.exe accepts the heartbeat
+    #    b) SteamIdentityProvider: STEAM_APPID_FIVEM (2676230 -> 218 Source SDK Base 2007)
+    #    c) InitConnectMethod: allow empty/unset sv_serverId & missing cfxTicket2 when open-source NSM.exe connects
     if filename.lower().endswith(("citizen-server-impl.dll", "axiomfx-server-impl.dll")):
+        data[:] = re.sub(b"(?<![A-Za-z0-9_.-])version\\x00", b"infoVer\x00", data)
         fivem_appid = struct.pack("<I", 2676230)
         redm_appid = struct.pack("<I", 4333400)
         nsm_appid = struct.pack("<I", 218)
