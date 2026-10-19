@@ -1160,7 +1160,6 @@ func TestUpvotesFeaturedAndJoinLinks(t *testing.T) {
 	}
 
 	// 2. Verify nta~ has 1,000,000 upvote allowance & profile displays 1000000
-	var ownerSess string
 	accMu.Lock()
 	owner := findUser("nta~")
 	if owner == nil {
@@ -1171,7 +1170,7 @@ func TestUpvotesFeaturedAndJoinLinks(t *testing.T) {
 		accMu.Unlock()
 		t.Fatalf("expected nta~ UpvoteAllowance 1000000, got %d", got)
 	}
-	ownerSess = newToken()
+	ownerSess := "test-owner-sess-upv"
 	acc.Sessions[ownerSess] = Session{UserID: owner.ID, Expires: time.Now().Add(time.Hour).Unix()}
 	// Create a non-owner staff user to test owner-only Featured Server guard
 	acc.NextID++
@@ -1182,7 +1181,7 @@ func TestUpvotesFeaturedAndJoinLinks(t *testing.T) {
 		Email:    "mod@nsm.local",
 		Role:     "admin",
 	})
-	staffSess := newToken()
+	staffSess := "test-staff-sess-upv"
 	acc.Sessions[staffSess] = Session{UserID: staffID, Expires: time.Now().Add(time.Hour).Unix()}
 	accMu.Unlock()
 
