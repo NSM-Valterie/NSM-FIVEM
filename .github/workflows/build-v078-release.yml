@@ -424,6 +424,55 @@ jobs:
                   data,
               )
 
+              # f) In legitimacy.dll, redirect MBA-obfuscated "citizen/ros/..." strings passed to
+              #    net::TLSServer::TLSServer (0x1af023, 0x2bc7f3) and MakeRelativeCitPath (0x2dc9a) -> "AxiomFX/..."
+              if filename.lower().endswith("legitimacy.dll") and data[:2] == b"MZ":
+                  pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                  sec_table = pe_off + 24 + struct.unpack_from("<H", data, pe_off + 20)[0]
+                  vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, sec_table + 8)
+                  if rva == 0x10000:
+                      def leg_rva_to_off(x):
+                          return raw_ptr + (x - rva)
+                      cave1_rva = 0x9baf88
+                      cave1_off = leg_rva_to_off(cave1_rva)
+                      iat_tls_rva = 0xa70f58
+                      if data[cave1_off:cave1_off+120] == b"\xcc" * 120:
+                          t1 = bytearray()
+                          t1 += b"\x49\xba" + b"citizen/"
+                          t1 += b"\x49\xbb" + b"AxiomFX/"
+                          t1 += b"\x49\x8b\x00\x4c\x39\x10\x75\x03\x4c\x89\x18"
+                          t1 += b"\x49\x8b\x01\x4c\x39\x10\x75\x03\x4c\x89\x18"
+                          jmp_iat_end = cave1_rva + len(t1) + 6
+                          t1 += b"\xff\x25" + struct.pack("<i", iat_tls_rva - jmp_iat_end)
+                          assert len(t1) == 48
+
+                          cave2_rva = cave1_rva + len(t1)
+                          t2 = bytearray()
+                          t2 += b"\x49\x89\xc1\x72\x03\x4c\x8b\x08"
+                          t2 += b"\x48\x83\xfa\x08\x72\x22"
+                          t2 += b"\x49\xba" + "citi".encode("utf-16le")
+                          t2 += b"\x4d\x39\x11\x75\x15"
+                          t2 += b"\x49\xba" + "Axio".encode("utf-16le")
+                          t2 += b"\x4d\x89\x11"
+                          t2 += b"\x49\xba" + "omFX".encode("utf-16le")
+                          t2 += b"\x4d\x89\x51\x06"
+                          jmp_back_end = cave2_rva + len(t2) + 5
+                          t2 += b"\xe9" + struct.pack("<i", 0x2dca2 - jmp_back_end)
+                          assert len(t2) == 61
+
+                          data[cave1_off:cave1_off+len(t1)+len(t2)] = t1 + t2
+                          struct.pack_into("<I", data, sec_table + 8, 0x9ab000)
+
+                          for call_rva in (0x1af023, 0x2bc7f3):
+                              coff = leg_rva_to_off(call_rva)
+                              assert data[coff:coff+2] == b"\xff\x15"
+                              data[coff:coff+6] = b"\xe8" + struct.pack("<i", cave1_rva - (call_rva + 5)) + b"\x90"
+
+                          hoff = leg_rva_to_off(0x2dc9a)
+                          assert data[hoff:hoff+8] == b"\x49\x89\xc1\x72\x03\x4c\x8b\x08"
+                          data[hoff:hoff+8] = b"\xe9" + struct.pack("<i", cave2_rva - (0x2dc9a + 5)) + b"\x90\x90\x90"
+                          print(f"[pe-patch] {filename}: hooked TLSServer & MakeRelativeCitPath MBA paths -> AxiomFX/")
+
               assert len(data) == orig_len
               return bytes(data)
 
