@@ -251,6 +251,14 @@ func specialFolderPath(csidl int) string {
 	return syscall.UTF16ToString(buf[:])
 }
 
+type shellLinkObj struct {
+	lpVtbl *[24]uintptr
+}
+
+type persistFileObj struct {
+	lpVtbl *[10]uintptr
+}
+
 func createShortcut(lnkPath, targetPath, workDir, desc string) {
 	if lnkPath == "" || targetPath == "" {
 		return
@@ -258,7 +266,7 @@ func createShortcut(lnkPath, targetPath, workDir, desc string) {
 	procCoInitializeEx.Call(0, 2) // COINIT_APARTMENTTHREADED
 	defer procCoUninitialize.Call()
 
-	var psl uintptr
+	var psl *shellLinkObj
 	hr, _, _ := procCoCreateInstance.Call(
 		uintptr(unsafe.Pointer(&clsidShellLink)),
 		0,
@@ -266,31 +274,33 @@ func createShortcut(lnkPath, targetPath, workDir, desc string) {
 		uintptr(unsafe.Pointer(&iidIShellLinkW)),
 		uintptr(unsafe.Pointer(&psl)),
 	)
-	if int32(hr) < 0 || psl == 0 {
+	if int32(hr) < 0 || psl == nil || psl.lpVtbl == nil {
 		return
 	}
-	vtable := (*[24]uintptr)(unsafe.Pointer(*(*uintptr)(unsafe.Pointer(psl))))
-	defer syscall.SyscallN(vtable[2], psl) // Release
+	vtable := psl.lpVtbl
+	pslPtr := uintptr(unsafe.Pointer(psl))
+	defer syscall.SyscallN(vtable[2], pslPtr) // Release
 
 	targetU16, _ := syscall.UTF16PtrFromString(targetPath)
 	workU16, _ := syscall.UTF16PtrFromString(workDir)
 	descU16, _ := syscall.UTF16PtrFromString(desc)
 
-	syscall.SyscallN(vtable[20], psl, uintptr(unsafe.Pointer(targetU16)))   // SetPath
-	syscall.SyscallN(vtable[9], psl, uintptr(unsafe.Pointer(workU16)))      // SetWorkingDirectory
-	syscall.SyscallN(vtable[7], psl, uintptr(unsafe.Pointer(descU16)))      // SetDescription
-	syscall.SyscallN(vtable[17], psl, uintptr(unsafe.Pointer(targetU16)), 0) // SetIconLocation
+	syscall.SyscallN(vtable[20], pslPtr, uintptr(unsafe.Pointer(targetU16)))    // SetPath
+	syscall.SyscallN(vtable[9], pslPtr, uintptr(unsafe.Pointer(workU16)))       // SetWorkingDirectory
+	syscall.SyscallN(vtable[7], pslPtr, uintptr(unsafe.Pointer(descU16)))       // SetDescription
+	syscall.SyscallN(vtable[17], pslPtr, uintptr(unsafe.Pointer(targetU16)), 0) // SetIconLocation
 
-	var ppf uintptr
-	hr, _, _ = syscall.SyscallN(vtable[0], psl, uintptr(unsafe.Pointer(&iidIPersistFile)), uintptr(unsafe.Pointer(&ppf)))
-	if int32(hr) < 0 || ppf == 0 {
+	var ppf *persistFileObj
+	hr, _, _ = syscall.SyscallN(vtable[0], pslPtr, uintptr(unsafe.Pointer(&iidIPersistFile)), uintptr(unsafe.Pointer(&ppf)))
+	if int32(hr) < 0 || ppf == nil || ppf.lpVtbl == nil {
 		return
 	}
-	pfVtable := (*[10]uintptr)(unsafe.Pointer(*(*uintptr)(unsafe.Pointer(ppf))))
-	defer syscall.SyscallN(pfVtable[2], ppf) // Release
+	pfVtable := ppf.lpVtbl
+	ppfPtr := uintptr(unsafe.Pointer(ppf))
+	defer syscall.SyscallN(pfVtable[2], ppfPtr) // Release
 
 	lnkU16, _ := syscall.UTF16PtrFromString(lnkPath)
-	syscall.SyscallN(pfVtable[6], ppf, uintptr(unsafe.Pointer(lnkU16)), 1) // Save
+	syscall.SyscallN(pfVtable[6], ppfPtr, uintptr(unsafe.Pointer(lnkU16)), 1) // Save
 }
 
 func ensureShortcuts(appExe, appDir string) {
