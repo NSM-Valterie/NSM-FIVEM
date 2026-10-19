@@ -116,7 +116,7 @@ namespace fx
 		m_rconPassword = instance->AddVariable<std::string>("rcon_password", ConVar_ReadOnly, "");
 		m_playersToken = instance->AddVariable<std::string>("sv_playersToken", ConVar_None, "");
 		m_profileDataToken = instance->AddVariable<std::string>("sv_profileDataToken", ConVar_None, "");
-		m_hostname = instance->AddVariable<std::string>("sv_hostname", ConVar_ServerInfo, "default FXServer");
+		m_hostname = instance->AddVariable<std::string>("sv_hostname", ConVar_ServerInfo, "AFXserver");
 		m_masters[0] = instance->AddVariable<std::string>("sv_master1", ConVar_None, kDefaultServerList);
 		m_masters[1] = instance->AddVariable<std::string>("sv_master2", ConVar_None, "");
 		m_masters[2] = instance->AddVariable<std::string>("sv_master3", ConVar_None, "");

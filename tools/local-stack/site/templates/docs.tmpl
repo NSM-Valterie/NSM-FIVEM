@@ -1,30 +1,196 @@
-{{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>Documentation</h1>
-    <div class="fx">
-      <div class="c-lg-6 c-xs-12">
-        <h2 class="sub">1. Run the NSM backend</h2>
-        <p>Double-click <strong>NSM-Masterlist.exe</strong> (or run it from a terminal). It serves the website, accounts, server list and game cache on <code>http://127.0.0.1</code>.</p>
-        <h2 class="sub">2. Play</h2>
-        <p>Open <strong>NSM.exe</strong>, browse servers at <code>http://127.0.0.1/servers</code> or in the client, and join.</p>
-        <h2 class="sub">3. Run your own server</h2>
-        <p>Unzip NSM Server, configure <code>server.cfg</code>, start <strong>NSM-Server.exe</strong>. Your server appears on the list automatically.</p>
-        <h2 class="sub">4. Owner tools</h2>
-        <p>Log in as the owner account, then use <a href="/admin/users">Staff &amp; users</a> to manage roles.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - NSM Documentation</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
+</head>
+<body class="afx-docs-body">
+  <!-- Docsy Top Navbar -->
+  <header class="afx-d-header">
+    <div class="afx-d-header-inner">
+      <div style="display:flex;align-items:center;gap:14px">
+        <a href="/docs" class="afx-d-logo">
+          <img src="/img/nsm-icon.png" alt="NSM" style="width:28px;height:28px">
+          <span style="font-weight:700;font-size:1.12rem;color:#fff">NSM <strong style="color:#a8c7ff">Documentation</strong></span>
+        </a>
+        <div class="mp-ext-links">
+          <a href="#overview" class="mp-ext-link">Overview</a>
+          <a href="#server-setup" class="mp-ext-link">Server Manual</a>
+          <a href="#scripting" class="mp-ext-link">Scripting</a>
+          <a href="#natives" class="mp-ext-link">Native Reference</a>
+          <a href="/" class="mp-ext-link">NSM Home &nearr;</a>
+          <a href="/servers" class="mp-ext-link">Server List &nearr;</a>
+          <a href="/keymaster" class="mp-ext-link">AFX Portal &nearr;</a>
+        </div>
       </div>
-      <div class="c-lg-6 c-xs-12">
-        <h2 class="sub">System requirements</h2>
-        <table class="stat-table">
-          <tr><td><span class="stat">OS</span></td><td>Windows 10 or 11</td></tr>
-          <tr><td><span class="stat">CPU</span></td><td>Intel Core i5-3470 / AMD FX-8350 (server: any quad-core)</td></tr>
-          <tr><td><span class="stat">GPU</span></td><td>NVIDIA GTX 660 2GB / AMD HD 7870 2GB</td></tr>
-          <tr><td><span class="stat">RAM</span></td><td>8GB</td></tr>
-          <tr><td><span class="stat">Disk</span></td><td>GTA V (~105GB) + ~4GB NSM</td></tr>
-          <tr><td><span class="stat">Game</span></td><td>Grand Theft Auto V (any edition)</td></tr>
-        </table>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="afx-d-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="afx-docs-search" placeholder="Search NSM docs &amp; natives..." autocomplete="off">
+        </div>
       </div>
     </div>
-  </div></div>
-</section>
-{{template "foot" .}}
+  </header>
+
+  <!-- 3-Column Docsy Layout -->
+  <div class="afx-docs-shell">
+    <!-- Left Sidebar Tree -->
+    <aside class="afx-docs-sidebar">
+      <div class="afx-d-nav-title">GETTING STARTED</div>
+      <a href="#overview" class="afx-d-nav-link active">Welcome to NSM Docs</a>
+      <a href="#client-guide" class="afx-d-nav-link">NSM Client Manual</a>
+      <a href="#client-auth" class="afx-d-nav-link">In-App Account Sign-In</a>
+
+      <div class="afx-d-nav-title" style="margin-top:16px">SERVER MANUAL</div>
+      <a href="#server-setup" class="afx-d-nav-link">Setting Up a Server</a>
+      <a href="#keymaster-guide" class="afx-d-nav-link">AFX Portal Server Keys</a>
+      <a href="#server-cfg" class="afx-d-nav-link">server.cfg Reference</a>
+
+      <div class="afx-d-nav-title" style="margin-top:16px">SCRIPTING &amp; NATIVES</div>
+      <a href="#scripting" class="afx-d-nav-link">Resource Manifest (fxmanifest.lua)</a>
+      <a href="#natives" class="afx-d-nav-link">Native Reference Explorer</a>
+    </aside>
+
+    <!-- Center Article Content -->
+    <main class="afx-docs-main">
+      <div class="afx-docs-breadcrumb">
+        <a href="/docs">NSM Documentation</a> <span>/</span> <span>Home</span>
+      </div>
+
+      <section id="overview" class="afx-docs-section">
+        <h1 style="font-size:2rem;margin:0 0 10px;color:#fff">Welcome to NSM Documentation</h1>
+        <p class="lead" style="color:rgba(240,244,248,0.78);line-height:1.65;margin:0 0 24px">
+          Official documentation for the <strong>NSM</strong> multiplayer modification client (<code>NSM.exe</code>), dedicated server (<code>nsm-server.exe</code>), and the <strong>AFX Portal</strong> ecosystem.
+        </p>
+
+        <div class="afx-docs-cards">
+          <a href="#client-guide" class="afx-docs-card">
+            <h3>NSM Client Manual</h3>
+            <p>Install, launch, link your AFX account in-app, and connect to servers via the Server Browser or F8 console.</p>
+          </a>
+          <a href="#server-setup" class="afx-docs-card">
+            <h3>Server Manual</h3>
+            <p>Configure <code>nsm-server.exe</code>, register a key in AFX Portal, and publish your server to the live masterlist.</p>
+          </a>
+          <a href="#scripting" class="afx-docs-card">
+            <h3>Scripting Manual</h3>
+            <p>Create Lua, JavaScript, and C# resources, NUI interfaces, and synchronized OneSync state bags.</p>
+          </a>
+          <a href="#natives" class="afx-docs-card">
+            <h3>Native Reference</h3>
+            <p>Search client and server natives for entities, vehicles, events, NUI callbacks, and player identifiers.</p>
+          </a>
+        </div>
+      </section>
+
+      <section id="client-guide" class="afx-docs-section">
+        <h2>NSM Client Manual &amp; In-App Sign-In</h2>
+        <p style="color:rgba(240,244,248,0.8);line-height:1.65">
+          Download <a href="/download" data-no-spa="1" style="color:#00f8b9;font-weight:600"><code>NSM.exe</code></a> and run it to automatically install NSM into <code>%LOCALAPPDATA%\NSM\NSM.app</code>, create Desktop &amp; Start Menu shortcuts, and launch the client.
+        </p>
+        <div id="client-auth" class="afx-callout">
+          <strong>One-Click In-App Account Linking:</strong> When you click <strong>Sign In</strong> inside <code>NSM.exe</code>, your client communicates directly with <code>https://nsmultiplayer.com</code>, decrypts your RSA User-API-Key, and loads your custom AFX profile and avatar automatically.
+        </div>
+      </section>
+
+      <section id="server-setup" class="afx-docs-section">
+        <h2>Setting Up an NSM Dedicated Server</h2>
+        <p style="color:rgba(240,244,248,0.8);line-height:1.65" id="keymaster-guide">
+          1. Download the ready-to-run <a href="/download-server" data-no-spa="1" style="color:#00f8b9;font-weight:600"><code>NSM-Server.zip</code></a> artifact (includes <code>nsm-server.exe</code>, standard resources, <code>server.cfg</code>, and <code>START-SERVER.bat</code>).<br>
+          2. Open <a href="/keymaster" style="color:#00f8b9">AFX Portal (/keymaster)</a> and generate a Server Registration Key (<code>nsm_srv_...</code>).<br>
+          3. Paste the key into your <code>server.cfg</code> and run <code>START-SERVER.bat</code> (or <code>nsm-server.exe +exec server.cfg</code>):
+        </p>
+        <pre id="server-cfg" class="afx-code-block"><code>endpoint_add_tcp "0.0.0.0:30120"
+endpoint_add_udp "0.0.0.0:30120"
+
+sv_hostname "^5NSM Official ^0| ^2Roleplay &amp; Freeroam"
+sets sv_projectName "NSM Official Server"
+sets sv_projectDesc "Custom Cars, MLOs, Active Staff &amp; Economy"
+sets tags "roleplay,economy,custom-cars,nsm"
+sets locale "en-US"
+sv_maxclients 48
+
+# Authenticate with the NSM Masterlist via AFX Portal Keymaster
+sets sv_nsmServerKey "nsm_srv_YOUR_KEY_HERE"</code></pre>
+      </section>
+
+      <section id="scripting" class="afx-docs-section">
+        <h2>Creating a Resource (<code>fxmanifest.lua</code>)</h2>
+        <pre class="afx-code-block"><code>fx_version 'cerulean'
+game 'gta5'
+
+author 'Cravenz'
+description 'NSM Custom Gameplay Resource'
+version '1.0.0'
+
+client_scripts { 'client/main.lua' }
+server_scripts { 'server/main.lua' }</code></pre>
+      </section>
+
+      <section id="natives" class="afx-docs-section">
+        <h2>Interactive Native Reference</h2>
+        <div class="discourse-table-wrap">
+          <table class="discourse-topic-table" id="afx-natives-table">
+            <thead>
+              <tr>
+                <th>Native / Function</th>
+                <th>Realm</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-native-row="registercommand command console chat">
+                <td><code style="color:#00f8b9">RegisterCommand(commandName, handler, restricted)</code></td>
+                <td><span class="nsm-loaf">Shared</span></td>
+                <td>Registers a chat or F8 console command on client or server.</td>
+              </tr>
+              <tr data-native-row="triggerclientevent event net client">
+                <td><code style="color:#00f8b9">TriggerClientEvent(eventName, playerId, ...)</code></td>
+                <td><span class="nsm-loaf">Server</span></td>
+                <td>Sends a network event from the server to one or all connected clients (<code>-1</code>).</td>
+              </tr>
+              <tr data-native-row="triggerserverevent event net server">
+                <td><code style="color:#00f8b9">TriggerServerEvent(eventName, ...)</code></td>
+                <td><span class="nsm-loaf">Client</span></td>
+                <td>Sends a network event from the client to the NSM server.</td>
+              </tr>
+              <tr data-native-row="sendnuimessage nui html cef ui">
+                <td><code style="color:#00f8b9">SendNUIMessage(dataTable)</code></td>
+                <td><span class="nsm-loaf">Client</span></td>
+                <td>Dispatches a JSON message to the resource's CEF NUI frame (received via <code>window.addEventListener('message')</code>).</td>
+              </tr>
+              <tr data-native-row="createvehicle vehicle car spawn">
+                <td><code style="color:#00f8b9">CreateVehicle(modelHash, x, y, z, heading, isNetwork, netMissionEntity)</code></td>
+                <td><span class="nsm-loaf">Shared</span></td>
+                <td>Spawns a networked or local vehicle at the specified world coordinates.</td>
+              </tr>
+              <tr data-native-row="setentitycoords coords teleport player ped">
+                <td><code style="color:#00f8b9">SetEntityCoords(entity, x, y, z, xAxis, yAxis, zAxis, clearArea)</code></td>
+                <td><span class="nsm-loaf">Shared</span></td>
+                <td>Sets the world coordinates of a ped, vehicle, or object entity.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Right TOC Sidebar -->
+    <aside class="afx-docs-toc">
+      <div class="afx-d-nav-title">ON THIS PAGE</div>
+      <a href="#overview" class="afx-toc-link">Welcome to NSM Docs</a>
+      <a href="#client-guide" class="afx-toc-link">NSM Client Manual</a>
+      <a href="#client-auth" class="afx-toc-link">In-App Sign-In</a>
+      <a href="#server-setup" class="afx-toc-link">Server Setup</a>
+      <a href="#server-cfg" class="afx-toc-link">server.cfg Example</a>
+      <a href="#scripting" class="afx-toc-link">Resource Manifest</a>
+      <a href="#natives" class="afx-toc-link">Native Reference</a>
+    </aside>
+  </div>
+  <script src="/js/main.js?v=078m"></script>
+</body>
+</html>

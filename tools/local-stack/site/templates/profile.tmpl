@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en" class="discourse-dark-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - {{.Profile.EffectiveDisplayName}} (@{{.Profile.Username}}) - AFX Forum</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
+</head>
+<body
+  class="dc-ember-body user-summary-page user-full-themed-page fx-effect-{{.Profile.EffectiveProfileEffect}}"
+  id="nsm-user-profile-root"
+  data-profile-effect="{{.Profile.EffectiveProfileEffect}}"
+  style="{{.Profile.ThemeStyleAttr}}"
+>
+  <!-- Full-Page Moving Profile Effect Ambient Layer -->
+  <div class="fx-page-ambient-overlay" aria-hidden="true">
+    <div class="fx-layer fx-layer-aurora"></div>
+    <div class="fx-layer fx-layer-grid"></div>
+    <div class="fx-layer fx-layer-stars"></div>
+    <div class="fx-layer fx-layer-lightning"></div>
+    <div class="fx-layer fx-layer-embers"></div>
+    <div class="fx-layer fx-layer-prism"></div>
+  </div>
+
+  <!-- Discourse d-header -->
+  <header class="d-header">
+    <div class="d-header-wrap">
+      <div class="d-header-left">
+        <button type="button" class="btn-sidebar-toggle" onclick="document.getElementById('d-sidebar').classList.toggle('collapsed')" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <a href="/forum" class="d-logo-link">
+          <img src="/img/nsm-icon.png" alt="NSM" class="d-logo-mark">
+          <span class="d-logo-text">AFX <strong>Forum</strong></span>
+        </a>
+        <nav class="d-top-links">
+          <a href="/">nsmultiplayer.com</a>
+          <a href="/servers">Server List</a>
+          <a href="/keymaster">AFX Portal</a>
+          <a href="/marketplace">Marketplace</a>
+          <a href="/docs">Docs</a>
+          <a href="/support">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" style="color:#6ea8ff !important;font-weight:700">Staff</a>
+          {{end}}
+        </nav>
+      </div>
+
+      <div class="d-header-icons">
+        <form method="get" action="/forum" class="d-header-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" name="q" placeholder="Search AFX Forum...">
+        </form>
+
+        {{if .User}}
+        {{if .User.IsStaffOrHigher}}
+        <a href="/admin/users" class="d-btn d-btn-default">Staff</a>
+        {{end}}
+        <a href="/u/{{.User.Username}}" class="d-header-user" title="{{.User.EffectiveDisplayName}} (@{{.User.Username}})">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="d-header-avatar">
+          <span class="d-header-username" id="live-navbar-display-name">{{.User.EffectiveDisplayName}}</span>
+        </a>
+        <a href="/u/{{.User.Username}}?tab=pulse" class="d-btn d-btn-flat d-btn-pulse-pill">&#9889; AFX Pulse</a>
+        <a href="/u/{{.User.Username}}?tab=preferences" class="d-btn d-btn-flat">Preferences</a>
+        <a href="/logout" class="d-btn d-btn-flat">Log Out</a>
+        {{else}}
+        <a href="/register?next=/u/{{.Profile.Username}}" class="d-btn d-btn-primary">Sign Up</a>
+        <a href="/login?next=/u/{{.Profile.Username}}" class="d-btn d-btn-default">Log In</a>
+        {{end}}
+      </div>
+    </div>
+  </header>
+
+  <div id="main-outlet-wrapper" class="d-outlet-wrapper">
+    <!-- Left Discourse Sidebar -->
+    <aside id="d-sidebar" class="sidebar-wrapper">
+      <div class="sidebar-sections">
+        <div class="sidebar-section">
+          <ul class="sidebar-section-content">
+            <li>
+              <a href="/forum" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Topics</span>
+              </a>
+            </li>
+            <li>
+              <a href="/forum?tab=categories" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Categories</span>
+              </a>
+            </li>
+            <li>
+              <a href="/u" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Users</span>
+              </a>
+            </li>
+            <li>
+              <a href="/u/{{.Profile.Username}}" class="sidebar-section-link active">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">{{.Profile.EffectiveDisplayName}}</span>
+              </a>
+            </li>
+            <li>
+              <a href="/u/{{.Profile.Username}}?tab=pulse" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">AFX Pulse Perks</span>
+              </a>
+            </li>
+            {{if .CanManagePartner}}
+            <li>
+              <a href="/admin/users" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                </span>
+                <span class="sidebar-section-link-content-text">Staff &amp; Partners</span>
+              </a>
+            </li>
+            {{end}}
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">CATEGORIES</div>
+          <ul class="sidebar-section-content">
+            {{range .Categories}}
+            <li>
+              <a href="/forum/c/{{.Slug}}" class="sidebar-section-link">
+                <span class="sidebar-section-link-prefix">
+                  <span class="prefix-square" style="background:{{.Color}}"></span>
+                </span>
+                <span class="sidebar-section-link-content-text">{{.Name}}</span>
+                <span class="sidebar-section-link-suffix">{{.TopicCount}}</span>
+              </a>
+            </li>
+            {{end}}
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main User Profile Outlet -->
+    <main id="main-outlet" class="d-main-outlet">
+      {{if .Msg}}
+      <div class="d-alert d-alert-success">{{.Msg}}</div>
+      {{end}}
+      {{if .Error}}
+      <div class="d-alert d-alert-error">{{.Error}}</div>
+      {{end}}
+
+      <div class="container {{if .IsOwn}}viewing-self{{end}}">
+        <section class="user-main user-themed-profile">
+          <!-- section.about.has-background -->
+          <section class="about has-background">
+            <div
+              class="user-profile-image"
+              id="live-profile-banner"
+              style="{{.Profile.BannerStyleAttr}}"
+            >
+              <div class="user-profile-banner-shine"></div>
+              <div class="user-profile-banner-fx"></div>
+              {{if .Profile.HasPulse}}
+              <div class="d-pulse-banner-tag">
+                <span>&#9889; {{.Profile.EffectivePulseTierLabel}}</span>
+              </div>
+              {{end}}
+            </div>
+
+            <div class="details">
+              <div class="primary">
+                <!-- UserProfileAvatar + Animated Decorations (Cat Ears, Sovereign Crown, Cyber Visor, Plasma Flames, Volt Lightning, Sakura Drift, Singularity Nebula) -->
+                <div class="user-profile-avatar deco-{{.Profile.EffectiveAvatarDecoration}}" id="live-avatar-wrap" data-decoration="{{.Profile.EffectiveAvatarDecoration}}">
+                  <!-- Animated Decoration Layer -->
+                  <div class="avatar-deco-layer" aria-hidden="true">
+                    <!-- 1. Neon Cyber Cat Ears -->
+                    <svg class="deco-svg deco-cat-ears" viewBox="0 0 160 160" fill="none">
+                      <path class="cat-ear cat-ear-left" d="M22 64 L14 12 L62 36 Z" fill="var(--prof-primary)" stroke="var(--prof-accent)" stroke-width="3"/>
+                      <path class="cat-ear-inner cat-ear-left" d="M27 56 L22 22 L53 38 Z" fill="var(--prof-accent)"/>
+                      <path class="cat-ear cat-ear-right" d="M138 64 L146 12 L98 36 Z" fill="var(--prof-primary)" stroke="var(--prof-accent)" stroke-width="3"/>
+                      <path class="cat-ear-inner cat-ear-right" d="M133 56 L138 22 L107 38 Z" fill="var(--prof-accent)"/>
+                      <line class="cat-whisker" x1="2" y1="88" x2="18" y2="92" stroke="var(--prof-accent)" stroke-width="2.5" stroke-linecap="round"/>
+                      <line class="cat-whisker" x1="4" y1="100" x2="19" y2="99" stroke="var(--prof-primary)" stroke-width="2.5" stroke-linecap="round"/>
+                      <line class="cat-whisker" x1="158" y1="88" x2="142" y2="92" stroke="var(--prof-accent)" stroke-width="2.5" stroke-linecap="round"/>
+                      <line class="cat-whisker" x1="156" y1="100" x2="141" y2="99" stroke="var(--prof-primary)" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+
+                    <!-- 2. Sovereign Floating Crown & Halo -->
+                    <svg class="deco-svg deco-sovereign-crown" viewBox="0 0 160 160" fill="none">
+                      <ellipse class="crown-halo" cx="80" cy="16" rx="44" ry="8" stroke="#FFD700" stroke-width="3" stroke-dasharray="8 4"/>
+                      <path class="crown-body" d="M42 42 L34 14 L62 28 L80 8 L98 28 L126 14 L118 42 Z" fill="#FFD700" stroke="#F59E0B" stroke-width="2.5"/>
+                      <circle cx="80" cy="24" r="4" fill="#EF4444"/>
+                      <circle cx="58" cy="30" r="3" fill="#38BDF8"/>
+                      <circle cx="102" cy="30" r="3" fill="#38BDF8"/>
+                    </svg>
+
+                    <!-- 3. AFX Cybernetic Visor & HUD Orbit -->
+                    <svg class="deco-svg deco-cyber-visor" viewBox="0 0 160 160" fill="none">
+                      <circle class="visor-orbit" cx="80" cy="88" r="66" stroke="var(--prof-accent)" stroke-width="2.5" stroke-dasharray="18 10 6 10"/>
+                      <path class="visor-lens" d="M32 76 Q80 64 128 76 L122 92 Q80 82 38 92 Z" fill="rgba(56, 189, 248, 0.55)" stroke="#38BDF8" stroke-width="2"/>
+                    </svg>
+
+                    <!-- 4. Inferno Plasma Flames -->
+                    <div class="deco-ring deco-plasma-ring"></div>
+
+                    <!-- 5. Volt Lightning Storm -->
+                    <div class="deco-ring deco-volt-ring"></div>
+
+                    <!-- 6. Sakura Blossom Vortex -->
+                    <div class="deco-ring deco-sakura-ring"></div>
+
+                    <!-- 7. Singularity Nebula -->
+                    <div class="deco-ring deco-nebula-ring"></div>
+                  </div>
+
+                  <img alt="{{.Profile.EffectiveDisplayName}}" width="120" height="120" src="{{.Profile.AvatarPath}}" class="avatar" id="live-profile-avatar">
+                  {{if .Profile.IsFounderAccount}}
+                  <div class="avatar-flair flair-founder" title="NSM Sovereign Founder">&#9813;</div>
+                  {{else if or (eq .Profile.Role "admin") (eq .Profile.Role "staff")}}
+                  <div class="avatar-flair" title="AFX Platform Staff">&#9733;</div>
+                  {{else if .Profile.HasPartnerBadge}}
+                  <div class="avatar-flair flair-partner" title="AFX Partnered Server Owner">&#8734;</div>
+                  {{end}}
+                </div>
+
+                <!-- .primary-textual -->
+                <div class="primary-textual">
+                  <div class="user-profile-names">
+                    <div class="username user-profile-names__primary">
+                      <span id="live-profile-display-name">{{.Profile.EffectiveDisplayName}}</span>
+                      {{if .Profile.IsFounderAccount}}
+                      <span class="d-role-tag role-founder" title="NSM Founder &amp; Sovereign Owner">&#9813; FOUNDER</span>
+                      {{else if eq .Profile.Role "admin"}}
+                      <span class="d-role-tag role-admin">ADMIN</span>
+                      {{else if eq .Profile.Role "staff"}}
+                      <span class="d-role-tag role-staff">STAFF</span>
+                      {{end}}
+                      {{if .Profile.HasPartnerBadge}}
+                      <span class="d-role-tag role-partner" title="Official AFX Partner">&#8734; PARTNER</span>
+                      {{end}}
+                      {{if .Profile.HasPulse}}
+                      <span class="d-role-tag role-pulse" title="{{.Profile.EffectivePulseTierLabel}}">&#9889; {{.Profile.EffectivePulseTier}}</span>
+                      {{end}}
+                    </div>
+                    <div class="full-name user-profile-names__secondary" id="live-profile-handle">@{{.Profile.Username}}</div>
+                    <div class="user-profile-names__title">
+                      <span id="live-profile-title">{{.Profile.EffectiveTitle}}</span>
+                    </div>
+
+                    <!-- Profile Header Unlocked Badge Tray (Interactive Icons for All Earned Badges) -->
+                    <div class="d-profile-badge-tray" title="Unlocked AFX &amp; NSM Badges">
+                      {{range .Badges}}
+                      <a href="/u/{{$.Profile.Username}}?tab=badges" class="d-tray-badge rarity-{{.Rarity}}" style="{{.ColorStyle}}" title="{{.Name}} ({{.Rarity}}) — {{.Desc}}">
+                        {{if eq .Icon "crown"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>
+                        {{else if eq .Icon "staff_shield"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v6h-2V7zm0 8h2v2h-2v-2z"/></svg>
+                        {{else if eq .Icon "admin_star"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"/></svg>
+                        {{else if eq .Icon "partner_infinity"}}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"/></svg>
+                        {{else if eq .Icon "mod_sword"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1.06 13.54L7.4 12l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41-5.64 5.66z"/></svg>
+                        {{else if eq .Icon "pulse_wheel"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        {{else if eq .Icon "boost_gem"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 9l10 13L22 9 12 2zm0 3.3L18.4 9 12 17.3 5.6 9 12 5.3z"/></svg>
+                        {{else if eq .Icon "bravery"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 7v7c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7l-8-5zm0 4l4 3-1.5 5h-5L8 9l4-3z"/></svg>
+                        {{else if eq .Icon "brilliance"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2zm-2 18h4v2h-4v-2z"/></svg>
+                        {{else if eq .Icon "balance"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L2 12l10 9 10-9-10-9zm0 4.5L16.5 12 12 16.5 7.5 12 12 7.5z"/></svg>
+                        {{else if or (eq .Icon "bug") (eq .Icon "gold_bug")}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z"/></svg>
+                        {{else if eq .Icon "code_brackets"}}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        {{else if eq .Icon "verified_gear"}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L9 4H4v5l-3 3 3 3v5h5l3 3 3-3h5v-5l3-3-3-3V4h-5l-3-3zm-1.5 14.5l-4-4 1.41-1.41 2.59 2.58 5.59-5.59L17.5 8.5l-7 7z"/></svg>
+                        {{else}}
+                        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6"/><path d="M9 14l-2 8 5-3 5 3-2-8"/></svg>
+                        {{end}}
+                      </a>
+                      {{end}}
+                    </div>
+                  </div>
+
+                  <div class="bio" id="live-profile-bio">
+                    {{if .Profile.Bio}}
+                    <p>{{.Profile.Bio}}</p>
+                    {{else}}
+                    <p>NSM &amp; AFX Platform Member. Playing on customized Grand Theft Auto V dedicated servers.</p>
+                    {{end}}
+                  </div>
+
+                  <!-- Location, Website, Community Handle, GitHub, Steam, YouTube, Twitch, X/Twitter, Favorite Server -->
+                  <div class="location-and-website user-profile__location-and-website">
+                    {{if .Profile.Location}}
+                    <div class="user-profile-location">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span>{{.Profile.Location}}</span>
+                    </div>
+                    {{end}}
+
+                    {{if .Profile.DiscordTag}}
+                    <div class="d-social-pill d-social-community" title="Community Handle">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.03 2 11c0 2.87 1.5 5.43 3.85 7.08L5 22l4.32-2.16c.86.21 1.76.32 2.68.32 5.52 0 10-4.03 10-9S17.52 2 12 2z"/></svg>
+                      <span>{{.Profile.DiscordTag}}</span>
+                    </div>
+                    {{end}}
+
+                    {{if .Profile.GitHub}}
+                    <a href="{{.Profile.GitHubURL}}" class="d-social-pill d-social-github" rel="noopener" title="GitHub">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                      <span>github.com/{{.Profile.GitHubHandle}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.Steam}}
+                    <a href="{{.Profile.SteamURL}}" class="d-social-pill d-social-steam" rel="noopener" title="Steam">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0z"/></svg>
+                      <span>{{.Profile.Steam}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.YouTube}}
+                    <a href="{{.Profile.YouTubeURL}}" class="d-social-pill d-social-youtube" rel="noopener" title="YouTube">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                      <span>{{.Profile.YouTube}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.Twitch}}
+                    <a href="{{.Profile.TwitchURL}}" class="d-social-pill d-social-twitch" rel="noopener" title="Twitch">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                      <span>{{.Profile.Twitch}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.Twitter}}
+                    <a href="{{.Profile.TwitterURL}}" class="d-social-pill d-social-twitter" rel="noopener" title="X / Twitter">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                      <span>{{.Profile.Twitter}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.Website}}
+                    <a href="{{.Profile.Website}}" class="d-social-pill" rel="noopener" title="Website">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                      <span>{{.Profile.Website}}</span>
+                    </a>
+                    {{end}}
+
+                    {{if .Profile.FavoriteServer}}
+                    <div class="d-social-pill">
+                      <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      <span>Server: <strong>{{.Profile.FavoriteServer}}</strong></span>
+                    </div>
+                    {{end}}
+                  </div>
+                </div>
+
+                <!-- .controls -->
+                <section class="controls">
+                  <ul>
+                    {{if .IsOwn}}
+                    <li>
+                      <a href="/u/{{.Profile.Username}}?tab=preferences" class="d-btn d-btn-primary d-btn-theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        <span>Customize Profile &amp; Colors</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a href="/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-default">
+                        <span>&#9889; {{if .Profile.HasPulse}}{{.Profile.EffectivePulseTierLabel}}{{else}}Get AFX Pulse{{end}}</span>
+                      </a>
+                    </li>
+                    {{else}}
+                    {{if .User}}
+                    {{if .IsFriendWithProfile}}
+                    <li>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="remove">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%" title="Click to remove friend">
+                          &#10004; Friends (@{{.Profile.Username}})
+                        </button>
+                      </form>
+                    </li>
+                    {{else if .PendingInWithProfile}}
+                    <li style="display:flex;gap:6px">
+                      <form method="post" action="/account/friends" style="margin:0;flex:1">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="accept">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
+                          &#10004; Accept Friend Request
+                        </button>
+                      </form>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="decline">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-default" title="Decline Request">&#10005;</button>
+                      </form>
+                    </li>
+                    {{else if .PendingOutWithProfile}}
+                    <li>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%" title="Waiting for @{{.Profile.Username}} to accept (click to cancel)">
+                          &#9203; Friend Request Pending
+                        </button>
+                      </form>
+                    </li>
+                    {{else}}
+                    <li>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="target" value="{{.Profile.Username}}">
+                        <input type="hidden" name="action" value="add">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">
+                          + Add Friend (@{{.Profile.Username}})
+                        </button>
+                      </form>
+                    </li>
+                    {{end}}
+                    {{end}}
+                    <li>
+                      <a href="{{if .User}}/u/{{.User.Username}}?tab=messages&amp;with={{.Profile.Username}}{{else}}/login?next=/u/{{.Profile.Username}}?tab=messages{{end}}" class="d-btn d-btn-default">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <span>Message @{{.Profile.Username}}</span>
+                      </a>
+                    </li>
+                    {{end}}
+                    {{if and .CanManagePartner (not .Profile.IsFounderAccount)}}
+                    <li>
+                      <form method="post" action="/admin/users/{{.Profile.ID}}/partner">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%">
+                          {{if .Profile.IsPartner}}Revoke Partner Role{{else}}&#8734; Grant Partner Role{{end}}
+                        </button>
+                      </form>
+                    </li>
+                    {{end}}
+                    <li>
+                      <a href="/keymaster" class="d-btn d-btn-default">
+                        <span>AFX Portal</span>
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+
+              <!-- Discourse #collapsed-info-panel (user/collapsed-info.gjs) -->
+              <div class="secondary" id="collapsed-info-panel">
+                <dl>
+                  <div>
+                    <dt class="created-at">Joined</dt>
+                    <dd class="created-at">{{.JoinedStr}}</dd>
+                  </div>
+                  <div>
+                    <dt class="last-posted-at">Last Post</dt>
+                    <dd class="last-posted-at">{{.LastPostStr}}</dd>
+                  </div>
+                  <div>
+                    <dt class="last-seen-at">Seen</dt>
+                    <dd class="last-seen-at">{{.LastSeenStr}}</dd>
+                  </div>
+                  <div>
+                    <dt class="profile-view-count">Views</dt>
+                    <dd class="profile-view-count"><span class="d-realtime-live-dot" title="Real-time view counter"></span><span id="profile-realtime-views">{{.ProfileViews}}</span></dd>
+                  </div>
+                  <div>
+                    <dt class="trust-level">Trust Level</dt>
+                    <dd class="trust-level">{{.TrustLevelName}}</dd>
+                  </div>
+                  <div>
+                    <dt class="groups">Membership</dt>
+                    <dd class="groups">
+                      <span><a href="/u/{{.Profile.Username}}?tab=pulse" class="group-link">{{.Profile.EffectivePulseTierLabel}}</a></span>
+                      {{if .Profile.HasPartnerBadge}}<span> &middot; <a href="/u/{{.Profile.Username}}?tab=badges" class="group-link">afx_partner</a></span>{{end}}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <!-- Discourse .user-content-wrapper (1:1 Primary Navigation Bar) -->
+          <div class="user-content-wrapper">
+            <div class="user-primary-navigation">
+              <ul class="nav-pills user-nav">
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=summary" class="{{if eq .Tab "summary"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Summary</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=activity" class="{{if .IsActivityTab}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span>Activity</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=notifications" class="{{if eq .Tab "notifications"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <span>Notifications ({{len .Notifications}})</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=messages" class="{{if eq .Tab "messages"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <span>Messages ({{len .Messages}})</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=badges" class="{{if eq .Tab "badges"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                    <span>Badges ({{.UnlockedCount}}/{{.TotalBadgesCount}})</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=pulse" class="{{if eq .Tab "pulse"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span>AFX Pulse</span>
+                  </a>
+                </li>
+                {{if .IsOwn}}
+                <li>
+                  <a href="/u/{{.Profile.Username}}?tab=preferences" class="{{if eq .Tab "preferences"}}active{{end}}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></svg>
+                    <span>Preferences</span>
+                  </a>
+                </li>
+                {{end}}
+              </ul>
+            </div>
+
+            <!-- Discourse #user-content -->
+            <div class="user-content" id="user-content">
+
+              {{if eq .Tab "pulse"}}
+              <!-- ==============================================================
+                   TAB: AFX PULSE MEMBERSHIP TIERS (CURRENTLY CLOSED FOR PURCHASES)
+                   ============================================================== -->
+              <div class="top-section d-pulse-showcase">
+                {{if .PulseError}}
+                <div class="d-alert d-alert-error" style="margin-bottom:16px"><strong>Notice:</strong> {{.PulseError}}</div>
+                {{end}}
+
+                <div style="margin-bottom:18px;padding:16px 20px;border-radius:12px;background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(239,68,68,0.14));border:1px solid rgba(245,158,11,0.55);color:#fde68a;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+                  <div>
+                    <div style="font-size:15px;font-weight:800;color:#fff">&#128274; AFX Pulse Subscriptions Are Currently Closed</div>
+                    <div style="font-size:13px;color:#fef3c7;margin-top:3px">AFX Pulse is not open for public purchase right now. Stay tuned for the official launch announcement!</div>
+                  </div>
+                  <span style="padding:5px 12px;border-radius:999px;background:rgba(15,23,42,0.75);border:1px solid rgba(245,158,11,0.5);color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Closed — Coming Soon</span>
+                </div>
+
+                <div class="d-pulse-hero">
+                  <div>
+                    <span class="d-theme-live-pill">&#9889; AFX PULSE MEMBERSHIP &amp; SERVER UPVOTES</span>
+                    <h2 style="margin:8px 0 6px;font-size:26px;color:#fff">Unlock Profile Colors, Animated Effects &amp; Server Upvote Power</h2>
+                    <p class="d-muted" style="max-width:680px;margin:0">
+                      AFX Pulse Pro &amp; Sovereign unlock full-page Style Profile Layout Colors, animated GIF avatars &amp; banners, Neon Cyber Cat Ears, moving profile effects, and NSM Server Upvotes (+1 Upvote with Pro, +4 Upvotes with Sovereign; Core gets 0 Upvotes).
+                    </p>
+                  </div>
+                  <div class="d-pulse-current-status">
+                    <span class="d-muted" style="font-size:12px;text-transform:uppercase">Active Tier for @{{.Profile.Username}}</span>
+                    <strong style="font-size:18px;color:#fff;display:block;margin-top:3px">{{.Profile.EffectivePulseTierLabel}}</strong>
+                    <span class="d-muted" style="font-size:12.5px;display:block;margin-top:4px">Server Upvote Allowance: <strong style="color:#38bdf8">{{.UpvoteAllowance}} Upvotes</strong></span>
+                    {{if .Profile.IsFounderAccount}}
+                    <span class="d-theme-live-pill" style="margin-top:6px;display:inline-block">Permanent Founder Access — Active Forever</span>
+                    {{end}}
+                  </div>
+                </div>
+
+                <div class="d-pulse-tiers-grid">
+                  <!-- Tier 1: AFX Pulse Core -->
+                  <div class="d-pulse-tier-card {{if eq .Profile.EffectivePulseTier "core"}}active-tier{{end}}">
+                    <div class="d-pulse-tier-head">
+                      <h3>AFX Pulse Core</h3>
+                      <div class="d-pulse-price">$4.99<span>/mo</span></div>
+                    </div>
+                    <ul class="d-pulse-perks">
+                      <li>&#10004; Exclusive <strong>AFX Pulse Subscriber</strong> Badge on Profile &amp; Posts</li>
+                      <li>&#10004; Animated <strong>GIF Avatar</strong> Uploads &amp; External GIF Links</li>
+                      <li>&#10004; Custom <strong>Avatar Decorations</strong> including <strong>Neon Cyber Cat Ears</strong></li>
+                      <li>&#10008; <strong>0 Server Upvotes</strong> (Upgrade to Pro for +1 Upvote or Sovereign for +4 Upvotes)</li>
+                      <li>&#10008; Basic Default Profile Theme (Upgrade to Pro to change Profile Colors)</li>
+                    </ul>
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else}}&#128274; AFX Pulse Closed — Coming Soon{{end}}
+                    </button>
+                  </div>
+
+                  <!-- Tier 2: AFX Pulse Pro -->
+                  <div class="d-pulse-tier-card featured-tier {{if eq .Profile.EffectivePulseTier "pro"}}active-tier{{end}}">
+                    <div class="d-pulse-popular-tag">MOST POPULAR</div>
+                    <div class="d-pulse-tier-head">
+                      <h3>AFX Pulse Pro</h3>
+                      <div class="d-pulse-price">$9.99<span>/mo</span></div>
+                    </div>
+                    <ul class="d-pulse-perks">
+                      <li>&#10004; <strong>Unlocks Full-Page Style Profile Layout Colors</strong> (Transforms your entire <code>/u/</code> tab!)</li>
+                      <li>&#10004; <strong>+1 NSM Server Upvote Power</strong> on the Masterlist</li>
+                      <li>&#10004; Animated <strong>GIF Avatars &amp; Animated GIF Profile Banners</strong></li>
+                      <li>&#10004; All <strong>Moving Profile Effects</strong> (Aurora Waves, Cyber Grid, Starlight Warp, Volt Storm)</li>
+                      <li>&#10004; All 7 <strong>Avatar Decorations</strong> (Cat Ears, Sovereign Crown, Cyber Visor, Plasma Aura)</li>
+                    </ul>
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      {{if .Profile.IsFounderAccount}}Included in Founder Eternal{{else}}&#128274; AFX Pulse Closed — Coming Soon{{end}}
+                    </button>
+                  </div>
+
+                  <!-- Tier 3: AFX Pulse Sovereign -->
+                  <div class="d-pulse-tier-card sovereign-tier {{if or (eq .Profile.EffectivePulseTier "sovereign") (eq .Profile.EffectivePulseTier "eternal")}}active-tier{{end}}">
+                    <div class="d-pulse-popular-tag" style="background:linear-gradient(135deg,#f59e0b,#ec4899)">MAX OVERDRIVE (+4 UPVOTES)</div>
+                    <div class="d-pulse-tier-head">
+                      <h3>AFX Pulse Sovereign</h3>
+                      <div class="d-pulse-price">{{if .Profile.IsFounderAccount}}FREE FOREVER{{else}}$19.99<span>/mo</span>{{end}}</div>
+                    </div>
+                    <ul class="d-pulse-perks">
+                      <li>&#10004; Everything in <strong>AFX Pulse Pro</strong> (Full-Page Profile Color Themes &amp; Moving FX)</li>
+                      <li>&#10004; <strong>+4 NSM Server Upvotes Power</strong> on the NSM Server List + <strong>AFX Server Upvoter Badge</strong></li>
+                      <li>&#10004; Mythic <strong>Sovereign Pulse Badge</strong> &amp; Holographic Prism Profile Shimmer</li>
+                      <li>&#10004; Priority Server Upvote Weight on the NSM Masterlist</li>
+                      <li>&#10004; <strong>@nta~ Founder Account has Sovereign Eternal Unlocked Forever!</strong></li>
+                    </ul>
+                    {{if and .User .User.IsFounderAccount}}
+                    <button type="button" class="d-btn d-btn-primary d-btn-theme" style="width:100%" disabled>&#9813; Founder Eternal Active Forever</button>
+                    {{else}}
+                    <button type="button" class="d-btn d-btn-default" style="width:100%;opacity:0.6;cursor:not-allowed" disabled>
+                      &#128274; AFX Pulse Closed — Coming Soon
+                    </button>
+                    {{end}}
+                  </div>
+                </div>
+              </div>
+
+              {{else if eq .Tab "preferences"}}
+              <!-- ==============================================================
+                   TAB: PREFERENCES & FULL-PAGE PROFILE STUDIO
+                   ============================================================== -->
+              {{if .IsOwn}}
+              <div class="d-preferences-grid">
+                <div class="d-pref-card">
+                  <form method="post" action="/account/profile" enctype="multipart/form-data" class="d-pref-form" id="nsm-profile-form">
+                    <input type="hidden" name="return_tab" value="preferences">
+
+                    <div class="d-pref-header-bar">
+                      <div>
+                        <h3 class="stats-title" style="margin-bottom:4px">Account Identity &amp; Style Profile Layout Studio</h3>
+                        <p class="d-muted" style="font-size:13px;margin:0">Customize your Display Name, Username, Full-Page Layout Colors, Neon Cyber Cat Ears, Moving Profile Effects, and Animated GIFs.</p>
+                      </div>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">Save Changes</button>
+                    </div>
+
+                    <!-- 1. DISPLAY NAME & @USERNAME -->
+                    <div class="d-form-row-3" style="margin-top:14px">
+                      <label class="d-label">
+                        <span>Display Name (Shown on Profile, Navbar &amp; Posts)</span>
+                        <input
+                          type="text"
+                          name="display_name"
+                          id="input-display-name"
+                          value="{{.Profile.EffectiveDisplayName}}"
+                          class="d-input"
+                          maxlength="48"
+                          placeholder="Your display name"
+                          oninput="var el=document.getElementById('live-profile-display-name');if(el)el.textContent=this.value||'{{.Profile.Username}}';var nav=document.getElementById('live-navbar-display-name');if(nav)nav.textContent=this.value||'{{.Profile.Username}}';"
+                        >
+                      </label>
+                      <label class="d-label">
+                        <span>Username (@handle)</span>
+                        <input
+                          type="text"
+                          name="new_username"
+                          id="input-new-username"
+                          value="{{.Profile.Username}}"
+                          class="d-input"
+                          maxlength="32"
+                          placeholder="username"
+                          oninput="var h=document.getElementById('live-profile-handle');if(h)h.textContent='@'+(this.value.replace(/^@+/,'')||'{{.Profile.Username}}');"
+                        >
+                      </label>
+                      <label class="d-label">
+                        <span>Custom Title / Role Subtitle</span>
+                        <input
+                          type="text"
+                          name="title"
+                          value="{{.Profile.Title}}"
+                          class="d-input"
+                          maxlength="64"
+                          placeholder="e.g. Server Developer, Roleplay Creator"
+                          oninput="var t=document.getElementById('live-profile-title');if(t)t.textContent=this.value||'{{.Profile.EffectiveTitle}}';"
+                        >
+                      </label>
+                    </div>
+
+                    <!-- 2. STYLE PROFILE LAYOUT COLORS (Requires AFX Pulse Pro / Sovereign!) -->
+                    <div class="d-discord-theme-box">
+                      {{if not .Profile.HasPulseProOrHigher}}
+                      <div class="d-pro-lock-banner">
+                        <div>
+                          <strong>&#128274; AFX Pulse Pro Required for Profile Color Changing &amp; Moving Effects</strong>
+                          <div style="font-size:12px;margin-top:2px;color:#e2e8f0">Basic / Core accounts use the standard NSM dark theme. Upgrade to <strong>AFX Pulse Pro</strong> or <strong>Sovereign</strong> to unlock full-page custom profile colors, animated banners, and moving profile effects!</div>
+                        </div>
+                        <a href="/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme d-btn-xs">&#9889; Upgrade to AFX Pulse Pro</a>
+                      </div>
+                      {{end}}
+
+                      <div class="{{if not .Profile.HasPulseProOrHigher}}d-fieldset-locked{{end}}">
+                      <div class="d-discord-theme-header">
+                        <div>
+                          <h4 class="d-sub-heading" style="margin:0;border:none;padding:0">Style Profile Layout Colors {{if not .Profile.HasPulseProOrHigher}}(AFX Pulse Pro Only){{end}}</h4>
+                          <p class="d-muted" style="font-size:12.5px;margin:4px 0 0">Changes the entire <code>/u/{{.Profile.Username}}</code> page background, header, sidebar, cards, borders, and buttons to your chosen colors.</p>
+                        </div>
+                        <span class="d-theme-live-pill">{{if .Profile.HasPulseProOrHigher}}Full-Page Live Preview{{else}}Locked — Pulse Pro{{end}}</span>
+                      </div>
+
+                      <!-- Custom NSM/AFX Preset Swatches -->
+                      <div class="d-theme-presets-grid">
+                        {{range .ThemePresets}}
+                        <button
+                          type="button"
+                          class="d-theme-preset-btn"
+                          {{if $.Profile.HasPulseProOrHigher}}onclick="applyNsmProfileTheme('{{.Primary}}','{{.Accent}}','{{.Banner}}','{{.Avatar}}')"{{else}}disabled{{end}}
+                          title="Apply {{.Name}} Color Theme"
+                        >
+                          <span class="d-theme-preset-swatch" style="{{.SwatchStyle}}"></span>
+                          <span class="d-theme-preset-name">{{.Name}}</span>
+                        </button>
+                        {{end}}
+                      </div>
+
+                      <!-- 4 Color Pickers (Primary Layout, Accent Gradient, Banner, Monogram Avatar) -->
+                      <div class="d-form-row-4" style="margin-top:14px">
+                        <label class="d-label d-color-picker-label">
+                          <span>Primary Layout Color</span>
+                          <div class="d-color-input-wrap">
+                            <input
+                              type="color"
+                              name="theme_primary"
+                              id="picker-theme-primary"
+                              value="{{.Profile.EffectiveThemePrimary}}"
+                              class="d-color-input"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
+                            >
+                            <code id="hex-theme-primary">{{.Profile.EffectiveThemePrimary}}</code>
+                          </div>
+                        </label>
+
+                        <label class="d-label d-color-picker-label">
+                          <span>Accent / Gradient Color</span>
+                          <div class="d-color-input-wrap">
+                            <input
+                              type="color"
+                              name="theme_accent"
+                              id="picker-theme-accent"
+                              value="{{.Profile.EffectiveThemeAccent}}"
+                              class="d-color-input"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
+                            >
+                            <code id="hex-theme-accent">{{.Profile.EffectiveThemeAccent}}</code>
+                          </div>
+                        </label>
+
+                        <label class="d-label d-color-picker-label">
+                          <span>Header Banner Color</span>
+                          <div class="d-color-input-wrap">
+                            <input
+                              type="color"
+                              name="banner_color"
+                              id="picker-banner-color"
+                              value="{{.Profile.EffectiveBannerColor}}"
+                              class="d-color-input"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
+                            >
+                            <code id="hex-banner-color">{{.Profile.EffectiveBannerColor}}</code>
+                          </div>
+                        </label>
+
+                        <label class="d-label d-color-picker-label">
+                          <span>Avatar Ring &amp; Monogram</span>
+                          <div class="d-color-input-wrap">
+                            <input
+                              type="color"
+                              name="avatar_color"
+                              id="picker-avatar-color"
+                              value="{{.Profile.EffectiveAvatarColor}}"
+                              class="d-color-input"
+                              {{if .Profile.HasPulseProOrHigher}}oninput="syncNsmLiveColors()"{{else}}disabled{{end}}
+                            >
+                            <code id="hex-avatar-color">{{.Profile.EffectiveAvatarColor}}</code>
+                          </div>
+                        </label>
+                      </div>
+
+                      <!-- 3. ANIMATED AVATAR DECORATIONS (CAT EARS & MORE), MOVING PROFILE EFFECTS & VANGUARD SQUAD HOUSE -->
+                      <div class="d-form-row-3" style="margin-top:14px">
+                        <label class="d-label">
+                          <span>Animated Avatar Decoration (Cat Ears &amp; FX)</span>
+                          <select name="avatar_decoration" id="select-avatar-decoration" class="d-input" {{if .Profile.HasPulse}}onchange="syncNsmLiveDecoration(this.value)"{{else}}disabled{{end}}>
+                            <option value="cat_ears" {{if eq .Profile.EffectiveAvatarDecoration "cat_ears"}}selected{{end}}>&#128049; Neon Cyber Cat Ears (Animated)</option>
+                            <option value="sovereign_crown" {{if eq .Profile.EffectiveAvatarDecoration "sovereign_crown"}}selected{{end}}>&#9813; Sovereign Floating Crown &amp; Halo</option>
+                            <option value="cyber_visor" {{if eq .Profile.EffectiveAvatarDecoration "cyber_visor"}}selected{{end}}>&#129302; AFX Cybernetic Visor &amp; HUD Orbit</option>
+                            <option value="plasma_flames" {{if eq .Profile.EffectiveAvatarDecoration "plasma_flames"}}selected{{end}}>&#128293; Inferno Plasma Flame Aura</option>
+                            <option value="volt_lightning" {{if eq .Profile.EffectiveAvatarDecoration "volt_lightning"}}selected{{end}}>&#9889; Volt Surge Lightning Arc</option>
+                            <option value="sakura_drift" {{if eq .Profile.EffectiveAvatarDecoration "sakura_drift"}}selected{{end}}>&#127800; Sakura Blossom Vortex</option>
+                            <option value="singularity_orb" {{if eq .Profile.EffectiveAvatarDecoration "singularity_orb"}}selected{{end}}>&#127756; Singularity Cosmic Nebula</option>
+                            <option value="none" {{if eq .Profile.EffectiveAvatarDecoration "none"}}selected{{end}}>Classic Glow Ring</option>
+                          </select>
+                        </label>
+
+                        <label class="d-label">
+                          <span>Moving Profile Effect (Full-Page Animation)</span>
+                          <select name="profile_effect" id="select-profile-effect" class="d-input" {{if .Profile.HasPulseProOrHigher}}onchange="syncNsmLiveEffect(this.value)"{{else}}disabled{{end}}>
+                            <option value="aurora_waves" {{if eq .Profile.EffectiveProfileEffect "aurora_waves"}}selected{{end}}>&#10024; Aurora Borealis Flowing Waves</option>
+                            <option value="cyber_matrix" {{if eq .Profile.EffectiveProfileEffect "cyber_matrix"}}selected{{end}}>&#128187; AFX 3D Cyber Grid &amp; Pulse</option>
+                            <option value="starlight_warp" {{if eq .Profile.EffectiveProfileEffect "starlight_warp"}}selected{{end}}>&#11088; Starlight Hyperdrive Drift</option>
+                            <option value="thunder_storm" {{if eq .Profile.EffectiveProfileEffect "thunder_storm"}}selected{{end}}>&#9889; Volt Lightning Storm</option>
+                            <option value="solar_embers" {{if eq .Profile.EffectiveProfileEffect "solar_embers"}}selected{{end}}>&#128293; Solar Ember Rise</option>
+                            <option value="holo_prism" {{if eq .Profile.EffectiveProfileEffect "holo_prism"}}selected{{end}}>&#128142; Holographic Prism Shimmer</option>
+                            <option value="none" {{if eq .Profile.EffectiveProfileEffect "none"}}selected{{end}}>Clean Static Gradient</option>
+                          </select>
+                        </label>
+
+                        <label class="d-label">
+                          <span>Vanguard Squad House</span>
+                          <select name="squad_house" class="d-input">
+                            <option value="all" {{if eq .Profile.SquadHouse "all"}}selected{{end}}>&#9733; All Vanguard Houses (Founder / Sovereign)</option>
+                            <option value="bravery" {{if eq .Profile.SquadHouse "bravery"}}selected{{end}}>&#128737; Vanguard of Bravery</option>
+                            <option value="brilliance" {{if eq .Profile.SquadHouse "brilliance"}}selected{{end}}>&#128161; Vanguard of Brilliance</option>
+                            <option value="balance" {{if eq .Profile.SquadHouse "balance"}}selected{{end}}>&#9878; Vanguard of Balance</option>
+                          </select>
+                        </label>
+                      </div>
+                      </div>
+                    </div>
+
+                    <label class="d-label">
+                      <span>Bio / About Me</span>
+                      <textarea name="bio" class="d-input d-textarea" rows="3" maxlength="600" placeholder="Tell the NSM &amp; AFX community about yourself, your servers, or your resources...">{{.Profile.Bio}}</textarea>
+                    </label>
+
+                    <label class="d-label">
+                      <span>Forum Post Signature / Status Line</span>
+                      <input type="text" name="signature" value="{{.Profile.Signature}}" class="d-input" maxlength="200" placeholder="Appears beneath your posts on AFX Forum">
+                    </label>
+
+                    <h4 class="d-sub-heading">Connected Social &amp; Developer Accounts</h4>
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Community Chat Handle / Server Invite</span>
+                        <input type="text" name="discord_tag" value="{{.Profile.DiscordTag}}" class="d-input" maxlength="64" placeholder="e.g. cravenz">
+                      </label>
+                      <label class="d-label">
+                        <span>GitHub Username or URL (Unlocks Active Developer Badge)</span>
+                        <input type="text" name="github" value="{{.Profile.GitHub}}" class="d-input" maxlength="120" placeholder="e.g. platinum-cfx or https://github.com/username">
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-3">
+                      <label class="d-label">
+                        <span>Steam Username or Profile URL</span>
+                        <input type="text" name="steam" value="{{.Profile.Steam}}" class="d-input" maxlength="120" placeholder="e.g. cravenz">
+                      </label>
+                      <label class="d-label">
+                        <span>YouTube Channel / @Handle</span>
+                        <input type="text" name="youtube" value="{{.Profile.YouTube}}" class="d-input" maxlength="120" placeholder="e.g. @cravenz">
+                      </label>
+                      <label class="d-label">
+                        <span>Twitch Channel</span>
+                        <input type="text" name="twitch" value="{{.Profile.Twitch}}" class="d-input" maxlength="120" placeholder="e.g. cravenz">
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-3">
+                      <label class="d-label">
+                        <span>X / Twitter Handle</span>
+                        <input type="text" name="twitter" value="{{.Profile.Twitter}}" class="d-input" maxlength="80" placeholder="e.g. @cravenz">
+                      </label>
+                      <label class="d-label">
+                        <span>Website / Store URL</span>
+                        <input type="url" name="website" value="{{.Profile.Website}}" class="d-input" maxlength="160" placeholder="https://...">
+                      </label>
+                      <label class="d-label">
+                        <span>Location</span>
+                        <input type="text" name="location" value="{{.Profile.Location}}" class="d-input" maxlength="64" placeholder="e.g. Miami, FL">
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Favorite / Owned NSM Server</span>
+                        <input type="text" name="favorite_server" value="{{.Profile.FavoriteServer}}" class="d-input" maxlength="80" placeholder="e.g. NSM Official Server">
+                      </label>
+                      <label class="d-label">
+                        <span>Email Address</span>
+                        <input type="email" name="email" value="{{.Profile.Email}}" class="d-input" maxlength="120" placeholder="you@example.com">
+                      </label>
+                    </div>
+
+                    <h4 class="d-sub-heading">Profile Picture (Avatar) &amp; Profile Banner</h4>
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Upload Profile Picture (PNG / JPG / GIF / WebP)</span>
+                        <input type="file" name="avatar_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input" onchange="previewNsmAvatarFile(this)">
+                      </label>
+                      <label class="d-label">
+                        <span>Or External Avatar Image / GIF URL</span>
+                        <input type="url" name="avatar_url" value="{{.Profile.AvatarURL}}" class="d-input" placeholder="https://example.com/avatar.png">
+                      </label>
+                    </div>
+
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Upload Profile Banner (PNG / JPG / GIF / WebP)</span>
+                        <input type="file" name="banner_file" accept="image/gif,image/png,image/jpeg,image/webp" class="d-input" onchange="previewNsmBannerFile(this)">
+                      </label>
+                      <label class="d-label">
+                        <span>Or External Profile Banner Image / GIF URL</span>
+                        <input type="url" name="banner_url" value="{{.Profile.BannerURL}}" class="d-input" placeholder="https://example.com/banner.png">
+                      </label>
+                    </div>
+
+                    {{if or .Profile.AvatarData .Profile.AvatarURL}}
+                    <label class="d-checkbox-row">
+                      <input type="checkbox" name="clear_avatar" value="1">
+                      <span>Reset custom avatar back to generated NSM monogram avatar</span>
+                    </label>
+                    {{end}}
+                    {{if or .Profile.BannerData .Profile.BannerURL}}
+                    <label class="d-checkbox-row">
+                      <input type="checkbox" name="clear_banner" value="1">
+                      <span>Reset custom banner image back to animated theme gradient</span>
+                    </label>
+                    {{end}}
+
+                    <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">Save Profile, Decorations &amp; Layout Colors</button>
+                      <a href="/u/{{.Profile.Username}}?tab=summary" class="d-btn d-btn-default">View Summary</a>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Right Column: AFX Pulse Status, NSM Desktop Client Link & Password Security -->
+                <div class="d-pref-side">
+                  <div class="d-pref-card">
+                    <h3 class="stats-title">&#9889; AFX Pulse Membership</h3>
+                    <p class="d-muted" style="margin-bottom:10px">
+                      Current Status: <strong style="color:#fff">{{.Profile.EffectivePulseTierLabel}}</strong>
+                    </p>
+                    <a href="/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center;display:block">
+                      {{if .Profile.IsFounderAccount}}View Founder Eternal Perks{{else}}Manage / Upgrade AFX Pulse{{end}}
+                    </a>
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">NSM.exe Desktop Client Link</h3>
+                    <p class="d-muted" style="margin-bottom:12px">
+                      Push your active account session directly into the NSM desktop client, or open the Client Authorization screen:
+                    </p>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <form method="post" action="/account/connect-client">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%">Authorize Waiting NSM.exe Client</button>
+                      </form>
+                      <a href="/user-api-key/new" class="d-btn d-btn-default">Open Client Auth Page</a>
+                      <a href="/keymaster" class="d-btn d-btn-default">Manage Server Keys (AFX Portal)</a>
+                    </div>
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">&#9993; Email Verification</h3>
+                    <p class="d-muted" style="margin-bottom:10px">
+                      Email: <strong style="color:#fff">{{.Profile.Email}}</strong>
+                    </p>
+                    {{if .Profile.EmailVerified}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.45);color:#6ee7b7;font-size:13px;font-weight:700">
+                        &#10004; Verified Email Address
+                      </div>
+                    {{else}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.45);color:#fcd34d;font-size:13px;margin-bottom:10px">
+                        Your email is not verified yet.
+                      </div>
+                      <a href="/verify-email?next=/u/{{.Profile.Username}}?tab=preferences" class="d-btn d-btn-primary d-btn-theme" style="width:100%;text-align:center;display:block">Verify Email Address</a>
+                    {{end}}
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">&#128274; Two-Step Verification (2FA)</h3>
+                    <p class="d-muted" style="margin-bottom:10px">
+                      Require a 6-digit security code when signing in to your AFX account.
+                    </p>
+                    {{if .Profile.TwoFactorEnabled}}
+                      <div style="padding:10px 12px;border-radius:8px;background:rgba(56,189,248,0.16);border:1px solid rgba(56,189,248,0.45);color:#7dd3fc;font-size:13px;font-weight:700;margin-bottom:10px">
+                        &#128274; Two-Step Verification (2FA) is ENABLED
+                      </div>
+                      <form method="post" action="/account/2fa" class="d-pref-form">
+                        <input type="hidden" name="action" value="disable">
+                        <button type="submit" class="d-btn d-btn-default" style="width:100%">Disable Two-Step Verification</button>
+                      </form>
+                    {{else}}
+                      <form method="post" action="/account/2fa" class="d-pref-form">
+                        <input type="hidden" name="action" value="enable">
+                        <label class="d-label">
+                          <span>Set 6-Digit Security Code (Numeric)</span>
+                          <input type="text" name="code" class="d-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="e.g. 482910" required style="letter-spacing:0.2em;font-weight:700">
+                        </label>
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="width:100%;margin-top:8px">Enable Two-Step Verification</button>
+                      </form>
+                    {{end}}
+                  </div>
+
+                  <div class="d-pref-card" style="margin-top:18px">
+                    <h3 class="stats-title">Account Security &amp; Password</h3>
+                    <form method="post" action="/account/password" class="d-pref-form">
+                      <label class="d-label">
+                        <span>Current Password</span>
+                        <input type="password" name="old" class="d-input" required>
+                      </label>
+                      <label class="d-label">
+                        <span>New Password (6+ characters)</span>
+                        <input type="password" name="new" class="d-input" required minlength="6">
+                      </label>
+                      <button type="submit" class="d-btn d-btn-default" style="margin-top:8px">Update Password</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {{else}}
+              <div class="top-section">
+                <h3 class="stats-title">Profile Preferences</h3>
+                <p class="d-muted">Sign in as <strong>@{{.Profile.Username}}</strong> to edit profile settings and layout theme colors.</p>
+              </div>
+              {{end}}
+
+              {{else if .IsActivityTab}}
+              <!-- ==============================================================
+                   TAB: ACTIVITY (1:1 forum.cfx.re/u/<username>/activity with
+                   Left .user-secondary-navigation + Right Stream / Topic Table)
+                   ============================================================== -->
+              <div class="d-activity-layout">
+                <div class="user-navigation user-secondary-navigation">
+                  <nav class="user-nav-secondary">
+                    <ul class="action-list nav-stacked">
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=activity" class="{{if eq .ActivitySub "all"}}active{{end}}">
+                          <span>All</span>
+                          <span class="d-subnav-count">{{len .Posts}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=topics" class="{{if eq .ActivitySub "topics"}}active{{end}}">
+                          <span>Topics</span>
+                          <span class="d-subnav-count">{{.TopicCount}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=replies" class="{{if eq .ActivitySub "replies"}}active{{end}}">
+                          <span>Replies</span>
+                          <span class="d-subnav-count">{{.ReplyCount}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=read" class="{{if eq .ActivitySub "read"}}active{{end}}">
+                          <span>Read</span>
+                          <span class="d-subnav-count">{{len .ReadTopics}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=likes" class="{{if eq .ActivitySub "likes"}}active{{end}}">
+                          <span>Likes</span>
+                          <span class="d-subnav-count">{{.LikedCount}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=solved" class="{{if eq .ActivitySub "solved"}}active{{end}}">
+                          <span>Solved</span>
+                          <span class="d-subnav-count">{{.SolvedCount}}</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a href="/u/{{.Profile.Username}}?tab=votes" class="{{if eq .ActivitySub "votes"}}active{{end}}">
+                          <span>Votes</span>
+                          <span class="d-subnav-count">{{.UpvoteCount}}</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+
+                <!-- Right Main Activity Content Stream -->
+                <div class="user-content-stream">
+
+                  {{if eq .ActivitySub "topics"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Topics Created by {{.Profile.EffectiveDisplayName}} ({{.TopicCount}})</h3>
+                    <a href="/forum" class="d-btn d-btn-primary d-btn-theme d-btn-xs">+ New Topic</a>
+                  </div>
+                  {{if .EnrichedTopics}}
+                  <table class="topic-list d-profile-topic-list">
+                    <thead class="topic-list-header">
+                      <tr>
+                        <th class="default topic-list-data">Topic</th>
+                        <th class="num posts-map topic-list-data">Replies</th>
+                        <th class="num views topic-list-data">Views</th>
+                        <th class="num activity topic-list-data">Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody class="topic-list-body">
+                      {{range .EnrichedTopics}}
+                      <tr class="topic-list-item">
+                        <td class="main-link clearfix topic-list-data">
+                          <span class="link-top-line">
+                            <a href="/forum/t/{{.ID}}" class="title raw-link raw-topic-link">{{.Title}}</a>
+                          </span>
+                          <div class="link-bottom-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                            {{if .Tags}}
+                            <div class="discourse-tags">
+                              {{range .Tags}}<span class="discourse-tag box">{{.}}</span>{{end}}
+                            </div>
+                            {{end}}
+                          </div>
+                        </td>
+                        <td class="num posts-map posts topic-list-data"><span class="number">{{.Replies}}</span></td>
+                        <td class="num views topic-list-data"><span class="number">{{.Views}}</span></td>
+                        <td class="num age activity topic-list-data"><span class="relative-date">{{.LastActiveStr}}</span></td>
+                      </tr>
+                      {{end}}
+                    </tbody>
+                  </table>
+                  {{else}}
+                  <div class="d-empty-stream">
+                    <p>No topics created by <strong>{{.Profile.EffectiveDisplayName}}</strong> yet.</p>
+                    <a href="/forum" class="d-btn d-btn-primary d-btn-theme">Create First Topic on AFX Forum</a>
+                  </div>
+                  {{end}}
+
+                  {{else if eq .ActivitySub "replies"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Replies by {{.Profile.EffectiveDisplayName}} ({{.ReplyCount}})</h3>
+                  </div>
+                  {{if .ReplyPosts}}
+                  <div class="user-stream">
+                    {{range .ReplyPosts}}
+                    <div class="user-stream-item item">
+                      <div class="user-stream-item-header">
+                        <a href="/u/{{$.Profile.Username}}" class="stream-avatar-link">
+                          <img src="{{$.Profile.AvatarPath}}" alt="{{$.Profile.EffectiveDisplayName}}" width="40" height="40" class="avatar">
+                        </a>
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}" class="stream-topic-title">{{.TopicTitle}}</a>
+                            <span class="stream-post-badge">Reply #{{.PostNumber}}</span>
+                          </div>
+                          <div class="stream-category-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                            {{range .Tags}}<span class="discourse-tag box">{{.}}</span>{{end}}
+                          </div>
+                        </div>
+                        <div class="stream-time-meta">
+                          <span class="time" title="{{.CreatedAt}}">{{.RelativeStr}}</span>
+                          {{if gt .Likes 0}}<span class="stream-likes"><span class="d-icon-heart">&#10084;</span> {{.Likes}}</span>{{end}}
+                        </div>
+                      </div>
+                      <div class="excerpt">
+                        {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+                      </div>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{else}}
+                  <div class="d-empty-stream">
+                    <p>No replies posted by <strong>{{.Profile.EffectiveDisplayName}}</strong> yet.</p>
+                    <a href="/forum" class="d-btn d-btn-default">Browse Active Forum Discussions</a>
+                  </div>
+                  {{end}}
+
+                  {{else if eq .ActivitySub "read"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Recently Read Topics ({{len .ReadTopics}})</h3>
+                  </div>
+                  <table class="topic-list d-profile-topic-list">
+                    <thead class="topic-list-header">
+                      <tr>
+                        <th class="default topic-list-data">Topic</th>
+                        <th class="num posts-map topic-list-data">Replies</th>
+                        <th class="num views topic-list-data">Views</th>
+                        <th class="num activity topic-list-data">Last Read</th>
+                      </tr>
+                    </thead>
+                    <tbody class="topic-list-body">
+                      {{range .ReadTopics}}
+                      <tr class="topic-list-item">
+                        <td class="main-link clearfix topic-list-data">
+                          <span class="link-top-line">
+                            <a href="/forum/t/{{.ID}}" class="title raw-link raw-topic-link">{{.Title}}</a>
+                          </span>
+                          <div class="link-bottom-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                            {{if .Tags}}
+                            <div class="discourse-tags">
+                              {{range .Tags}}<span class="discourse-tag box">{{.}}</span>{{end}}
+                            </div>
+                            {{end}}
+                          </div>
+                        </td>
+                        <td class="num posts-map posts topic-list-data"><span class="number">{{.Replies}}</span></td>
+                        <td class="num views topic-list-data"><span class="number">{{.Views}}</span></td>
+                        <td class="num age activity topic-list-data"><span class="relative-date">{{.LastActiveStr}}</span></td>
+                      </tr>
+                      {{end}}
+                    </tbody>
+                  </table>
+
+                  {{else if eq .ActivitySub "likes"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Liked Posts &amp; Appreciated Contributions ({{.LikedCount}})</h3>
+                  </div>
+                  {{if .LikedPosts}}
+                  <div class="user-stream">
+                    {{range .LikedPosts}}
+                    <div class="user-stream-item item">
+                      <div class="user-stream-item-header">
+                        <a href="/u/{{$.Profile.Username}}" class="stream-avatar-link">
+                          <img src="{{$.Profile.AvatarPath}}" alt="{{$.Profile.EffectiveDisplayName}}" width="40" height="40" class="avatar">
+                        </a>
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}" class="stream-topic-title">{{.TopicTitle}}</a>
+                            <span class="stream-likes"><span class="d-icon-heart">&#10084;</span> {{.Likes}}</span>
+                          </div>
+                          <div class="stream-category-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                          </div>
+                        </div>
+                        <div class="stream-time-meta">
+                          <span class="time">{{.RelativeStr}}</span>
+                        </div>
+                      </div>
+                      <div class="excerpt">
+                        {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+                      </div>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{else}}
+                  <div class="d-empty-stream">
+                    <p>No liked posts recorded yet.</p>
+                  </div>
+                  {{end}}
+
+                  {{else if eq .ActivitySub "solved"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Accepted Solutions ({{.SolvedCount}})</h3>
+                  </div>
+                  {{if .SolvedPosts}}
+                  <div class="user-stream">
+                    {{range .SolvedPosts}}
+                    <div class="user-stream-item item">
+                      <div class="user-stream-item-header">
+                        <span class="d-solved-check" title="Accepted Solution">&#10004;</span>
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}" class="stream-topic-title">{{.TopicTitle}}</a>
+                            <span class="stream-post-badge d-solved-pill">Solution #{{.PostNumber}}</span>
+                          </div>
+                          <div class="stream-category-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                          </div>
+                        </div>
+                        <div class="stream-time-meta">
+                          <span class="time">{{.RelativeStr}}</span>
+                        </div>
+                      </div>
+                      <div class="excerpt">
+                        {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+                      </div>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{else}}
+                  <div class="d-empty-stream">
+                    <p>No accepted solutions recorded yet.</p>
+                  </div>
+                  {{end}}
+
+                  {{else if eq .ActivitySub "votes"}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">NSM Server Upvotes &amp; Topic Votes ({{.UpvoteCount}})</h3>
+                    <a href="/servers" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Browse Server List</a>
+                  </div>
+                  <div class="user-stream">
+                    <div class="user-stream-item item">
+                      <div class="user-stream-item-header">
+                        <img src="{{.Profile.AvatarPath}}" alt="{{.Profile.EffectiveDisplayName}}" width="40" height="40" class="avatar">
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <strong>Active NSM Server Upvote Allowance: +{{.UpvoteCount}} Upvotes ({{.Profile.EffectivePulseTierLabel}})</strong>
+                          </div>
+                          <div class="stream-category-line">
+                            <span class="d-muted">{{if .Profile.FavoriteServer}}Assigned to: {{.Profile.FavoriteServer}}{{else}}AFX Pulse Sovereign grants +4 Server Upvotes, AFX Pulse Pro grants +1 Server Upvote, Core grants 0 Upvotes{{end}}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {{else}}
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">All Activity by {{.Profile.EffectiveDisplayName}} ({{len .Posts}})</h3>
+                    <a href="/forum" class="d-btn d-btn-primary d-btn-theme d-btn-xs">+ New Topic</a>
+                  </div>
+                  {{if .Posts}}
+                  <div class="user-stream">
+                    {{range .Posts}}
+                    <div class="user-stream-item item">
+                      <div class="user-stream-item-header">
+                        <a href="/u/{{$.Profile.Username}}" class="stream-avatar-link">
+                          <img src="{{$.Profile.AvatarPath}}" alt="{{$.Profile.EffectiveDisplayName}}" width="40" height="40" class="avatar">
+                        </a>
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}" class="stream-topic-title">{{.TopicTitle}}</a>
+                            <span class="stream-post-badge">{{if .IsReply}}Reply #{{.PostNumber}}{{else}}Created Topic{{end}}</span>
+                          </div>
+                          <div class="stream-category-line">
+                            <a class="badge-category__wrapper" href="/forum/c/{{.CategorySlug}}">
+                              <span class="badge-category-bg" style="background-color: {{.CategoryColor}}"></span>
+                              <span class="badge-category__name">{{.CategoryName}}</span>
+                            </a>
+                            {{range .Tags}}<span class="discourse-tag box">{{.}}</span>{{end}}
+                          </div>
+                        </div>
+                        <div class="stream-time-meta">
+                          <span class="time" title="{{.CreatedAt}}">{{.RelativeStr}}</span>
+                          {{if gt .Likes 0}}<span class="stream-likes"><span class="d-icon-heart">&#10084;</span> {{.Likes}}</span>{{end}}
+                        </div>
+                      </div>
+                      <div class="excerpt">
+                        {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+                      </div>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{else}}
+                  <div class="d-empty-stream">
+                    <p>No activity recorded for <strong>{{.Profile.EffectiveDisplayName}}</strong> yet.</p>
+                    <a href="/forum" class="d-btn d-btn-primary d-btn-theme">Post on AFX Forum</a>
+                  </div>
+                  {{end}}
+                  {{end}}
+
+                </div>
+              </div>
+
+              {{else if eq .Tab "notifications"}}
+              <!-- ==============================================================
+                   TAB: NOTIFICATIONS
+                   ============================================================== -->
+              <div class="d-activity-layout">
+                <div class="user-navigation user-secondary-navigation">
+                  <nav class="user-nav-secondary">
+                    <ul class="action-list nav-stacked">
+                      <li><a href="/u/{{.Profile.Username}}?tab=notifications" class="active"><span>All Notifications</span><span class="d-subnav-count">{{len .Notifications}}</span></a></li>
+                      <li><a href="/u/{{.Profile.Username}}?tab=likes"><span>Likes Received</span><span class="d-subnav-count">{{.LikesReceived}}</span></a></li>
+                      <li><a href="/u/{{.Profile.Username}}?tab=badges"><span>Badges Earned</span><span class="d-subnav-count">{{.UnlockedCount}}</span></a></li>
+                    </ul>
+                  </nav>
+                </div>
+
+                <div class="user-content-stream">
+                  <div class="d-stream-header">
+                    <h3 class="stats-title" style="margin:0">Notifications for {{.Profile.EffectiveDisplayName}}</h3>
+                  </div>
+                  <div class="user-stream">
+                    {{range .Notifications}}
+                    <a href="{{.URL}}" class="user-stream-item d-notification-item {{if .Unread}}unread{{end}}">
+                      <div class="user-stream-item-header">
+                        <span class="d-notif-icon d-notif-{{.Kind}}">
+                          {{if eq .Kind "liked"}}&#10084;{{else if eq .Kind "badge"}}&#9733;{{else if eq .Kind "replied"}}&#8617;{{else}}&#9889;{{end}}
+                        </span>
+                        <div class="stream-topic-meta">
+                          <div class="stream-topic-title-line">
+                            <strong>{{.Title}}</strong>
+                          </div>
+                          <div class="stream-category-line">
+                            <span class="d-muted">{{.Excerpt}}</span>
+                          </div>
+                        </div>
+                        <div class="stream-time-meta">
+                          <span class="time">{{.RelativeStr}}</span>
+                        </div>
+                      </div>
+                    </a>
+                    {{end}}
+                  </div>
+                </div>
+              </div>
+
+              {{else if eq .Tab "messages"}}
+              <!-- ==============================================================
+                   TAB: 1-ON-1 PRIVATE MESSAGES CHAT (Direct Chat in Profile!)
+                   ============================================================== -->
+              <div class="d-dm-chat-shell">
+                <!-- Left Conversation Partners Sidebar -->
+                <div class="d-dm-conv-sidebar">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(var(--prof-primary-rgb),0.28)">
+                    <strong style="font-size:13.5px;color:#fff;text-transform:uppercase;letter-spacing:0.04em">Direct Chats ({{len .Messages}})</strong>
+                    <a href="/u" class="d-btn d-btn-default d-btn-xs">Members</a>
+                  </div>
+
+                  <!-- Quick Start Chat by Username -->
+                  <form method="get" action="/u/{{.Profile.Username}}" style="display:flex;gap:6px">
+                    <input type="hidden" name="tab" value="messages">
+                    <input type="text" name="with" class="d-input" placeholder="Chat with @username..." style="padding:6px 10px;font-size:12.5px">
+                    <button type="submit" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Open</button>
+                  </form>
+
+                  {{if .IncomingFriendRequests}}
+                  <div style="padding:10px;border-radius:8px;background:rgba(47,123,255,0.14);border:1px solid rgba(47,123,255,0.45);margin-bottom:4px">
+                    <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#60a5fa;margin-bottom:6px">
+                      Incoming Friend Requests ({{len .IncomingFriendRequests}})
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                      {{range .IncomingFriendRequests}}
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border-radius:6px;background:rgba(15,23,42,0.8)">
+                        <a href="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.}}" style="font-size:12.5px;font-weight:700;color:#fff;text-decoration:none">@{{.}}</a>
+                        <div style="display:flex;gap:4px">
+                          <form method="post" action="/account/friends" style="margin:0">
+                            <input type="hidden" name="target" value="{{.}}">
+                            <input type="hidden" name="action" value="accept">
+                            <input type="hidden" name="return_to" value="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.}}">
+                            <button type="submit" class="d-btn d-btn-primary d-btn-theme d-btn-xs">Accept</button>
+                          </form>
+                          <form method="post" action="/account/friends" style="margin:0">
+                            <input type="hidden" name="target" value="{{.}}">
+                            <input type="hidden" name="action" value="decline">
+                            <input type="hidden" name="return_to" value="/u/{{$.Profile.Username}}?tab=messages">
+                            <button type="submit" class="d-btn d-btn-default d-btn-xs">&#10005;</button>
+                          </form>
+                        </div>
+                      </div>
+                      {{end}}
+                    </div>
+                  </div>
+                  {{end}}
+
+                  <div style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:380px">
+                    {{range .Messages}}
+                    <a href="/u/{{$.Profile.Username}}?tab=messages&amp;with={{.Partner}}" class="d-dm-conv-item {{if eq $.ChatWith .Partner}}active{{end}}">
+                      <img src="{{.PartnerAvatar}}" alt="{{.Partner}}" width="38" height="38" class="avatar">
+                      <div class="d-dm-conv-meta">
+                        <div class="d-dm-conv-name">
+                          <span>{{.PartnerDisplay}}</span>
+                          <span style="font-size:11px;color:#94a3b8;font-weight:400">{{.RelativeStr}}</span>
+                        </div>
+                        <div style="font-size:11.5px;color:#cbd5e1">@{{.Partner}} &middot; {{.Title}}</div>
+                        <div class="d-dm-conv-preview">{{.Excerpt}}</div>
+                      </div>
+                    </a>
+                    {{end}}
+                  </div>
+                </div>
+
+                <!-- Right 1-on-1 Live Chat Thread & Compose Box -->
+                <div class="d-dm-thread-panel">
+                  <div class="d-dm-thread-header">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      {{if .ChatPartner}}
+                      <img src="{{.ChatPartner.AvatarPath}}" alt="{{.ChatPartner.Username}}" width="38" height="38" style="border-radius:50%;object-fit:cover">
+                      <div>
+                        <strong style="color:#fff;font-size:15px">{{.ChatPartner.EffectiveDisplayName}}</strong>
+                        <span class="d-muted" style="font-size:13px;margin-left:6px">@{{.ChatPartner.Username}}</span>
+                        <div style="font-size:11.5px;color:#34d399">&#9679; 1-on-1 Private Chat &amp; Instant Notification</div>
+                      </div>
+                      {{else}}
+                      <div>
+                        <strong style="color:#fff;font-size:15px">1-on-1 Chat with @{{.ChatWith}}</strong>
+                        <div style="font-size:11.5px;color:#94a3b8">Private direct message conversation</div>
+                      </div>
+                      {{end}}
+                    </div>
+                    {{if .ChatWith}}
+                    <a href="/u/{{.ChatWith}}" class="d-btn d-btn-default d-btn-xs">View @{{.ChatWith}} Profile</a>
+                    {{end}}
+                  </div>
+
+                  <div class="d-dm-messages-list" id="dm-messages-scroll">
+                    {{if .ChatMessages}}
+                    {{range .ChatMessages}}
+                    <div class="d-dm-msg-row {{if .IsMine}}mine{{end}}">
+                      <a href="/u/{{.Sender}}">
+                        <img src="{{.SenderAvatar}}" alt="{{.Sender}}" width="34" height="34" class="avatar">
+                      </a>
+                      <div>
+                        <div class="d-dm-msg-meta">
+                          <strong style="color:#e2e8f0">{{.SenderDisplay}} (@{{.Sender}})</strong>
+                          <span title="{{.CreatedAtStr}}">{{.RelativeStr}}</span>
+                        </div>
+                        <div class="d-dm-bubble">
+                          {{if .Subject}}<div style="font-size:11.5px;font-weight:700;color:#93c5fd;margin-bottom:4px">{{.Subject}}</div>{{end}}
+                          <div>{{.Body}}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {{end}}
+                    {{else}}
+                    <div class="d-empty-stream" style="margin:auto">
+                      <p style="margin:0 0 6px;color:#fff;font-weight:600">Start your 1-on-1 private chat with @{{.ChatWith}}</p>
+                      <p style="margin:0;font-size:13px">Messages sent below appear here immediately and send a notification directly to @{{.ChatWith}}.</p>
+                    </div>
+                    {{end}}
+                  </div>
+
+                  {{if .User}}
+                  {{if .ChatIsFriend}}
+                  <form method="post" action="/account/messages" class="d-dm-compose-form">
+                    <input type="hidden" name="return_profile" value="{{.Profile.Username}}">
+                    <div class="d-form-row-2">
+                      <label class="d-label">
+                        <span>Recipient (@username)</span>
+                        <input type="text" name="recipient" value="{{.ChatWith}}" class="d-input" placeholder="@username" required>
+                      </label>
+                      <label class="d-label">
+                        <span>Subject (Optional)</span>
+                        <input type="text" name="subject" value="Direct Message" class="d-input" placeholder="Direct Message">
+                      </label>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:flex-end">
+                      <textarea name="body" class="d-input" rows="2" style="flex:1;min-height:54px" placeholder="Write a private message to @{{.ChatWith}}..." required></textarea>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme" style="height:54px;padding:0 18px !important">Send Message</button>
+                    </div>
+                  </form>
+                  {{else if .ChatPendingIn}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(16,185,129,0.14);border-top:1px solid rgba(16,185,129,0.45)">
+                    <div>
+                      <strong style="color:#fff;font-size:14px">&#128075; @{{.ChatWith}} Sent You a Friend Request!</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">Accept @{{.ChatWith}}'s friend request to unlock 1-on-1 direct messaging between your accounts.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="action" value="accept">
+                        <input type="hidden" name="target" value="{{.ChatWith}}">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                        <button type="submit" class="d-btn d-btn-primary d-btn-theme">&#10004; Accept Friend Request</button>
+                      </form>
+                      <form method="post" action="/account/friends" style="margin:0">
+                        <input type="hidden" name="action" value="decline">
+                        <input type="hidden" name="target" value="{{.ChatWith}}">
+                        <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                        <button type="submit" class="d-btn d-btn-default">Decline</button>
+                      </form>
+                    </div>
+                  </div>
+                  {{else if .ChatPendingOut}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(245,158,11,0.14);border-top:1px solid rgba(245,158,11,0.45)">
+                    <div>
+                      <strong style="color:#fcd34d;font-size:14px">&#9203; Friend Request Sent to @{{.ChatWith}} — Waiting for Acceptance</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">@{{.ChatWith}} must accept your friend request on their account before you can message each other.</div>
+                    </div>
+                    <form method="post" action="/account/friends" style="margin:0">
+                      <input type="hidden" name="action" value="cancel">
+                      <input type="hidden" name="target" value="{{.ChatWith}}">
+                      <input type="hidden" name="return_to" value="/u/{{.Profile.Username}}?tab=messages&amp;with={{.ChatWith}}">
+                      <button type="submit" class="d-btn d-btn-default">Cancel Request</button>
+                    </form>
+                  </div>
+                  {{else}}
+                  <div class="d-dm-compose-form" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(47,123,255,0.12);border-top:1px solid rgba(47,123,255,0.4)">
+                    <div>
+                      <strong style="color:#fff;font-size:14px">Add @{{.ChatWith}} as a Friend to Text Them</strong>
+                      <div class="d-muted" style="font-size:12.5px;margin-top:2px">Send a friend request first — once @{{.ChatWith}} accepts on their account, you can message each other.</div>
+                    </div>
+                    <form method="post" action="/account/friends" style="margin:0;display:flex;gap:8px;align-items:center">
+                      <input type="hidden" name="action" value="add">
+                      <input type="text" name="target" value="{{.ChatWith}}" class="d-input" placeholder="@username" style="width:150px;margin:0" required>
+                      <button type="submit" class="d-btn d-btn-primary d-btn-theme">+ Send Friend Request</button>
+                    </form>
+                  </div>
+                  {{end}}
+                  {{else}}
+                  <div class="d-dm-compose-form" style="text-align:center">
+                    <a href="/login?next=/u/{{.Profile.Username}}?tab=messages" class="d-btn d-btn-primary d-btn-theme">Log In to Send a Direct Message</a>
+                  </div>
+                  {{end}}
+                </div>
+              </div>
+
+              {{else if eq .Tab "badges"}}
+              <!-- ==============================================================
+                   TAB: ALL 18 AFX & NSM BADGES & UNLOCK COMPENDIUM
+                   ============================================================== -->
+              <div class="top-section badges-section">
+                <div class="d-stream-header">
+                  <div>
+                    <h3 class="stats-title" style="margin:0">Badges Earned by {{.Profile.EffectiveDisplayName}} ({{.UnlockedCount}} / {{.TotalBadgesCount}} Unlocked)</h3>
+                    <p class="d-muted" style="font-size:13px;margin:4px 0 0">Complete collection of all 18 AFX &amp; NSM Platform Badges and how to unlock each one.</p>
+                  </div>
+                  <a href="/u/{{.Profile.Username}}?tab=pulse" class="d-btn d-btn-primary d-btn-theme d-btn-xs">&#9889; Unlock AFX Pulse Badges</a>
+                </div>
+
+                <div class="badge-group-list">
+                  {{range .AllBadges}}
+                  <div class="d-badge-card {{if .Unlocked}}badge-unlocked{{else}}badge-locked{{end}} rarity-{{.Rarity}}">
+                    <div class="d-badge-icon" style="{{.ColorStyle}}">
+                      <svg viewBox="0 0 24 24" fill="currentColor" style="width:28px;height:28px"><circle cx="12" cy="8" r="6"/><path d="M9 14l-2 8 5-3 5 3-2-8"/></svg>
+                    </div>
+                    <div class="d-badge-info">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                        <h3>{{.Name}}</h3>
+                        <span class="d-badge-rarity-pill rarity-{{.Rarity}}">{{.Rarity}}</span>
+                      </div>
+                      <p>{{.Desc}}</p>
+                      <div class="d-badge-unlock-how">
+                        {{if .Unlocked}}
+                        <span class="d-unlocked-check">&#10004; Unlocked ({{.GrantedStr}})</span>
+                        {{else}}
+                        <span><strong>How to Unlock:</strong> {{.HowToUnlock}}</span>
+                        {{end}}
+                      </div>
+                    </div>
+                  </div>
+                  {{end}}
+                </div>
+              </div>
+
+              {{else}}
+              <!-- ==============================================================
+                   TAB: SUMMARY (1:1 discourse/app/templates/user/summary.gjs)
+                   ============================================================== -->
+              <div class="top-section stats-section">
+                <h3 class="stats-title">Stats</h3>
+                <ul>
+                  <li class="stats-days-visited">
+                    <div class="user-stat">
+                      <span class="value">{{.DaysVisited}}</span>
+                      <span class="label">days visited</span>
+                    </div>
+                  </li>
+                  <li class="stats-time-read">
+                    <div class="user-stat">
+                      <span class="value">{{.ReadTime}}</span>
+                      <span class="label">read time</span>
+                    </div>
+                  </li>
+                  <li class="stats-recent-read">
+                    <div class="user-stat">
+                      <span class="value">{{.RecentReadTime}}</span>
+                      <span class="label">recent read time</span>
+                    </div>
+                  </li>
+                  <li class="stats-topics-entered">
+                    <a href="/u/{{.Profile.Username}}?tab=read">
+                      <div class="user-stat">
+                        <span class="value" id="profile-realtime-topics-viewed">{{.TopicsViewed}}</span>
+                        <span class="label">topics viewed</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-posts-read">
+                    <a href="/u/{{.Profile.Username}}?tab=read">
+                      <div class="user-stat">
+                        <span class="value" id="profile-realtime-posts-read">{{.PostsRead}}</span>
+                        <span class="label">posts read</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-likes-given">
+                    <a href="/u/{{.Profile.Username}}?tab=likes">
+                      <div class="user-stat">
+                        <span class="value"><span class="d-icon-heart">&#10084;</span> {{.LikesGiven}}</span>
+                        <span class="label">given</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-likes-received">
+                    <a href="/u/{{.Profile.Username}}?tab=likes">
+                      <div class="user-stat">
+                        <span class="value"><span class="d-icon-heart">&#10084;</span> {{.LikesReceived}}</span>
+                        <span class="label">received</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-topic-count">
+                    <a href="/u/{{.Profile.Username}}?tab=topics">
+                      <div class="user-stat">
+                        <span class="value">{{.TopicCount}}</span>
+                        <span class="label">topics created</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-post-count">
+                    <a href="/u/{{.Profile.Username}}?tab=activity">
+                      <div class="user-stat">
+                        <span class="value">{{.PostCount}}</span>
+                        <span class="label">posts created</span>
+                      </div>
+                    </a>
+                  </li>
+                  <li class="stats-server-boosts">
+                    <a href="/u/{{.Profile.Username}}?tab=votes">
+                      <div class="user-stat">
+                        <span class="value">{{.UpvoteCount}}</span>
+                        <span class="label">server upvotes</span>
+                      </div>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- 2. Top Replies & Top Topics (.top-section.replies-and-topics-section) -->
+              <div class="top-section replies-and-topics-section">
+                <div class="top-sub-section replies-section pull-left">
+                  <h3 class="stats-title">Top Replies</h3>
+                  {{if .Posts}}
+                  <ul>
+                    {{range .Posts}}
+                    <li>
+                      <span class="topic-info">
+                        {{.CreatedAt}}
+                        {{if gt .Likes 0}}&middot; <span class="d-icon-heart">&#10084;</span> {{.Likes}}{{end}}
+                      </span>
+                      <br>
+                      <a href="/forum/t/{{.TopicID}}#post-{{.PostNumber}}">{{.TopicTitle}}</a>
+                      {{if .Excerpt}}<div class="d-muted" style="font-size:13px;margin-top:4px">{{.Excerpt}}</div>{{end}}
+                    </li>
+                    {{end}}
+                  </ul>
+                  <p style="margin-top:10px"><a href="/u/{{.Profile.Username}}?tab=replies" class="d-more-link">More Replies &rarr;</a></p>
+                  {{else}}
+                  <p class="d-muted">No replies yet.</p>
+                  {{end}}
+                </div>
+
+                <div class="top-sub-section topics-section pull-right">
+                  <h3 class="stats-title">Top Topics</h3>
+                  {{if .Topics}}
+                  <ul>
+                    {{range .Topics}}
+                    <li>
+                      <span class="topic-info">
+                        {{.Views}} views &middot; {{len .Posts}} posts
+                      </span>
+                      <br>
+                      <a href="/forum/t/{{.ID}}">{{.Title}}</a>
+                    </li>
+                    {{end}}
+                  </ul>
+                  <p style="margin-top:10px"><a href="/u/{{.Profile.Username}}?tab=topics" class="d-more-link">More Topics &rarr;</a></p>
+                  {{else}}
+                  <p class="d-muted">No topics yet.</p>
+                  {{end}}
+                </div>
+              </div>
+
+              <!-- 3. Top Categories & Connected Profiles (.top-section.top-categories-section) -->
+              <div class="top-section top-categories-section">
+                <div class="top-sub-section summary-category-list pull-left">
+                  <h3 class="stats-title">Top Categories</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="category-link">Category</th>
+                        <th class="topic-count">Topics</th>
+                        <th class="reply-count">Replies</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {{range .TopCategories}}
+                      <tr>
+                        <td class="category-link">
+                          <a class="badge-category__wrapper" href="/forum/c/{{.Slug}}">
+                            <span class="badge-category-bg" style="background-color: {{.Color}}"></span>
+                            <span class="badge-category__name">{{.Name}}</span>
+                          </a>
+                        </td>
+                        <td class="topic-count"><a href="/u/{{$.Profile.Username}}?tab=topics">{{if gt .TopicCount 0}}{{.TopicCount}}{{else}}&ndash;{{end}}</a></td>
+                        <td class="reply-count"><a href="/u/{{$.Profile.Username}}?tab=replies">{{if gt .ReplyCount 0}}{{.ReplyCount}}{{else}}&ndash;{{end}}</a></td>
+                      </tr>
+                      {{end}}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="top-sub-section summary-user-list pull-right">
+                  <h3 class="stats-title">Connected Accounts &amp; Most Liked By</h3>
+                  <ul>
+                    {{if .Profile.DiscordTag}}
+                    <li>
+                      <span class="topic-info">Community Handle</span><br>
+                      <strong>{{.Profile.DiscordTag}}</strong>
+                    </li>
+                    {{end}}
+                    {{if .Profile.GitHub}}
+                    <li>
+                      <span class="topic-info">GitHub</span><br>
+                      <a href="{{.Profile.GitHubURL}}" rel="noopener">github.com/{{.Profile.GitHubHandle}}</a>
+                    </li>
+                    {{end}}
+                    {{if .Profile.Steam}}
+                    <li>
+                      <span class="topic-info">Steam</span><br>
+                      <a href="{{.Profile.SteamURL}}" rel="noopener">{{.Profile.Steam}}</a>
+                    </li>
+                    {{end}}
+                    <li class="d-summary-user-row">
+                      <img src="/avatars/u/nta~/48.png" alt="nta~" width="36" height="36" class="avatar">
+                      <div>
+                        <a href="/u/nta~"><strong>nta~</strong> <span class="d-muted">NSM Founder</span></a>
+                        <div class="d-muted"><span class="d-icon-heart">&#10084;</span> {{.LikesReceived}}</div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- 4. Top Badges (.top-section.badges-section) -->
+              <div class="top-section badges-section">
+                <h3 class="stats-title">Top Badges ({{.UnlockedCount}} Unlocked)</h3>
+                <div class="badge-group-list">
+                  {{range .Badges}}
+                  <div class="d-badge-card badge-unlocked rarity-{{.Rarity}}">
+                    <div class="d-badge-icon" style="{{.ColorStyle}}">
+                      <svg viewBox="0 0 24 24" fill="currentColor" style="width:24px;height:24px"><circle cx="12" cy="8" r="6"/><path d="M9 14l-2 8 5-3 5 3-2-8"/></svg>
+                    </div>
+                    <div class="d-badge-info">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                        <h3>{{.Name}}</h3>
+                        <span class="d-badge-rarity-pill rarity-{{.Rarity}}">{{.Rarity}}</span>
+                      </div>
+                      <p>{{.Desc}}</p>
+                    </div>
+                  </div>
+                  {{end}}
+                </div>
+                <p style="margin-top:12px"><a href="/u/{{.Profile.Username}}?tab=badges" class="d-more-link">View All {{.TotalBadgesCount}} Badges &amp; Unlock Guide &rarr;</a></p>
+              </div>
+              {{end}}
+
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function hexToRgbTriplet(hex) {
+      if (!hex || hex.length !== 7 || hex[0] !== '#') return '47, 123, 255';
+      var r = parseInt(hex.slice(1, 3), 16);
+      var g = parseInt(hex.slice(3, 5), 16);
+      var b = parseInt(hex.slice(5, 7), 16);
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return '47, 123, 255';
+      return r + ', ' + g + ', ' + b;
+    }
+    function syncNsmLiveColors() {
+      var root = document.getElementById('nsm-user-profile-root');
+      if (!root) return;
+      var p = document.getElementById('picker-theme-primary');
+      var a = document.getElementById('picker-theme-accent');
+      var b = document.getElementById('picker-banner-color');
+      var v = document.getElementById('picker-avatar-color');
+      if (p) {
+        root.style.setProperty('--prof-primary', p.value);
+        root.style.setProperty('--prof-primary-rgb', hexToRgbTriplet(p.value));
+        var hp = document.getElementById('hex-theme-primary');
+        if (hp) hp.textContent = p.value;
+      }
+      if (a) {
+        root.style.setProperty('--prof-accent', a.value);
+        root.style.setProperty('--prof-accent-rgb', hexToRgbTriplet(a.value));
+        var ha = document.getElementById('hex-theme-accent');
+        if (ha) ha.textContent = a.value;
+      }
+      if (b) {
+        root.style.setProperty('--prof-banner', b.value);
+        var hb = document.getElementById('hex-banner-color');
+        if (hb) hb.textContent = b.value;
+      }
+      if (v) {
+        root.style.setProperty('--prof-avatar', v.value);
+        var hv = document.getElementById('hex-avatar-color');
+        if (hv) hv.textContent = v.value;
+      }
+    }
+    function applyNsmProfileTheme(primary, accent, banner, avatar) {
+      var p = document.getElementById('picker-theme-primary');
+      var a = document.getElementById('picker-theme-accent');
+      var b = document.getElementById('picker-banner-color');
+      var v = document.getElementById('picker-avatar-color');
+      if (p) p.value = primary;
+      if (a) a.value = accent;
+      if (b) b.value = banner;
+      if (v) v.value = avatar;
+      syncNsmLiveColors();
+    }
+    function syncNsmLiveDecoration(val) {
+      var wrap = document.getElementById('live-avatar-wrap');
+      if (!wrap) return;
+      wrap.className = 'user-profile-avatar deco-' + val;
+      wrap.setAttribute('data-decoration', val);
+    }
+    function syncNsmLiveEffect(val) {
+      var root = document.getElementById('nsm-user-profile-root');
+      if (!root) return;
+      root.className = 'dc-ember-body user-summary-page user-full-themed-page fx-effect-' + val;
+      root.setAttribute('data-profile-effect', val);
+    }
+    function previewNsmAvatarFile(inp) {
+      if (!inp || !inp.files || !inp.files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var av = document.getElementById('live-profile-avatar');
+        if (av && ev.target && ev.target.result) av.src = ev.target.result;
+      };
+      reader.readAsDataURL(inp.files[0]);
+    }
+    function previewNsmBannerFile(inp) {
+      if (!inp || !inp.files || !inp.files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var bEl = document.getElementById('live-profile-banner');
+        if (bEl && ev.target && ev.target.result) {
+          bEl.style.backgroundImage = "linear-gradient(180deg, rgba(14,16,22,0.18), rgba(14,16,22,0.82)), url('" + ev.target.result + "')";
+          bEl.style.backgroundSize = 'cover';
+          bEl.style.backgroundPosition = 'center';
+        }
+      };
+      reader.readAsDataURL(inp.files[0]);
+    }
+    function selectPulseCheckoutPlan(tier, label) {
+      var sel = document.getElementById('pulse-checkout-tier');
+      if (sel) sel.value = tier;
+      var lbl = document.getElementById('pulse-checkout-plan-label');
+      if (lbl) lbl.innerHTML = 'Selected Plan: <strong>' + label + '</strong>';
+      var box = document.getElementById('pulse-checkout-box');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function updatePulseCheckoutLabel(tier) {
+      var map = {
+        'core': '$4.99/mo — AFX Pulse Core (0 Server Upvotes)',
+        'pro': '$9.99/mo — AFX Pulse Pro (+1 Server Upvote & Full-Page Profile Colors)',
+        'sovereign': '$19.99/mo — AFX Pulse Sovereign (+4 Server Upvotes & Full-Page Profile Colors)'
+      };
+      var lbl = document.getElementById('pulse-checkout-plan-label');
+      if (lbl && map[tier]) lbl.innerHTML = 'Selected Plan: <strong>' + map[tier] + '</strong>';
+    }
+    function pollProfileRealtimeStats() {
+      fetch('/api/forum/realtime?profile={{.Profile.Username}}', { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (!d) return;
+          if (d.profileViews) {
+            var pv = document.getElementById('profile-realtime-views');
+            if (pv) pv.textContent = d.profileViews;
+          }
+          if (typeof d.topicsViewed === 'number') {
+            var tv = document.getElementById('profile-realtime-topics-viewed');
+            if (tv) tv.textContent = d.topicsViewed;
+          }
+          if (typeof d.postsRead === 'number') {
+            var pr = document.getElementById('profile-realtime-posts-read');
+            if (pr) pr.textContent = d.postsRead;
+          }
+        })
+        .catch(function() {});
+    }
+    setInterval(pollProfileRealtimeStats, 3000);
+    if ((window.location.pathname === '/account/profile' || window.location.pathname === '/account/pulse') && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', '/u/{{.Profile.Username}}?tab={{.Tab}}');
+    }
+  </script>
+  <script src="/js/main.js?v=078m"></script>
+</body>
+</html>

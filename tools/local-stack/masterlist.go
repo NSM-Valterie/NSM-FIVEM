@@ -54,6 +54,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -238,8 +241,10 @@ func streamBytes(entries map[string]*entry) []byte {
 // ---------------------------------------------------------------------------
 
 type entry struct {
-	data ServerData
-	last time.Time
+	data    ServerData
+	last    time.Time
+	keyID   string
+	ownerID int64
 }
 
 type registry struct {
@@ -257,11 +262,41 @@ func (r *registry) upsert(endPoint string, data ServerData) {
 	r.servers[endPoint] = &entry{data: data, last: time.Now()}
 }
 
+func (r *registry) upsertWithOwner(endPoint string, data ServerData, keyID string, ownerID int64) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if existing, ok := r.servers[endPoint]; ok {
+		if time.Since(existing.last) <= heartbeatTTL && existing.keyID != "" && isServerKeyActive(existing.keyID) {
+			if existing.ownerID != 0 && existing.ownerID != ownerID {
+				return false
+			}
+		}
+	}
+	r.servers[endPoint] = &entry{data: data, last: time.Now(), keyID: keyID, ownerID: ownerID}
+	return true
+}
+
+func (r *registry) evictByKey(keyID string) int {
+	if keyID == "" {
+		return 0
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	evicted := 0
+	for ep, e := range r.servers {
+		if e.keyID == keyID {
+			delete(r.servers, ep)
+			evicted++
+		}
+	}
+	return evicted
+}
+
 func (r *registry) get(endPoint string) *ServerData {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 	e, ok := r.servers[endPoint]
-	if !ok || time.Since(e.last) > heartbeatTTL {
+	r.mu.RUnlock()
+	if !ok || time.Since(e.last) > heartbeatTTL || (e.keyID != "" && !isServerKeyActive(e.keyID)) {
 		return nil
 	}
 	d := e.data
@@ -273,7 +308,7 @@ func (r *registry) live() map[string]*entry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for ep, e := range r.servers {
-		if time.Since(e.last) > heartbeatTTL {
+		if time.Since(e.last) > heartbeatTTL || (e.keyID != "" && !isServerKeyActive(e.keyID)) {
 			delete(r.servers, ep)
 		}
 	}
@@ -366,14 +401,13 @@ func applyMods(ep string, d *ServerData) {
 	stateMu.RLock()
 	m, ok := state.Servers[ep]
 	stateMu.RUnlock()
-	if !ok {
-		return
-	}
-	if m.Upvotes != nil {
+	if ok && m.Upvotes != nil {
 		d.UpvotePower = *m.Upvotes
 	}
+	if uc := int64(upvoteCount(ep)); uc > 0 {
+		d.UpvotePower += uc
+	}
 	// Local-first: never fabricate players or counts from persisted admin state.
-
 }
 
 // ---------------------------------------------------------------------------
@@ -450,9 +484,19 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 	info := unwrapData(hb.FallbackData.Info, "info")
 	dyn := unwrapData(hb.FallbackData.Dynamic, "dynamic")
 
-	vars := asStringMap(info["vars"])
-	for k, v := range asStringMap(dyn["vars"]) {
-		vars[k] = v
+	vars := map[string]string{}
+	for _, m := range []map[string]string{asStringMap(info["vars"]), asStringMap(dyn["vars"])} {
+		for k, v := range m {
+			lk := strings.ToLower(strings.TrimSpace(k))
+			if lk == "sv_nsmserverkey" || lk == "sv_licensekey" || lk == "sv_licensekeytoken" || lk == "authorization" {
+				continue
+			}
+			rv := strings.TrimSpace(strings.TrimRight(redactServerKeys(v), "\x00"))
+			if strings.EqualFold(rv, "default FXServer") {
+				rv = "AFXserver"
+			}
+			vars[k] = rv
+		}
 	}
 	vars["gamename"] = gamename // client browser filter requires this
 
@@ -466,22 +510,38 @@ func serverDataFromHeartbeat(hb *heartbeat) ServerData {
 		}
 	}
 
-	hostname := asString(dyn["hostname"])
+	hostname := strings.TrimSpace(strings.TrimRight(redactServerKeys(asString(dyn["hostname"])), "\x00"))
 	if hostname == "" {
-		hostname = asString(info["hostname"])
+		hostname = strings.TrimSpace(strings.TrimRight(redactServerKeys(asString(info["hostname"])), "\x00"))
 	}
-	if hostname == "" {
-		hostname = "NSM Server"
+	if hostname == "" || strings.EqualFold(hostname, "default FXServer") {
+		hostname = "AFXserver"
+	}
+
+	maxClients := asInt(dyn["svMaxclients"], 0)
+	if maxClients <= 0 {
+		maxClients = asInt(dyn["sv_maxclients"], 0)
+	}
+	if maxClients <= 0 {
+		if v, ok := vars["sv_maxClients"]; ok {
+			maxClients = asInt(v, 48)
+		} else {
+			maxClients = 48
+		}
+	}
+	serverVer := redactServerKeys(asString(info["version"]))
+	if serverVer == "" {
+		serverVer = redactServerKeys(asString(info["server"]))
 	}
 
 	return ServerData{
-		SVMaxclients:        asInt(dyn["svMaxclients"], 48),
+		SVMaxclients:        maxClients,
 		Clients:             clients,
 		Hostname:            hostname,
-		Gametype:            asString(dyn["gametype"]),
-		Mapname:             asString(dyn["mapname"]),
+		Gametype:            redactServerKeys(asString(dyn["gametype"])),
+		Mapname:             redactServerKeys(asString(dyn["mapname"])),
 		Resources:           append([]string{}, asStringSlice(info["resources"])...),
-		Server:              asString(info["version"]),
+		Server:              serverVer,
 		Vars:                vars,
 		EnhancedHostSupport: info["enhancedHostSupport"] == true || asInt(info["enhancedHostSupport"], 0) != 0,
 		UpvotePower:         0,
@@ -498,8 +558,9 @@ type handler struct{}
 
 func setCors(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization, User-Api-Key, User-Api-Client-Id, X-CSRF-Token, X-Requested-With, Discourse-Present, Discourse-Logged-In, Discourse-Visible, Ownership-Ticket, Cfx-Entitlement-Ticket, X-NSM-Session, *")
+	w.Header().Set("Access-Control-Allow-Private-Network", "true")
 }
 
 func sendJSON(w http.ResponseWriter, code int, v interface{}) {
@@ -511,7 +572,60 @@ func sendJSON(w http.ResponseWriter, code int, v interface{}) {
 	w.Write(body)
 }
 
+var (
+	isPublicMode        bool
+	configuredPublicURL string
+	configuredPublicIP  string
+)
+
+func detectOutboundIPv4() string {
+	conn, err := net.DialTimeout("udp4", "1.1.1.1:80", 500*time.Millisecond)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	if ua, ok := conn.LocalAddr().(*net.UDPAddr); ok && ua.IP != nil && !ua.IP.IsLoopback() {
+		return ua.IP.String()
+	}
+	return ""
+}
+
+func publicAwareHandler(inner http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isPublicMode {
+			host, portStr, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				host = r.RemoteAddr
+				portStr = "0"
+			}
+			realIP := strings.TrimSpace(host)
+			isForwarded := false
+			if cfIP := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cfIP != "" {
+				realIP = cfIP
+				isForwarded = true
+			} else if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+				parts := strings.Split(xff, ",")
+				if first := strings.TrimSpace(parts[0]); first != "" {
+					realIP = first
+					isForwarded = true
+				}
+			}
+			r.Header.Set("X-NSM-Real-IP", realIP)
+			if isForwarded {
+				r.Header.Set("X-NSM-Forwarded", "1")
+			} else {
+				r.Header.Del("X-NSM-Forwarded")
+			}
+			r.RemoteAddr = net.JoinHostPort("127.0.0.1", portStr)
+		}
+		inner.ServeHTTP(w, r)
+	})
+}
+
 func clientIP(r *http.Request) string {
+	if realIP := strings.TrimSpace(r.Header.Get("X-NSM-Real-IP")); realIP != "" {
+		return realIP
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -585,8 +699,20 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 405, map[string]string{"lastError": "POST required"})
 		return
 	}
+	if r.Method == http.MethodPost && strings.HasPrefix(path, "/api/servers/") {
+		if strings.HasSuffix(path, "/upvote") {
+			ep := strings.TrimSuffix(strings.TrimPrefix(path, "/api/servers/"), "/upvote")
+			upvoteServer(w, r, ep)
+			return
+		}
+		if strings.HasSuffix(path, "/feature") {
+			ep := strings.TrimSuffix(strings.TrimPrefix(path, "/api/servers/"), "/feature")
+			featureServer(w, r, ep)
+			return
+		}
+	}
 	if path != "/api/serverlist/ingress" && !strings.HasPrefix(path, "/admin/") && r.Method != http.MethodGet && r.Method != http.MethodHead {
-		if path != "/api/ticket/identities" && path != "/api/identities" && path != "/api/upvote/" {
+		if path != "/api/ticket/identities" && path != "/api/identities" && path != "/api/upvote/" && path != "/api/upvote" {
 			w.Header().Set("Allow", "GET, HEAD, OPTIONS")
 			sendJSON(w, 405, map[string]string{"error": "method not allowed"})
 			return
@@ -657,10 +783,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			sendJSON(w, 405, map[string]string{"error": "method not allowed"})
 		}
-	case path == "/api/upvote/":
-		sendJSON(w, 403, map[string]string{"error": "authenticated boost service unavailable in local mode"})
+	case path == "/api/upvote/" || path == "/api/upvote":
+		handleUpvoteAPI(w, r)
 	case path == "/v1/public/featured-servers":
-		sendJSON(w, http.StatusOK, map[string]interface{}{"pinnedServers": []string{}, "pinIfEmpty": false})
+		pinned := featuredServerEndpoints()
+		if pinned == nil {
+			pinned = []string{}
+		}
+		sendJSON(w, http.StatusOK, map[string]interface{}{"pinnedServers": pinned, "pinIfEmpty": len(pinned) > 0})
 
 	case path == "/v1/public/notices/fivem":
 		sendJSON(w, http.StatusOK, []interface{}{})
@@ -712,26 +842,57 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// GameServer.cpp marks heartbeats to a custom master as "private".
 		// This loopback-only service is that explicitly selected local master;
 		// accept the record locally, never publish it to an upstream master.
+		if hb.FallbackData.Info != nil {
+			infoMap := unwrapData(hb.FallbackData.Info, "info")
+			if v, ok := infoMap["version"]; ok {
+				if num, isNum := v.(json.Number); isNum {
+					if srv, okSrv := infoMap["server"].(string); okSrv && srv != "" {
+						infoMap["version"] = srv
+					} else {
+						infoMap["version"] = num.String()
+					}
+				}
+			}
+		}
 		if err := validateHeartbeat(hb); err != nil {
 			sendJSON(w, 400, map[string]string{"lastError": err.Error()})
 			return
 		}
 		ip := clientIP(r)
 		if override := strings.TrimSpace(hb.IPOverride); override != "" {
-			// A loopback-only deployment may advertise another loopback address, not spoof a remote server.
-			if net.ParseIP(override) == nil || !net.ParseIP(override).IsLoopback() {
+			if net.ParseIP(override) == nil || (!isPublicMode && !net.ParseIP(override).IsLoopback()) {
 				sendJSON(w, 400, map[string]string{"lastError": "ipOverride must be a loopback IP"})
 				return
 			}
 			ip = override
+		}
+		if isPublicMode && configuredPublicIP != "" {
+			if parsed := net.ParseIP(ip); parsed != nil && parsed.IsLoopback() {
+				ip = configuredPublicIP
+			}
 		}
 		port := hb.Port
 		if port == 0 {
 			port = 30120
 		}
 		endPoint := net.JoinHostPort(ip, strconv.FormatInt(port, 10))
+		rawKey := extractHeartbeatServerKey(r, hb)
+		var keyID string
+		var ownerID int64
+		if rawKey != "" || requireKeys {
+			keyRec, code, reason := validateServerKey(rawKey, endPoint)
+			if code != http.StatusOK || keyRec == nil {
+				sendJSON(w, code, map[string]string{"lastError": reason})
+				return
+			}
+			keyID = keyRec.ID
+			ownerID = keyRec.UserID
+		}
 		data := serverDataFromHeartbeat(hb)
-		reg.upsert(endPoint, data)
+		if !reg.upsertWithOwner(endPoint, data, keyID, ownerID) {
+			sendJSON(w, http.StatusForbidden, map[string]string{"lastError": "endpoint_owned_by_another_account"})
+			return
+		}
 		log.Printf("[heartbeat] %s clients=%d", endPoint, data.Clients)
 		sendJSON(w, 200, map[string]interface{}{})
 
@@ -914,18 +1075,165 @@ func (h *handler) serveAdmin(w http.ResponseWriter, r *http.Request, path string
 
 var stateFile = flag.String("state", "state.json", "path to persistent state file")
 
-var ownerName = "Cravenz"
+var ownerName = "nta~"
+
+var (
+	activeSrvMu    sync.Mutex
+	activeListener net.Listener
+	activeServer   *http.Server
+)
+
+func closeActiveServer() {
+	activeSrvMu.Lock()
+	ln := activeListener
+	srv := activeServer
+	activeSrvMu.Unlock()
+	if ln != nil {
+		_ = ln.Close()
+	}
+	if srv != nil {
+		_ = srv.Close()
+	}
+}
+
+func sys32Bin(name string) string {
+	if sr := os.Getenv("SystemRoot"); sr != "" {
+		p := filepath.Join(sr, "System32", name)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return name
+}
+
+func findListeningPIDsOnPort(port int) []int {
+	pid := os.Getpid()
+	out, err := exec.Command(sys32Bin("netstat.exe"), "-ano", "-p", "tcp").Output()
+	if err != nil {
+		return nil
+	}
+	targetSuffix := ":" + strconv.Itoa(port)
+	seen := map[int]bool{}
+	var pids []int
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 5 || !strings.EqualFold(fields[0], "TCP") {
+			continue
+		}
+		localAddr := fields[1]
+		foreignAddr := fields[2]
+		stateStr := fields[3]
+		isListening := strings.EqualFold(stateStr, "LISTENING") || foreignAddr == "0.0.0.0:0" || foreignAddr == "[::]:0" || strings.HasSuffix(foreignAddr, ":0")
+		if isListening && strings.HasSuffix(localAddr, targetSuffix) {
+			if otherPID, err := strconv.Atoi(fields[len(fields)-1]); err == nil && otherPID > 4 && otherPID != pid && !seen[otherPID] {
+				seen[otherPID] = true
+				pids = append(pids, otherPID)
+			}
+		}
+	}
+	return pids
+}
+
+func stopPreviousMasterlistInstances(addr string, port int) {
+	pid := os.Getpid()
+	// 1. Politely ask any running NSM-Masterlist on this address to close its listener and exit
+	tr := &http.Transport{DisableKeepAlives: true}
+	cl := &http.Client{Timeout: 350 * time.Millisecond, Transport: tr}
+	if req, err := http.NewRequest("POST", "http://"+addr+"/api/nsm/internal-restart", strings.NewReader(`{}`)); err == nil {
+		req.Close = true
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Connection", "close")
+		if resp, err := cl.Do(req); err == nil && resp != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}
+	tr.CloseIdleConnections()
+
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	taskkillBin := sys32Bin("taskkill.exe")
+	tasklistBin := sys32Bin("tasklist.exe")
+
+	killPID := func(targetPID int) {
+		if targetPID <= 4 || targetPID == pid {
+			return
+		}
+		if proc, err := os.FindProcess(targetPID); err == nil && proc != nil {
+			_ = proc.Kill()
+		}
+		_ = exec.Command(taskkillBin, "/F", "/T", "/PID", strconv.Itoa(targetPID)).Run()
+	}
+
+	// 2. Find any NSM-Masterlist*.exe process via tasklist CSV output and terminate it without touching the console window
+	if out, err := exec.Command(tasklistBin, "/FO", "CSV", "/NH").Output(); err == nil {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			parts := strings.Split(line, `","`)
+			if len(parts) >= 2 {
+				imgName := strings.ToLower(strings.Trim(parts[0], `"`))
+				pidStr := strings.Trim(parts[1], `"`)
+				if strings.Contains(imgName, "nsm-masterlist") {
+					if otherPID, err := strconv.Atoi(pidStr); err == nil {
+						killPID(otherPID)
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Also check netstat for any user process holding 127.0.0.1:<port>
+	for _, otherPID := range findListeningPIDsOnPort(port) {
+		killPID(otherPID)
+	}
+
+	// 4. If an elevated process is still holding 127.0.0.1:<port>, request elevated taskkill for that PID
+	time.Sleep(150 * time.Millisecond)
+	for _, remPID := range findListeningPIDsOnPort(port) {
+		psCmd := fmt.Sprintf("Start-Process -FilePath 'taskkill.exe' -ArgumentList '/F /T /PID %d' -Verb RunAs -Wait", remPID)
+		_ = exec.Command(sys32Bin("WindowsPowerShell\\v1.0\\powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", psCmd).Run()
+	}
+}
 
 func main() {
-	bind := flag.String("bind", "127.0.0.1", "loopback address for local-only service")
+	// Ensure working directory is the executable's directory when launched by double-click on Windows
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		base := strings.ToLower(filepath.Base(exe))
+		if exeDir != "" && !strings.Contains(base, ".test") {
+			_ = os.Chdir(exeDir)
+		}
+	}
+
+	defaultPubURL := os.Getenv("NSM_PUBLIC_URL")
+	if defaultPubURL == "" {
+		defaultPubURL = "https://nsmultiplayer.com"
+	}
+	bind := flag.String("bind", "0.0.0.0", "bind IP address (0.0.0.0 for VPS/Cloudflare/LAN, 127.0.0.1 for local-only)")
 	port := flag.Int("port", 80, "port to listen on")
+	pubURL := flag.String("public-url", defaultPubURL, "optional public base URL (e.g. https://nsmultiplayer.com)")
+	pubIP := flag.String("public-ip", os.Getenv("NSM_PUBLIC_IP"), "optional public IPv4 for local server heartbeats")
 	owner := flag.String("owner-token", os.Getenv("OWNER_TOKEN"), "owner admin API bearer token")
 	oname := flag.String("owner-name", os.Getenv("OWNER_NAME"), "username that holds the owner role")
 	opass := flag.String("owner-pass", os.Getenv("OWNER_PASS"), "set a new password for the owner account at startup")
 	keyPath := flag.String("ticket-public-key", "", "optional trusted RSA public key PEM; no tickets are issued")
+	reqKeys := flag.Bool("require-keys", os.Getenv("NSM_REQUIRE_KEYS") == "1", "require a valid NSM keymaster server key on /api/serverlist/ingress")
 	flag.Parse()
-	if ip := net.ParseIP(*bind); ip == nil || !ip.IsLoopback() {
-		log.Fatal("local-first backend requires a loopback bind address")
+	requireKeys = *reqKeys
+	parsedBind := net.ParseIP(*bind)
+	if parsedBind == nil {
+		log.Fatalf("invalid -bind IP address: %q", *bind)
+	}
+	configuredPublicURL = strings.TrimRight(strings.TrimSpace(*pubURL), "/")
+	configuredPublicIP = strings.TrimSpace(*pubIP)
+	isPublicMode = !parsedBind.IsLoopback() || configuredPublicURL != "" || configuredPublicIP != ""
+	if isPublicMode && configuredPublicIP == "" {
+		configuredPublicIP = detectOutboundIPv4()
 	}
 	if *port < 1 || *port > 65535 {
 		log.Fatal("invalid HTTP port")
@@ -934,7 +1242,7 @@ func main() {
 		var err error
 		ticketPublicKey, err = readTicketPublicKey(*keyPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("ticket public key error: %v", err)
 		}
 	}
 
@@ -947,27 +1255,82 @@ func main() {
 		log.Printf("NOTE: OWNER_TOKEN not set - bearer-token admin API is disabled (website owner login still works)")
 	}
 
+	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
+	probeHost := *bind
+	if parsedBind.IsUnspecified() {
+		probeHost = "127.0.0.1"
+	}
+	probeAddr := net.JoinHostPort(probeHost, strconv.Itoa(*port))
+	if c, dialErr := net.DialTimeout("tcp", probeAddr, 120*time.Millisecond); dialErr == nil {
+		_ = c.Close()
+		log.Printf("Existing service detected on %s — stopping previous NSM-Masterlist instance...", addr)
+		stopPreviousMasterlistInstances(addr, *port)
+		time.Sleep(200 * time.Millisecond)
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Printf("Port %s is currently in use — stopping previous NSM-Masterlist instance...", addr)
+		stopPreviousMasterlistInstances(addr, *port)
+		for attempt := 0; attempt < 6; attempt++ {
+			time.Sleep(150 * time.Millisecond)
+			ln, err = net.Listen("tcp", addr)
+			if err == nil {
+				log.Printf("Successfully took over %s from previous instance.", addr)
+				break
+			}
+		}
+		if err != nil {
+			// On Windows, Go's default net.Listen does not set SO_REUSEADDR, so lingering TIME_WAIT/FIN_WAIT_2
+			// connections from Chrome or NSM.exe after stopping the old process cause WSAEADDRINUSE for up to 120s.
+			// Binding with SO_REUSEADDR after stopping the old instance succeeds immediately.
+			ln, err = listenWithReuseAddr("tcp", addr)
+			if err == nil {
+				log.Printf("Successfully bound %s (with SO_REUSEADDR socket takeover).", addr)
+			}
+		}
+	}
+	if err != nil {
+		log.Fatalf("listen error on %s: %v", addr, err)
+	}
+
 	loadState()
 	loadAccounts()
 	if *opass != "" {
 		setOwnerPassword(*opass)
 	}
+	loadForum()
 	initSite()
+	patchLocalUIBundlesOnDisk()
 
-	addr := net.JoinHostPort(*bind, strconv.Itoa(*port))
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           localHandler(),
+		Handler:           publicAwareHandler(localHandler()),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("NSM Masterlist + Website + Accounts - listening on http://%s", addr)
-	log.Printf("  website:   /            accounts: /login /register   staff: /admin/users")
-	log.Printf("  masterlist: /api/servers/streamRedir/  server heartbeat: POST /api/serverlist/ingress")
-	log.Printf("  game cache proxy: %s", proxyRouteList())
-	if err := srv.ListenAndServe(); err != nil {
+	activeSrvMu.Lock()
+	activeListener = ln
+	activeServer = srv
+	activeSrvMu.Unlock()
+
+	displayBase := "http://" + addr
+	if configuredPublicURL != "" {
+		displayBase = configuredPublicURL
+	}
+	log.Printf("================================================================")
+	log.Printf("NSM Masterlist + 1:1 Website + AFX Forum + Accounts (v0.7.8-n)")
+	log.Printf("Listening on: http://%s (Public Mode: %v)", addr, isPublicMode)
+	if configuredPublicIP != "" {
+		log.Printf("Public Server IP: %s", configuredPublicIP)
+	}
+	log.Printf("  Homepage:    %s/", displayBase)
+	log.Printf("  Server List: %s/servers", displayBase)
+	log.Printf("  AFX Forum:   %s/forum", displayBase)
+	log.Printf("  Your Profile:%s/u/nta~", displayBase)
+	log.Printf("  Owner Setup: http://127.0.0.1:%d/login (from VPS desktop)", *port)
+	log.Printf("================================================================")
+	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("listen error: %v", err)
-		os.Exit(1)
 	}
 }

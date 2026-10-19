@@ -599,7 +599,7 @@ static void GatherCrashInformation()
 	GetSystemTime(&curTime);
 
 	std::wstring tempDir = _wgetenv(L"temp");
-	tempDir += fmt::sprintf(L"\\CfxCrashDump_%04d_%02d_%02d_%02d_%02d_%02d.zip", curTime.wYear, curTime.wMonth, curTime.wDay, curTime.wHour, curTime.wMinute, curTime.wSecond);
+	tempDir += fmt::sprintf(L"\\AFXCrashDump_%04d_%02d_%02d_%02d_%02d_%02d.zip", curTime.wYear, curTime.wMonth, curTime.wDay, curTime.wHour, curTime.wMinute, curTime.wSecond);
 
 	mz_zip_writer_create(&writer);
 	mz_zip_writer_set_compress_level(writer, 9);

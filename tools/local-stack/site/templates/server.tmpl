@@ -1,35 +1,151 @@
-{{template "head" .}}
-<section class="features">
-  <div class="container"><div class="spacer">
-    <h1>{{.Srv.Hostname}}</h1>
-    <div class="fx">
-      <div class="c-lg-6 c-xs-12">
-        <table class="stat-table">
-          <tr><td><span class="stat">Players</span></td><td>{{.Srv.Clients}} / {{.Srv.SVMaxclients}}</td></tr>
-          <tr><td><span class="stat">Address</span></td><td>{{.EndPoint}}</td></tr>
-          <tr><td><span class="stat">Game type</span></td><td>{{.Srv.Gametype}}</td></tr>
-          <tr><td><span class="stat">Map</span></td><td>{{.Srv.Mapname}}</td></tr>
-          <tr><td><span class="stat">Upvotes</span></td><td>{{.Upvotes}}</td></tr>
-        </table>
-        <div class="btnpadder">
-          <a class="btn btn-accent block" href="fivem://connect/{{.EndPoint}}">Join server</a>
-        </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.CleanName}} - Server List - NSM</title>
+  <link rel="icon" type="image/png" href="/img/nsm-icon.png">
+  <link rel="stylesheet" href="/css/style.css?v=078m">
+</head>
+<body class="mp-standalone-body">
+  <div class="mp-app-frame">
+    <!-- NSM.exe Top NavBar -->
+    <header class="mp-navbar">
+      <div class="mp-navbar-left">
+        <a href="/" class="mp-home-btn" title="Home — NSM">
+          <img src="/img/nsm-icon.png" alt="NSM" class="mp-brand-icon">
+        </a>
+        <a href="/servers" class="nsm-ctrl-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Back to Server List</span>
+        </a>
+        <span style="font-size:0.9rem;color:rgba(240,244,248,0.65);font-weight:500">{{.CleanName}}</span>
       </div>
-      <div class="c-lg-6 c-xs-12">
-        {{if .User}}
-          {{if .Voted}}
-          <p class="lead">You already upvoted this server. Thank you!</p>
-          {{else}}
-          <form method="POST" action="/servers/{{.EndPoint}}/upvote" class="form-card">
-            <h1 style="margin-bottom:20px">Support this server</h1>
-            <button class="btn btn-accent" style="width:100%">UPVOTE</button>
-          </form>
+
+      <div class="mp-navbar-right">
+        <div class="mp-ext-links">
+          <a href="/keymaster" class="mp-ext-link">AFX Portal</a>
+          <a href="/forum" class="mp-ext-link">Forum</a>
+          <a href="/marketplace" class="mp-ext-link">Marketplace</a>
+          <a href="/docs" class="mp-ext-link">Docs</a>
+          <a href="/support" class="mp-ext-link">Support</a>
+          {{if and .User .User.IsStaffOrHigher}}
+          <a href="/admin/users" class="mp-ext-link" style="color:#6ea8ff;font-weight:700">Staff</a>
           {{end}}
+        </div>
+        {{if .User}}
+        <a href="/u/{{.User.Username}}" class="mp-user-bar">
+          <img src="{{.User.AvatarPath}}" alt="{{.User.Username}}" class="mp-user-avatar">
+          <span class="mp-user-name">{{.User.EffectiveDisplayName}}</span>
+        </a>
         {{else}}
-        <p class="lead"><a href="/login">Log in</a> to upvote this server.</p>
+        <a href="/login" class="mp-user-bar mp-user-signin">
+          <span>Sign In</span>
+        </a>
         {{end}}
       </div>
+    </header>
+
+    <!-- NSM.exe ServerDetailsPage (Banner + Header + 2-Column Content & Right Sidebar) -->
+    <div class="mp-details-scroll">
+      <div class="mp-details-root">
+        <div class="mp-details-hero">
+          <div class="mp-details-hero-inner">
+            <div class="nsm-srv-icon" style="width:68px;height:68px;border-radius:10px;font-size:1.5rem">
+              <img src="/api/servers/icon/{{.EndPoint}}/{{.Srv.IconVersion}}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <span class="nsm-srv-icon-fallback" style="display:none">S</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                {{if .Featured}}
+                <span class="nsm-loaf" style="background:rgba(245,158,11,0.18);border:1px solid rgba(245,158,11,0.55);color:#fbbf24;font-weight:700">&#9733; FEATURED SERVER</span>
+                {{end}}
+                <h1 style="margin:0;font-size:1.7rem;color:#fff" data-colorize="{{.Srv.Hostname}}">{{.CleanName}}</h1>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                {{if .Srv.Gametype}}<span class="nsm-loaf">{{.Srv.Gametype}}</span>{{end}}
+                {{if .Srv.Mapname}}<span class="nsm-loaf">{{.Srv.Mapname}}</span>{{end}}
+                <span class="nsm-loaf"><code>{{.EndPoint}}</code></span>
+                {{if .OwnerUsername}}
+                <a href="/u/{{.OwnerUsername}}" class="nsm-loaf" style="color:#00f8b9;border-color:rgba(0,248,185,0.35)">Owner: @{{.OwnerUsername}}</a>
+                {{end}}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="text-align:right;margin-right:6px">
+                <div style="font-size:1.35rem;font-weight:700;color:#fff">{{.Srv.Clients}} <span style="opacity:0.45;font-size:0.95rem">/ {{.Srv.SVMaxclients}}</span></div>
+                <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(240,244,248,0.5)">Players Online</div>
+              </div>
+              <button class="nsm-ctrl-btn" type="button" data-upvote-ep="{{.EndPoint}}" title="Founder nta~: +1,000,000 Upvotes | AFX Pulse Sovereign: +4 Upvotes | AFX Pulse Pro: +1 Upvote">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;color:#00f8b9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span><span data-upvote-count="{{.EndPoint}}">{{.Upvotes}}</span> {{if .Voted}}Upvoted{{else}}Upvote{{if and .User (gt .User.UpvoteAllowance 0)}} (+{{.User.UpvoteAllowance}}){{end}}{{end}}</span>
+              </button>
+              {{if and .User .User.IsFounderAccount}}
+              <form method="post" action="/servers/{{.EndPoint}}/feature" style="display:inline">
+                <button class="nsm-ctrl-btn" type="submit" style="color:#fbbf24;border-color:rgba(245,158,11,0.45)" title="Owner (nta~): Toggle Featured Server">
+                  <span>&#9733; {{if .Featured}}Featured{{else}}Feature Server{{end}}</span>
+                </button>
+              </form>
+              {{end}}
+              <button type="button" class="nsm-btn nsm-btn-primary" data-connect-ep="{{.EndPoint}}">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Connect in NSM.exe
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mp-details-cols">
+          <div class="mp-details-main">
+            {{with index .Srv.Vars "sv_projectDesc"}}
+            <div class="mp-details-box">
+              <h3>Project Description</h3>
+              <p style="margin:0;color:rgba(240,244,248,0.85);line-height:1.6">{{.}}</p>
+            </div>
+            {{end}}
+
+            <div class="mp-details-box">
+              <h3>Loaded Resources ({{len .Srv.Resources}})</h3>
+              <div class="nsm-tag-cloud">
+                {{range .Srv.Resources}}<span class="nsm-loaf">{{.}}</span>{{end}}
+              </div>
+            </div>
+
+            <div class="mp-details-box">
+              <h3>AFX Share / Join URL</h3>
+              <div class="nsm-f8-box">
+                <code>https://nsmultiplayer.com/join/{{.EndPoint}}</code>
+                <button type="button" class="nsm-copy-mini" onclick="navigator.clipboard.writeText('https://nsmultiplayer.com/join/{{.EndPoint}}');this.textContent='Copied!'">Copy</button>
+              </div>
+            </div>
+
+            <div class="mp-details-box">
+              <h3>Direct F8 Console Connect</h3>
+              <div class="nsm-f8-box">
+                <code>connect {{.EndPoint}}</code>
+                <button type="button" class="nsm-copy-mini" onclick="navigator.clipboard.writeText('connect {{.EndPoint}}');this.textContent='Copied!'">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="mp-details-side">
+            <div class="mp-details-box">
+              <h3>Online Players ({{len .Srv.Players}})</h3>
+              {{if .Srv.Players}}
+              <ul class="plist">
+                {{range .Srv.Players}}
+                <li><span>{{.Name}}</span><span class="muted">{{.Ping}} ms</span></li>
+                {{end}}
+              </ul>
+              {{else}}
+              <p class="muted" style="margin:0">No players currently connected.</p>
+              {{end}}
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
-  </div></div>
-</section>
-{{template "foot" .}}
+  </div>
+  <script src="/js/main.js?v=078m"></script>
+</body>
+</html>

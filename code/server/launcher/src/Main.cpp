@@ -52,7 +52,7 @@ int utf8main(int argc, char* argv[])
 	if (!x86info.features.popcnt || !ssse3)
 	{
 		std::string errorMessage = fmt::sprintf(
-		"The Cfx.re Platform Server requires support for x86-64-v2 instructions (such as POPCNT).\n"
+		"The NSM Platform Server requires support for x86-64-v2 instructions (such as POPCNT).\n"
 		"Your current CPU (\"%s\") does not appear to support this. Supported CPUs include most CPUs from around 2010 or newer.\n"
 		"\n"
 		"The server will exit now.",
@@ -61,7 +61,7 @@ int utf8main(int argc, char* argv[])
 		if (strcmp(x86info.brand_string, "Common KVM processor") == 0)
 		{
 			errorMessage =
-				"The Cfx.re Platform Server requires support for x86-64-v2 instructions (such as POPCNT).\n"
+				"The NSM Platform Server requires support for x86-64-v2 instructions (such as POPCNT).\n"
 				"You seem to be running on QEMU/KVM using the 'kvm64' CPU type, which does not properly indicate support for these instructions.\n"
 				"Please use a different CPU type (such as 'host'). See https://aka.cfx.re/fxs-kvm64 for more information.";
 		}

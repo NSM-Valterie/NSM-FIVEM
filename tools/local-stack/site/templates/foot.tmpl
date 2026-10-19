@@ -1,17 +1,41 @@
 {{define "foot"}}
-<div class="container"><div class="spacer">
+</main>
+
 <footer>
-  <div class="hbar">
-    <ul class="links">
-      <li><a href="/docs">Documentation</a></li>
-      <li><a href="/support">Support</a></li>
-      <li><a href="https://discord.gg/UXj5QfCX88">Discord</a></li>
-    </ul>
-    <span class="muted">&copy; {{.Year}} NSM Community</span>
+  <div class="container">
+    <div class="spacer">
+      <div class="fx" style="align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem">
+        <div class="c-lg-4 c-md-6 c-xs-12">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <img src="/img/nsm-icon.png" alt="NSM" style="width:40px;height:40px">
+            <span style="font-family:var(--font-header);font-size:1.4rem;font-weight:500">NSM</span>
+          </div>
+          <p class="muted" style="line-height:1.5">
+            NSM is a modification for Grand Theft Auto V enabling you to play multiplayer on customized dedicated servers, powered by <strong>AFX</strong>.
+          </p>
+        </div>
+        <div class="c-lg-8 c-md-6 c-xs-12">
+          <ul class="links" style="display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;margin:0;justify-content:flex-end">
+            <li><a href="/servers">Server List</a></li>
+            <li><a href="/keymaster">AFX Portal</a></li>
+            <li><a href="/login">Login - AFX Portal</a></li>
+            <li><a href="/forum">AFX Forum</a></li>
+            <li><a href="/marketplace">AFX Marketplace</a></li>
+            <li><a href="/docs">Documentation</a></li>
+            <li><a href="/support">AFX Support</a></li>
+            <li><a href="https://discord.gg/UXj5QfCX88">Discord</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="hbar" style="border-top:1px solid var(--color-text-a10);padding-top:1rem;font-size:.82rem">
+        <span class="muted">&copy; {{.Year}} NSM &amp; AFX Platform.</span>
+        <span class="muted"> Grand Theft Auto and Grand Theft Auto: V are registered trademarks of Take-Two Interactive Software. Trademarks belong to their respective owners.</span>
+      </div>
+    </div>
   </div>
 </footer>
-</div></div>
-<script src="/js/main.js"></script>
+
+<script src="/js/main.js?v=078m"></script>
 </body>
 </html>
 {{end}}

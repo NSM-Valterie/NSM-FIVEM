@@ -1,0 +1,863 @@
+name: Build & Package NSM v0.7.8 Candidate Release
+
+on:
+  push:
+    branches:
+      - arena/b9db485b-nsm-fivem
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v078-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags and verify locked v0.7.7 launch/entitlement paths
+        run: |
+          git fetch origin --tags
+          bash docs/nsm-audit-v077/check-v077-locked.sh
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/local-stack/go.sum
+
+      - name: Run Go tests, race detector, vet, and live main() startup smoke test on tools/local-stack
+        working-directory: tools/local-stack
+        run: |
+          set -euo pipefail
+          go vet ./...
+          if ! go test -v ./... > /tmp/go-tests.txt 2>&1; then
+            cat /tmp/go-tests.txt
+            grep -E "FAIL|--- FAIL|local_api_test|panic|template:" /tmp/go-tests.txt | head -n 10 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
+          cat /tmp/go-tests.txt
+          go test -race -v ./... > /tmp/race-tests.txt
+          mkdir -p /tmp/smoke-dir
+          go build -o /tmp/smoke-dir/nsm-masterlist-smoke .
+          (
+            cd /tmp/smoke-dir
+            /tmp/smoke-dir/nsm-masterlist-smoke -bind 127.0.0.1 -port 18089 &
+            SMOKE_PID=$!
+            trap "kill $SMOKE_PID 2>/dev/null || true" EXIT
+            sleep 2
+            curl -sf http://127.0.0.1:18089/health -o /tmp/smoke-health.json
+            grep -q "0.7.7-local" /tmp/smoke-health.json
+            curl -sf http://127.0.0.1:18089/ -o /tmp/smoke-index.html
+            grep -q 'href="/download"' /tmp/smoke-index.html
+            curl -sI http://127.0.0.1:18089/download -o /tmp/smoke-dl.hdr
+            grep -qi "nsm-v0.8.0-candidate/NSM.exe" /tmp/smoke-dl.hdr
+            curl -sI http://127.0.0.1:18089/download-server -o /tmp/smoke-dlsrv.hdr
+            grep -qi "nsm-v0.8.0-candidate/NSM-Server.zip" /tmp/smoke-dlsrv.hdr
+            curl -sf http://127.0.0.1:18089/p/api/policy/test -o /tmp/smoke-policy.json
+            grep -q "subdir_file_mapping" /tmp/smoke-policy.json
+            curl -sf http://127.0.0.1:18089/servers > /dev/null
+            curl -sf http://127.0.0.1:18089/forum > /dev/null
+            curl -sf http://127.0.0.1:18089/u > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/activity > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/topics > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/replies > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/notifications > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/messages > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/badges > /dev/null
+            curl -sf http://127.0.0.1:18089/u/Cravenz/preferences > /dev/null
+            kill $SMOKE_PID 2>/dev/null || true
+            trap - EXIT
+          )
+
+      - name: Cross-compile Windows x64 NSM-Masterlist.exe & NSM AppData Installer Bootstrapper
+        run: |
+          (cd tools/local-stack && GOOS=windows GOARCH=amd64 go build -o /tmp/NSM-Masterlist.exe .)
+          python3 tools/nsm-installer/gen_syso.py
+          (cd tools/nsm-installer && GOOS=windows GOARCH=amd64 go vet ./... && GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w -H=windowsgui" -o /tmp/NSM-Bootstrapper.exe .)
+          ls -lh /tmp/NSM-Masterlist.exe /tmp/NSM-Bootstrapper.exe
+          sha256sum /tmp/NSM-Masterlist.exe /tmp/NSM-Bootstrapper.exe
+
+      - name: Assemble clean NSM-client-v0.7.8-candidate.zip and single-file AppData installer NSM.exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/v078-dist
+          gh release download nsm-v0.7.7-localtest -p "NSM-client-v0.7.7-localtest.zip" -D /tmp
+          python3 - << 'EOF'
+          import hashlib, io, re, struct, subprocess, zipfile, zlib
+          from pathlib import Path
+
+          base_zip = Path("/tmp/NSM-client-v0.7.7-localtest.zip")
+          bootstrapper_exe = Path("/tmp/NSM-Bootstrapper.exe").read_bytes()
+          patched_steam_dll = Path("data/client/steam_api64.dll").read_bytes()
+          out_zip = Path("/tmp/v078-dist/NSM-client-v0.7.8-candidate.zip")
+          out_installer_exe = Path("/tmp/v078-dist/NSM.exe")
+          RESTORED_AUTH_SHA = "fb62755f2e7aadabfe69d3d3299701d31b2e8ce98e1f9da68867a199b8f9be14"
+
+          POLL_SNIPPET = b'<script id="nsm-client-auth-poll-v4">(function(){var done="";setInterval(function(){try{var n=window.localStorage.getItem("lastAuthNonce")||"";var c=window.localStorage.getItem("clientId")||"";if(!n||n===done)return;var p="";try{var k=JSON.parse(window.localStorage.getItem("rsaKeys")||"{}");p=k.public||"";}catch(e){}fetch("https://nsmultiplayer.com/api/auth/client-poll?nonce="+encodeURIComponent(n)+"&client_id="+encodeURIComponent(c),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nonce:n,clientId:c,publicKey:p})}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.payload&&n!==done){done=n;try{window.__nsmAuthData=d;window.localStorage.setItem("nsmAuthData",JSON.stringify(d));}catch(e){}window.postMessage({type:"authPayload",data:"payload="+encodeURIComponent(d.payload)},"*");setTimeout(function(){try{var bs=document.querySelectorAll("button");for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||"").trim();if(t==="Continue"){bs[i].click();break;}}}catch(e){}},450);}}).catch(function(){});}catch(e){}},800);})();</script>'
+          HEAD_INTERCEPTOR = b'<script id="nsm-discourse-interceptor">(function(){var dux="https://discord.gg/"+"UXj5QfCX88";var cj="cfx.re/"+"join/";function rw(u){if(typeof u!=="string")return u;if(u.indexOf(dux)===0)return "https://nsmultiplayer.com"+u.slice(dux.length);if(u.indexOf("https://forum.cfx.re")===0)return "https://nsmultiplayer.com"+u.slice(20);if(u.indexOf("https://forum.fivem.net")===0)return "https://nsmultiplayer.com"+u.slice(23);if(u.indexOf("https://portal.cfx.re")===0)return "https://nsmultiplayer.com/keymaster"+u.slice(21);if(u.indexOf("https://"+cj)===0)return "https://nsmultiplayer.com/join/"+u.slice(20);if(u.indexOf("http://127.0.0.1")===0)return "https://nsmultiplayer.com"+u.slice(16);return u;}function synth(u){try{if(typeof u!=="string")return null;var ad=window.__nsmAuthData;if(!ad){try{ad=JSON.parse(window.localStorage.getItem("nsmAuthData")||"null");}catch(e){}}var cu=(ad&&ad.current_user)||{id:1,username:"nta~",name:"nta~",avatar_template:"https://nsmultiplayer.com/u/nta~/avatar/{size}.png",title:"NSM Founder & Owner",admin:true,moderator:true,staff:true,trust_level:4,primary_group_name:"owner"};var uo=(ad&&ad.user)||{id:cu.id,username:cu.username,name:cu.name,title:cu.title,avatar_template:cu.avatar_template,admin:true,moderator:true,trust_level:4,groups:[{id:10,name:"trust_level_1"},{id:20,name:"premium_nsm"},{id:21,name:"patreon_enduser"},{id:3,name:"staff"}]};if(u.indexOf("/session/current.json")!==-1){return new Response(JSON.stringify({current_user:cu}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1&&u.indexOf("check_")==-1){return new Response(JSON.stringify({user:uo}),{status:200,headers:{"Content-Type":"application/json"}});}if(u.indexOf("/api/upvote")!==-1){var pwr=(cu&&cu.username&&cu.username.toLowerCase()==="nta~")?1000000:4;return new Response(JSON.stringify({power:pwr,burst:0,source:"afx"}),{status:200,headers:{"Content-Type":"application/json"}});}}catch(e){}return null;}var origFetch=window.fetch;if(origFetch){window.fetch=function(input,init){var u="";try{if(typeof input==="string"){input=rw(input);u=input;}else if(input&&typeof input.url==="string"){u=rw(input.url);if(u!==input.url){input=new Request(u,input);}}}catch(e){}var p=(arguments.length>1)?origFetch(input,init):origFetch(input);if(u&&(u.indexOf("/session/current.json")!==-1||(u.indexOf("/u/")!==-1&&u.indexOf(".json")!==-1)||u.indexOf("/api/upvote")!==-1)){return p.then(function(res){if(res&&res.ok)return res;var s=synth(u);return s||res;},function(err){var s=synth(u);if(s)return s;throw err;});}return p;};}if(window.XMLHttpRequest&&window.XMLHttpRequest.prototype){var origOpen=window.XMLHttpRequest.prototype.open;window.XMLHttpRequest.prototype.open=function(m,u){try{u=rw(u);}catch(e){}return origOpen.apply(this,[m,u].concat(Array.prototype.slice.call(arguments,2)));};}var origInv=window.invokeNative;if(origInv){window.invokeNative=function(t,a){try{if(t==="connectTo"&&typeof a==="string"){a=a.replace(/^https?:\/\/(?:nsmultiplayer\.com|cfx\.re|afx\.re)\/join\//i,"").replace(/^(?:nsmultiplayer\.com|cfx\.re|afx\.re)\/join\//i,"");arguments[1]=a;}else if(t==="openUrl"&&typeof a==="string"){if(a.indexOf(cj)!==-1){a=a.split("https://"+cj).join("https://nsmultiplayer.com/join/").split(cj).join("nsmultiplayer.com/join/");}else if(a.indexOf("user-api-key")!==-1||a.indexOf("forum.cfx.re")!==-1||a.indexOf("portal.cfx.re")!==-1||a.indexOf("127.0.0.1")!==-1){a=rw(a);}arguments[1]=a;}}catch(e){}return origInv.apply(this,arguments);};}})();</script>'
+          EMAIL_REGEX_PATTERNS = [
+              b"/^[a-zA-Z0-9!#\\$%&'*+\\/=\\?\\^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#\\$%&'\\*+\\/=\\?\\^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
+              b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~\\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-]*[a-zA-Z0-9])?$/",
+              b"/^[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+(?:\\.[a-zA-Z0-9!#$%&'*+\\/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/",
+              b"/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
+          ]
+
+          def sha(b):
+              return hashlib.sha256(b).hexdigest()
+
+          def png_chunk(ctype: bytes, data: bytes) -> bytes:
+              crc = zlib.crc32(ctype + data) & 0xFFFFFFFF
+              return struct.pack(">I", len(data)) + ctype + data + struct.pack(">I", crc)
+
+          def pad_png_to_exact_size(png_bytes: bytes, target_size: int) -> bytes:
+              assert png_bytes.endswith(b"\x00\x00\x00\x00IEND\xaeB`\x82")
+              diff = target_size - len(png_bytes)
+              assert diff >= 12, f"PNG too large ({len(png_bytes)} vs {target_size})"
+              chunk_data_len = diff - 12
+              chunk_data = b"Comment\x00"[:chunk_data_len].ljust(chunk_data_len, b" ")
+              chunk = png_chunk(b"tEXt", chunk_data)
+              out = png_bytes[:-12] + chunk + png_bytes[-12:]
+              assert len(out) == target_size
+              return out
+
+          def render_nsm_icon_png(dim: int) -> bytes:
+              palette = (
+                  b"\x00\x00\x00"
+                  b"\x12\x17\x23"
+                  b"\x1f\x57\xc3"
+                  b"\x2f\x7b\xff"
+                  b"\xff\xff\xff"
+              )
+              trns = b"\x00\xff\xff\xff\xff"
+              rows = []
+              pad = max(1, dim // 12)
+              x0, x1 = int(dim * 0.22), int(dim * 0.78)
+              y0, y1 = int(dim * 0.18), int(dim * 0.82)
+              stroke = max(2, int(dim * 0.14))
+              for y in range(dim):
+                  row = bytearray([0])
+                  for x in range(dim):
+                      if x < pad or x >= dim - pad or y < pad or y >= dim - pad:
+                          row.append(0)
+                          continue
+                      in_n = False
+                      if y0 <= y < y1 and x0 <= x < x1:
+                          if x < x0 + stroke or x >= x1 - stroke:
+                              in_n = True
+                          else:
+                              t = (y - y0) / max(1, (y1 - y0 - 1))
+                              diag_x = x0 + t * (x1 - stroke - x0)
+                              if diag_x <= x < diag_x + stroke * 1.15:
+                                  in_n = True
+                      if in_n:
+                          row.append(3 if (x + y) % 5 != 0 else 4)
+                      elif x < pad + max(1, dim // 16) or x >= dim - pad - max(1, dim // 16) or y < pad + max(1, dim // 16) or y >= dim - pad - max(1, dim // 16):
+                          row.append(2)
+                      else:
+                          row.append(1)
+                  rows.append(bytes(row))
+              raw_idat = zlib.compress(b"".join(rows), 9)
+              ihdr = struct.pack(">IIBBBBB", dim, dim, 8, 3, 0, 0, 0)
+              return (
+                  b"\x89PNG\r\n\x1a\n"
+                  + png_chunk(b"IHDR", ihdr)
+                  + png_chunk(b"PLTE", palette)
+                  + png_chunk(b"tRNS", trns)
+                  + png_chunk(b"IDAT", raw_idat)
+                  + png_chunk(b"IEND", b"")
+              )
+
+          def render_nsm_pixel(x: int, y: int, dim: int):
+              pad = max(1, dim // 12)
+              x0, x1 = int(dim * 0.22), int(dim * 0.78)
+              y0, y1 = int(dim * 0.18), int(dim * 0.82)
+              stroke = max(2, int(dim * 0.14))
+              if x < pad or x >= dim - pad or y < pad or y >= dim - pad:
+                  return (0, 0, 0, 0)
+              in_n = False
+              if y0 <= y < y1 and x0 <= x < x1:
+                  if x < x0 + stroke or x >= x1 - stroke:
+                      in_n = True
+                  else:
+                      t = (y - y0) / max(1, (y1 - y0 - 1))
+                      diag_x = x0 + t * (x1 - stroke - x0)
+                      if diag_x <= x < diag_x + stroke * 1.15:
+                          in_n = True
+              if in_n:
+                  return (0xFF, 0xFF, 0xFF, 0xFF) if (x + y) % 5 == 0 else (0x2F, 0x7B, 0xFF, 0xFF)
+              elif x < pad + max(1, dim // 16) or x >= dim - pad - max(1, dim // 16) or y < pad + max(1, dim // 16) or y >= dim - pad - max(1, dim // 16):
+                  return (0x1F, 0x57, 0xC3, 0xFF)
+              else:
+                  return (0x12, 0x17, 0x23, 0xFF)
+
+          def render_nsm_icon_dib(dim: int, target_size: int) -> bytes:
+              mask_row_bytes = ((dim + 31) // 32) * 4
+              xor_size = dim * dim * 4
+              and_size = dim * mask_row_bytes
+              header = struct.pack(
+                  "<IIIHHIIIIII",
+                  40,
+                  dim,
+                  dim * 2,
+                  1,
+                  32,
+                  0,
+                  xor_size + and_size,
+                  0,
+                  0,
+                  0,
+                  0,
+              )
+              xor_buf = bytearray()
+              and_buf = bytearray()
+              for y in range(dim - 1, -1, -1):
+                  mask_row = bytearray(mask_row_bytes)
+                  for x in range(dim):
+                      r, g, b, a = render_nsm_pixel(x, y, dim)
+                      xor_buf += bytes((b, g, r, a))
+                      if a == 0:
+                          mask_row[x // 8] |= (1 << (7 - (x % 8)))
+                  and_buf += mask_row
+              out = header + bytes(xor_buf) + bytes(and_buf)
+              assert len(out) == target_size, f"DIB size mismatch: {len(out)} != {target_size}"
+              return out
+
+          old_backdrop = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/backdrop.png"])
+          new_backdrop_padded = pad_png_to_exact_size(Path("code/client/launcher/backdrop.png").read_bytes(), len(old_backdrop))
+          ico_replacements = []
+          seen_ico_entries = set()
+          for ico_git_path in (
+              "code/client/launcher/fivem.ico",
+              "code/client/launcher/snail.ico",
+              "code/client/diag/diagutil.ico",
+              "code/client/launcher/fivem_sdk.ico",
+              "code/client/launcher/fivem_sp.ico",
+          ):
+              old_ico = subprocess.check_output(["git", "show", f"1e5549c:{ico_git_path}"])
+              _, _, ico_count = struct.unpack_from("<HHH", old_ico, 0)
+              for i in range(ico_count):
+                  w, h, colors, res, planes, bpp, size, offset = struct.unpack_from("<BBBBHHII", old_ico, 6 + i * 16)
+                  dim = w or 256
+                  old_entry = old_ico[offset:offset+size]
+                  if old_entry in seen_ico_entries:
+                      continue
+                  if old_entry[:8] == b"\x89PNG\r\n\x1a\n":
+                      seen_ico_entries.add(old_entry)
+                      ico_replacements.append((old_entry, pad_png_to_exact_size(render_nsm_icon_png(dim), size)))
+                  elif bpp == 32:
+                      seen_ico_entries.add(old_entry)
+                      ico_replacements.append((old_entry, render_nsm_icon_dib(dim, size)))
+
+          def patch_pe_binary(raw_bytes: bytes, filename: str) -> bytes:
+              data = bytearray(raw_bytes)
+              orig_len = len(data)
+
+              # 1. Replace green FiveM XAML splash icon & backdrop & RT_ICON entries in NSM.exe
+              old_xaml_path = "M37.97 86.09h23.62l9.1-36.7L55.34 15.8 37.97 86.09zM115.69 15.8H61.59L49.55 37.97l33.57 35.19 6.72-26.97h7.56l18.29-30.39zM86.94 64.03l31.9-31.9-5.9-21.37H64.54l-2.36 4.72 54.1 54.69-29.34-6.14zM141.68 154.99L78.08 91.4 31.48 99.67 16.71 158.53h42.53l12.4-50.2h7.68l12.4 50.2h42.53l-7.43-28.94 14.86 25.4z".encode("utf-16le")
+              new_xaml_path = "M24 190V10H62L138 122V10H170V190H132L56 78V190H24Z".ljust(len(old_xaml_path) // 2, " ").encode("utf-16le")
+              if old_xaml_path in data:
+                  data[:] = data.replace(old_xaml_path, new_xaml_path)
+                  print(f"[pe-patch] {filename}: replaced splash XAML path with blue NSM N")
+              old_fill = 'Fill="#66AD43"'.encode("utf-16le")
+              new_fill = 'Fill="#2F7BFF"'.encode("utf-16le")
+              if old_fill in data:
+                  data[:] = data.replace(old_fill, new_fill)
+                  print(f"[pe-patch] {filename}: replaced Fill=#66AD43 with Fill=#2F7BFF")
+              if old_backdrop in data:
+                  data[:] = data.replace(old_backdrop, new_backdrop_padded)
+                  print(f"[pe-patch] {filename}: replaced embedded backdrop.png with NSM backdrop")
+              for old_png, new_png in ico_replacements:
+                  if old_png in data:
+                      data[:] = data.replace(old_png, new_png)
+                      print(f"[pe-patch] {filename}: replaced RT_ICON ({len(old_png)} bytes) with blue NSM icon")
+
+              # 2. Replace window title strings with "NSM - Powered by AFX"
+              target_title = "NSM - Powered by AFX"
+              long_slot_rva = None
+              if data[:2] == b"MZ":
+                  try:
+                      pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                      num_sec = struct.unpack_from("<H", data, pe_off + 6)[0]
+                      opt_size = struct.unpack_from("<H", data, pe_off + 20)[0]
+                      sec_table = pe_off + 24 + opt_size
+                      sections = []
+                      for i in range(num_sec):
+                          s_off = sec_table + i * 40
+                          s_name = data[s_off:s_off+8].rstrip(b"\x00").decode("ascii", errors="ignore")
+                          vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, s_off + 8)
+                          sections.append([s_off, s_name, vsize, rva, raw_size, raw_ptr])
+
+                      def raw_to_rva(offset):
+                          for _, _, vsize, rva, raw_size, raw_ptr in sections:
+                              if raw_ptr <= offset < raw_ptr + raw_size:
+                                  return rva + (offset - raw_ptr)
+                          return None
+
+                      for pat_str in (
+                          "FiveM\u00ae by Cfx.re - %s\x00",
+                          "FiveM - Powered by Cfx.re\x00",
+                          "FiveM - Powered by cfx.re\x00",
+                          "FiveM - Powered by Cfx.\x00",
+                          "FiveM - Powered by cfx.\x00",
+                          "FiveM - Powered by CFX\x00",
+                          "FiveM - Powered by cfx\x00",
+                      ):
+                          raw_pat = pat_str.encode("utf-16le")
+                          pos = data.find(raw_pat)
+                          if pos != -1:
+                              raw_repl = (target_title + "\x00").encode("utf-16le")
+                              padded = raw_repl + (b"\x00" * (len(raw_pat) - len(raw_repl)))
+                              long_slot_rva = raw_to_rva(pos)
+                              data[pos:pos+len(raw_pat)] = padded
+                              print(f"[pe-patch] {filename}: replaced {pat_str!r} -> {target_title!r}")
+
+                      short_pat = "FiveM\u00ae by Cfx.re\x00".encode("utf-16le")
+                      short_pos = data.find(short_pat)
+                      if short_pos != -1:
+                          old_rva = raw_to_rva(short_pos)
+                          new_rva = long_slot_rva
+                          new_bytes = (target_title + "\x00").encode("utf-16le")
+                          if new_rva is None:
+                              for s_off, s_name, vsize, rva, raw_size, raw_ptr in sections:
+                                  if s_name in (".rdata", ".data", ".clr", ".cld") and vsize + len(new_bytes) + 16 <= raw_size:
+                                      cave_off = (vsize + 15) & ~15
+                                      if cave_off + len(new_bytes) <= raw_size:
+                                          cave_raw = raw_ptr + cave_off
+                                          new_rva = rva + cave_off
+                                          data[cave_raw:cave_raw+len(new_bytes)] = new_bytes
+                                          struct.pack_into("<I", data, s_off + 8, cave_off + len(new_bytes))
+                                          break
+                          if new_rva is not None and old_rva is not None:
+                              for _, t_name, t_vsize, t_rva, t_raw_size, t_raw_ptr in sections:
+                                  if t_name in (".text", ".zdata", ".ctext"):
+                                      end = t_raw_ptr + min(t_vsize, t_raw_size) - 7
+                                      for pos in range(t_raw_ptr, end):
+                                          if data[pos] in (0x48, 0x4C) and data[pos+1] == 0x8D and (data[pos+2] & 0xC7) == 0x05:
+                                              disp = struct.unpack_from("<i", data, pos + 3)[0]
+                                              insn_end_rva = t_rva + (pos - t_raw_ptr) + 7
+                                              if insn_end_rva + disp == old_rva:
+                                                  struct.pack_into("<i", data, pos + 3, new_rva - insn_end_rva)
+                                                  print(f"[pe-patch] {filename}: redirected LEA from 0x{old_rva:x} -> 0x{new_rva:x} ({target_title!r})")
+                              data[short_pos:short_pos+len(short_pat)] = "NSM - AFX\x00".encode("utf-16le").ljust(len(short_pat), b"\x00")
+                  except Exception as e:
+                      print(f"[pe-patch] warning on {filename}: {e}")
+
+              # 3. Point all NSM control/policy/auth/web routes (a, d, e, f, k, l, p, w) to NSM VPS IP (147.189.174.173)
+              #    while keeping static GTA V game-cache range CDNs (c, r, s) on fast edge mirrors so "Updating game storage..." finishes in seconds
+              route_targets = {
+                  b"a": b"http://147.189.174.173",
+                  b"c": b"https://content.cfx.re",
+                  b"d": b"http://147.189.174.173",
+                  b"e": b"http://147.189.174.173",
+                  b"f": b"http://147.189.174.173/f",
+                  b"k": b"http://147.189.174.173",
+                  b"l": b"http://147.189.174.173/l",
+                  b"p": b"http://147.189.174.173/p",
+                  b"r": b"https://runtime.fivem.net",
+                  b"s": b"https://static.cfx.re",
+                  b"v": b"https://private-placeholder.cfx.re",
+                  b"w": b"http://147.189.174.173",
+              }
+              pat_ascii = re.compile(b"http://127\\.0\\.0\\.1(?::80)?/([acdefklprsvw])((?:/[^\\x00]*)?)(\\x00+)")
+              replaced_urls = 0
+              pos = 0
+              while True:
+                  m = pat_ascii.search(data, pos)
+                  if not m:
+                      break
+                  slot_start, slot_end = m.start(), m.end()
+                  slot_len = slot_end - slot_start
+                  route = m.group(1)
+                  suffix = m.group(2) or b""
+                  target_prefix = route_targets[route]
+                  if route == b"l" and suffix.startswith(b"/api/validate/discourse"):
+                      target_prefix = b"http://147.189.174.173/l"
+                  elif len(target_prefix + suffix + b"\x00") > slot_len:
+                      target_prefix = b"http://147.189.174.173"
+                  new_str = target_prefix + suffix + b"\x00"
+                  if len(new_str) <= slot_len:
+                      data[slot_start:slot_end] = new_str.ljust(slot_len, b"\x00")
+                      replaced_urls += 1
+                      pos = slot_end
+                  else:
+                      pos = slot_start + 16
+              if replaced_urls:
+                  print(f"[pe-patch] {filename}: restored/repointed {replaced_urls} http://127.0.0.1/<route> URLs")
+
+              # 4. Rename citizen/ folder, citizen-*.dll, CitizenGame.dll, CitiLaunch_TLSDummy.dll,
+              #    cfx_curl_x86_64.dll, CitizenFX.ini, and CitizenFX_log / CitizenFX.log -> AxiomFX / afx
+              pe_sections = []
+              if data[:2] == b"MZ":
+                  try:
+                      pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                      if pe_off + 24 < len(data) and data[pe_off:pe_off+4] == b"PE\x00\x00":
+                          num_sec = struct.unpack_from("<H", data, pe_off + 6)[0]
+                          opt_size = struct.unpack_from("<H", data, pe_off + 20)[0]
+                          sec_table = pe_off + 24 + opt_size
+                          for i in range(num_sec):
+                              s_off = sec_table + i * 40
+                              s_name = data[s_off:s_off+8].rstrip(b"\x00").decode("ascii", errors="ignore")
+                              vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, s_off + 8)
+                              pe_sections.append((s_name, vsize, rva, raw_size, raw_ptr))
+                  except Exception:
+                      pe_sections = []
+
+              def patch_utf16_with_len(old_s, new_s):
+                  assert len(new_s) <= len(old_s)
+                  old_b = old_s.encode("utf-16le") + b"\x00\x00"
+                  new_b = new_s.encode("utf-16le") + b"\x00\x00" * (len(old_s) - len(new_s) + 1)
+                  old_len = len(old_s)
+                  new_len = len(new_s)
+                  old_imm = struct.pack("<I", old_len)
+                  new_imm = struct.pack("<I", new_len)
+                  p_idx = 0
+                  while True:
+                      idx = data.find(old_b, p_idx)
+                      if idx < 0:
+                          break
+                      if pe_sections and old_len != new_len:
+                          target_rva = None
+                          for _, _, rva, raw_size, raw_ptr in pe_sections:
+                              if raw_ptr <= idx < raw_ptr + raw_size:
+                                  target_rva = rva + (idx - raw_ptr)
+                                  break
+                          if target_rva is not None:
+                              for s_name, _, t_rva, t_raw_size, t_raw_ptr in pe_sections:
+                                  if s_name in (".text", ".zdata", ".ctext"):
+                                      for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
+                                          if data[p] in (0x48, 0x4C) and data[p+1] == 0x8D and (data[p+2] & 0xC7) == 0x05:
+                                              disp = struct.unpack_from("<i", data, p + 3)[0]
+                                              if (t_rva + (p - t_raw_ptr) + 7 + disp) == target_rva:
+                                                  w_start = max(t_raw_ptr, p - 48)
+                                                  w_end = min(t_raw_ptr + t_raw_size - 4, p + 48)
+                                                  for q in range(w_start, w_end):
+                                                      if data[q:q+4] == old_imm:
+                                                          is_mov_reg = (q >= 1 and 0xB8 <= data[q-1] <= 0xBF)
+                                                          is_mov_mem = (
+                                                              (q >= 3 and data[q-3] == 0xC7 and (data[q-2] & 0x38) == 0x00) or
+                                                              (q >= 4 and data[q-4] == 0xC7 and (data[q-3] & 0x38) == 0x00) or
+                                                              (q >= 6 and data[q-6] == 0xC7 and (data[q-5] & 0x38) == 0x00) or
+                                                              (q >= 7 and data[q-7] == 0xC7 and (data[q-6] & 0x38) == 0x00)
+                                                          )
+                                                          if is_mov_reg or is_mov_mem:
+                                                              data[q:q+4] = new_imm
+                      data[idx:idx+len(old_b)] = new_b
+                      p_idx = idx + len(new_b)
+
+              # Shorter-length UTF-16LE strings (with .text/.zdata LEA length immediate patching) + ASCII equivalents
+              for old_s, new_s in (
+                  ("CitiLaunch_TLSDummy.dll", "AxiomFX_TLSDummy.dll"),
+                  ("CitizenFX.ini", "AxiomFX.ini"),
+                  ("logs/CitizenFX_log_%s.log", "logs/AxiomFX_log_%s.log"),
+                  ("CitizenFX_log_%04d-%02d-%02dT%02d%02d%02d.log", "AxiomFX_log_%04d-%02d-%02dT%02d%02d%02d.log"),
+                  ("CitizenFX.log%s", "AxiomFX.log%s"),
+                  ("CitizenFX.log", "AxiomFX.log"),
+                  ("https://discord.gg/UXj5QfCX88", "https://nsmultiplayer.com"),
+                  ("NSM is a modification framework based on the Cfx.re platform", "NSM - Powered by AFX"),
+                  ("FiveM is a modification framework based on the Cfx.re platform", "NSM - Powered by AFX"),
+                  (" - Cfx.re Development Kit (FxDK)", " - AFX SDK"),
+              ):
+                  patch_utf16_with_len(old_s, new_s)
+                  old_a = old_s.encode("ascii") + b"\x00"
+                  new_a = (new_s.encode("ascii") + b"\x00").ljust(len(old_a), b"\x00")
+                  data[:] = re.sub(re.escape(old_a), lambda _: new_a, data, flags=re.IGNORECASE)
+
+              # Prevent NSM.exe from creating a secondary "NSM - ... (FxDK).lnk" shortcut on startup
+              # and switch SHGetSetFolderCustomSettings iIconIndex from -IDI_SNAIL (-201 / 0xffffff37) to -IDI_ICON1 (-1 / 0xffffffff)
+              if filename.lower().endswith("nsm.exe"):
+                  data[:] = data.replace(
+                      "%s\\%s%s.lnk\x00".encode("utf-16le"),
+                      "%s\x00%s%s.lnk\x00".encode("utf-16le"),
+                  )
+                  ids_pos = data.find(b"\x41\xb8\x65\x00\x00\x00")
+                  if ids_pos != -1:
+                      win_start = max(0, ids_pos - 96)
+                      snail_off = data.find(b"\x37\xff\xff\xff", win_start, ids_pos + 32)
+                      if snail_off != -1:
+                          data[snail_off:snail_off+4] = b"\xff\xff\xff\xff"
+                          print(f"[pe-patch] {filename}: patched SHGetSetFolderCustomSettings iIconIndex -201 -> -1")
+
+              # Exact same-length replacements (8==8, 11==11, 15==15) — zero offset or length changes:
+              # a) citizen-*.dll -> AxiomFX-*.dll
+              # Note: keep internal "citizen:<name>" FXCOMPONENT identifiers untouched in PE resources
+              # so std::unordered_map<std::string, ComponentData> bucket hashing and SortDependencyList
+              # preserve the exact component initialization order (e.g. gta:core:five before scrbind:base).
+              data[:] = re.sub(b"(?i)citizen-", b"AxiomFX-", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00-\x00",
+                  "AxiomFX-".encode("utf-16le"),
+                  data,
+              )
+              # c) citizen/ and citizen\ disk folder -> AxiomFX/ and AxiomFX\
+              data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen/", b"AxiomFX/", data)
+              data[:] = re.sub(b"(?<![A-Za-z0-9_])citizen\\\\", b"AxiomFX\\\\", data)
+              data[:] = data.replace("citizen/".encode("utf-16le"), "AxiomFX/".encode("utf-16le"))
+              data[:] = data.replace("citizen\\".encode("utf-16le"), "AxiomFX\\".encode("utf-16le"))
+              data[:] = data.replace(
+                  "citizen\x00".encode("utf-16le"),
+                  "AxiomFX\x00".encode("utf-16le"),
+              )
+              # d) CitizenGame.dll -> AxiomFXGame.dll
+              data[:] = re.sub(b"(?i)citizengame", b"AxiomFXGame", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00i\x00t\x00i\x00z\x00e\x00n\x00g\x00a\x00m\x00e\x00",
+                  "AxiomFXGame".encode("utf-16le"),
+                  data,
+              )
+              # e) cfx_curl_x86_64.dll -> afx_curl_x86_64.dll & CfxCrashDump -> AFXCrashDump
+              data[:] = re.sub(b"(?i)cfx_curl_x86_64", b"afx_curl_x86_64", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00f\x00x\x00_\x00c\x00u\x00r\x00l\x00_\x00x\x008\x006\x00_\x006\x004\x00",
+                  "afx_curl_x86_64".encode("utf-16le"),
+                  data,
+              )
+              data[:] = re.sub(b"(?i)cfxcrashdump", b"AFXCrashDump", data)
+              data[:] = re.sub(
+                  b"(?i)c\x00f\x00x\x00c\x00r\x00a\x00s\x00h\x00d\x00u\x00m\x00p\x00",
+                  "AFXCrashDump".encode("utf-16le"),
+                  data,
+              )
+
+              # f) In legitimacy.dll, force MakeCfxSubProcess to always refresh subprocess binaries and
+              #    redirect MBA-obfuscated "citizen/ros/..." strings passed to net::TLSServer::TLSServer
+              #    (0x1af023, 0x2bc7f3), MakeRelativeCitPath (0x2dc9a), and socialclub.dll Root CA
+              #    in-memory replacement (0x30b7c0 -> 0x310730) -> "AxiomFX/..."
+              if filename.lower().endswith("legitimacy.dll") and data[:2] == b"MZ":
+                  pe_off = struct.unpack_from("<I", data, 0x3C)[0]
+                  sec_table = pe_off + 24 + struct.unpack_from("<H", data, pe_off + 20)[0]
+                  vsize, rva, raw_size, raw_ptr = struct.unpack_from("<IIII", data, sec_table + 8)
+                  if rva == 0x10000:
+                      def leg_rva_to_off(x):
+                          for _, _, s_rva, s_raw_size, s_raw_ptr in pe_sections:
+                              if s_rva <= x < s_rva + s_raw_size:
+                                  return s_raw_ptr + (x - s_rva)
+                          return raw_ptr + (x - rva)
+                      sub_off = leg_rva_to_off(0x7ab556)
+                      if data[sub_off:sub_off+6] == b"\x0f\x86\xfa\x01\x00\x00":
+                          data[sub_off:sub_off+6] = b"\x90" * 6
+                      off_b17f30 = leg_rva_to_off(0xb17f30)
+                      off_31084b = leg_rva_to_off(0x31084b)
+                      if (
+                          struct.unpack_from("<Q", data, off_b17f30)[0] == 0x5aea349ee7b0a771 and
+                          struct.unpack_from("<Q", data, off_31084b)[0] == 0x2bf142afcc27122d
+                      ):
+                          struct.pack_into("<Q", data, off_b17f30, 0x5acd348de78ea771)
+                          struct.pack_into("<Q", data, off_31084b, 0x2be742cccc3e1227)
+                          print(f"[pe-patch] {filename}: patched 0x310730 MBA constants L'/citizen/ros/ros.crt' -> L'/AxiomFX/ros/ros.crt'")
+                      cave1_rva = 0x9baf88
+                      cave1_off = leg_rva_to_off(cave1_rva)
+                      iat_tls_rva = 0xa70f58
+                      if data[cave1_off:cave1_off+120] == b"\xcc" * 120:
+                          t1 = bytearray()
+                          t1 += b"\x49\xba" + b"citizen/"
+                          t1 += b"\x49\xbb" + b"AxiomFX/"
+                          t1 += b"\x49\x8b\x00\x4c\x39\x10\x75\x03\x4c\x89\x18"
+                          t1 += b"\x49\x8b\x01\x4c\x39\x10\x75\x03\x4c\x89\x18"
+                          jmp_iat_end = cave1_rva + len(t1) + 6
+                          t1 += b"\xff\x25" + struct.pack("<i", iat_tls_rva - jmp_iat_end)
+                          assert len(t1) == 48
+
+                          cave2_rva = cave1_rva + len(t1)
+                          t2 = bytearray()
+                          t2 += b"\x49\x89\xc1\x72\x03\x4c\x8b\x08"
+                          t2 += b"\x48\x83\xfa\x08\x72\x24"
+                          t2 += b"\x49\xba" + "citi".encode("utf-16le")
+                          t2 += b"\x4d\x39\x11\x75\x15"
+                          mov1_end = cave2_rva + len(t2) + 7
+                          t2 += b"\x4c\x8b\x15" + struct.pack("<i", 0xa6d3ac - mov1_end)
+                          t2 += b"\x4d\x89\x11"
+                          mov2_end = cave2_rva + len(t2) + 7
+                          t2 += b"\x4c\x8b\x15" + struct.pack("<i", 0xa6d3b2 - mov2_end)
+                          t2 += b"\x4d\x89\x51\x06"
+                          jmp_back_end = cave2_rva + len(t2) + 5
+                          t2 += b"\xe9" + struct.pack("<i", 0x2dca2 - jmp_back_end)
+                          assert len(t2) == 55
+
+                          data[cave1_off:cave1_off+len(t1)+len(t2)] = t1 + t2
+                          struct.pack_into("<I", data, sec_table + 8, 0x9ab000)
+
+                          for call_rva in (0x1af023, 0x2bc7f3):
+                              coff = leg_rva_to_off(call_rva)
+                              assert data[coff:coff+2] == b"\xff\x15"
+                              data[coff:coff+6] = b"\x90\xe8" + struct.pack("<i", cave1_rva - (call_rva + 6))
+
+                          hoff = leg_rva_to_off(0x2dc9a)
+                          assert data[hoff:hoff+8] == b"\x49\x89\xc1\x72\x03\x4c\x8b\x08"
+                          data[hoff:hoff+8] = b"\xe9" + struct.pack("<i", cave2_rva - (0x2dc9a + 5)) + b"\x90\x90\x90"
+                          print(f"[pe-patch] {filename}: hooked TLSServer & MakeRelativeCitPath MBA paths -> AxiomFX/")
+
+              # g) In net-five.dll, unlock subdir_file_mapping (EUP & subfolder streaming) for all NSM servers regardless of maxClients
+              if filename.lower().endswith("net-five.dll") and pe_sections:
+                  sfm_idx = data.find(b"subdir_file_mapping\x00")
+                  if sfm_idx != -1:
+                      sfm_rva = None
+                      for _, _, rva, raw_size, raw_ptr in pe_sections:
+                          if raw_ptr <= sfm_idx < raw_ptr + raw_size:
+                              sfm_rva = rva + (sfm_idx - raw_ptr)
+                              break
+                      if sfm_rva is not None:
+                          for s_name, _, t_rva, t_raw_size, t_raw_ptr in pe_sections:
+                              if s_name in (".text", ".zdata", ".ctext"):
+                                  for p in range(t_raw_ptr, t_raw_ptr + t_raw_size - 7):
+                                      if data[p] in (0x48, 0x4C) and data[p+1] == 0x8D and (data[p+2] & 0xC7) == 0x05:
+                                          disp = struct.unpack_from("<i", data, p + 3)[0]
+                                          if (t_rva + (p - t_raw_ptr) + 7 + disp) == sfm_rva:
+                                              for bpos in range(max(t_raw_ptr, p - 32), p):
+                                                  if data[bpos] == 0x7F and bpos >= 3 and data[bpos-1] == 0x0A:
+                                                      data[bpos:bpos+2] = b"\x90\x90"
+                                                      print(f"[pe-patch] {filename}: unlocked subdir_file_mapping at 0x{bpos:x}")
+                                                      break
+
+              assert len(data) == orig_len
+              return bytes(data)
+
+          def patch_ui_archive(raw_bytes):
+              buf = io.BytesIO()
+              with zipfile.ZipFile(io.BytesIO(raw_bytes), "r") as zin, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zout:
+                  for info in zin.infolist():
+                      if info.is_dir():
+                          continue
+                      body = zin.read(info.filename)
+                      lower = info.filename.lower()
+                      if lower.endswith((".js", ".html", ".json")):
+                          body = body.replace(
+                              b"init({dsn:`http://127.0.0.1/sentry-ingest`,tracesSampleRate:.05",
+                              b"init({enabled:!1,dsn:void 0,tracesSampleRate:0",
+                          )
+                          body = body.replace(b"https://discord.gg/UXj5QfCX88/terms", b"https://nsmultiplayer.com/docs")
+                          body = body.replace(b"https://discord.gg/UXj5QfCX88", b"https://nsmultiplayer.com")
+                          body = body.replace(b"https://forum.cfx.re", b"https://nsmultiplayer.com")
+                          body = body.replace(b"https://forum.fivem.net", b"https://nsmultiplayer.com")
+                          body = body.replace(b"https://portal.cfx.re", b"https://nsmultiplayer.com/keymaster")
+                          body = body.replace(b"https://cfx.re/join/", b"https://nsmultiplayer.com/join/")
+                          body = body.replace(b"http://cfx.re/join/", b"https://nsmultiplayer.com/join/")
+                          body = body.replace(b"https://cfx.re/join", b"https://nsmultiplayer.com/join")
+                          body = body.replace(b"cfx.re/join/", b"nsmultiplayer.com/join/")
+                          body = body.replace(b"cfx.re/join", b"nsmultiplayer.com/join")
+                          body = body.replace(b"http://127.0.0.1:80", b"https://nsmultiplayer.com")
+                          body = body.replace(b"http://127.0.0.1", b"https://nsmultiplayer.com")
+                          for pat in EMAIL_REGEX_PATTERNS:
+                              body = body.replace(pat, b"/^[^\\s]{2,}$/")
+                          if lower in ("app/index.html", "index.html"):
+                              if b'id="nsm-discourse-interceptor"' not in body:
+                                  if b"<head>" in body:
+                                      body = body.replace(b"<head>", b"<head>" + HEAD_INTERCEPTOR, 1)
+                                  else:
+                                      body = HEAD_INTERCEPTOR + body
+                              if b'id="nsm-client-auth-poll-v4"' not in body:
+                                  if b"</body>" in body:
+                                      body = body.replace(b"</body>", POLL_SNIPPET + b"</body>", 1)
+                                  else:
+                                      body += POLL_SNIPPET
+                      zout.writestr(info.filename, body)
+              return buf.getvalue()
+
+          def rename_archive_member(member):
+              if member.startswith("NSM-Client/citizen/"):
+                  member = "NSM-Client/AxiomFX/" + member[len("NSM-Client/citizen/"):]
+              prefix = "NSM-Client/"
+              if member.startswith(prefix) and "/" not in member[len(prefix):]:
+                  base = member[len(prefix):]
+                  low = base.lower()
+                  if low.startswith("citizen-") and low.endswith(".dll"):
+                      base = "AxiomFX-" + base[len("citizen-"):]
+                  elif low == "citizengame.dll":
+                      base = "AxiomFXGame.dll"
+                  elif low == "citilaunch_tlsdummy.dll":
+                      base = "AxiomFX_TLSDummy.dll"
+                  elif low == "cfx_curl_x86_64.dll":
+                      base = "afx_curl_x86_64.dll"
+                  elif low == "citizenfx.ini":
+                      base = "AxiomFX.ini"
+                  member = prefix + base
+              return member
+
+          def is_excluded_member(member: str) -> bool:
+              rel = member[len("NSM-Client/"):] if member.startswith("NSM-Client/") else member
+              low = rel.lower().replace("\\", "/")
+              if low.startswith(("repair-info/", "local-first-logs/", "logs/", "mirror-cache/", "data/cache/")):
+                  return True
+              base = low.rsplit("/", 1)[-1]
+              if base in (
+                  "nsm-masterlist.exe",
+                  "readme-localtest.txt",
+                  "diagnostic-notes.txt",
+                  "start-localhost.bat",
+                  "start-localhost.ps1",
+                  "start-local-first.bat",
+                  "start-local-first.ps1",
+                  "version.json",
+                  "release-notes.md",
+                  "sha256sums.txt",
+                  "accounts.json",
+                  "state.json",
+                  "forum.json",
+                  "keymaster.json",
+                  "ticket-signing-key.pem",
+              ):
+                  return True
+              if "/" not in low and base.endswith((".bat", ".ps1", ".md")):
+                  return True
+              return False
+
+          overlay = {
+              "NSM-Client/steam_appid.txt": b"218\r\n",
+          }
+
+          with zipfile.ZipFile(base_zip, "r") as zin:
+              assert sha(zin.read("NSM-Client/legitimacy.dll")) == RESTORED_AUTH_SHA
+              # Only patch citizen/ui.zip -> AxiomFX/ui.zip (never ui-big.zip)
+              if "NSM-Client/citizen/ui.zip" in zin.namelist():
+                  patched_ui = patch_ui_archive(zin.read("NSM-Client/citizen/ui.zip"))
+                  overlay["NSM-Client/AxiomFX/ui.zip"] = patched_ui
+                  Path("/tmp/patched-ui.zip").write_bytes(patched_ui)
+
+              if "NSM-Client/components.json" in zin.namelist():
+                  comp_raw = zin.read("NSM-Client/components.json")
+                  overlay["NSM-Client/components.json"] = re.sub(b"citizen:(?=[A-Za-z])", b"AxiomFX:", comp_raw)
+
+              # Overlay patched steam_api64.dll (App ID 218 Source SDK Base 2007) and patch ALL PE binaries (.exe, .dll, AND .bin!)
+              for member in zin.namelist():
+                  if is_excluded_member(member):
+                      continue
+                  out_member = rename_archive_member(member)
+                  lower = member.lower()
+                  if lower.endswith("steam_api64.dll"):
+                      overlay[out_member] = patched_steam_dll
+                      print(f"[steam-218] overlaid {out_member} ({len(patched_steam_dll)} bytes)")
+                  elif lower.endswith((".exe", ".dll", ".bin")):
+                      orig_pe = zin.read(member)
+                      patched_pe = patch_pe_binary(orig_pe, out_member)
+                      if patched_pe != orig_pe or out_member != member:
+                          overlay[out_member] = patched_pe
+
+          from datetime import datetime, timezone
+          now_utc = datetime.now(timezone.utc)
+          build_dt = (2028, now_utc.month, now_utc.day, now_utc.hour, now_utc.minute, now_utc.second)
+          with zipfile.ZipFile(base_zip, "r") as zin, zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
+              for info in zin.infolist():
+                  if info.is_dir() or is_excluded_member(info.filename):
+                      continue
+                  out_name = rename_archive_member(info.filename)
+                  if out_name in overlay:
+                      continue
+                  data = zin.read(info.filename)
+                  zinfo = zipfile.ZipInfo(filename=out_name, date_time=build_dt)
+                  zinfo.compress_type = zipfile.ZIP_DEFLATED
+                  zout.writestr(zinfo, data)
+              for name, data in sorted(overlay.items()):
+                  zinfo = zipfile.ZipInfo(filename=name, date_time=build_dt)
+                  zinfo.compress_type = zipfile.ZIP_DEFLATED
+                  zout.writestr(zinfo, data)
+
+          # Build single-file downloadable NSM.exe (AppData installer & launcher with embedded NSM.app zip payload)
+          zip_payload = out_zip.read_bytes()
+          build_id = ("nsm-0.7.8-" + sha(zip_payload)[:12]).encode("ascii")[:24].ljust(24, b"\x00")
+          payload_offset = len(bootstrapper_exe)
+          payload_size = len(zip_payload)
+          trailer = struct.pack("<QQ24s8s", payload_offset, payload_size, build_id, b"NSMSFX01")
+          assert len(trailer) == 48
+          out_installer_exe.write_bytes(bootstrapper_exe + zip_payload + trailer)
+
+          with zipfile.ZipFile(out_zip, "r") as zcheck:
+              assert zcheck.testzip() is None
+              names = set(zcheck.namelist())
+              assert "NSM-Client/NSM.exe" in names
+              assert "NSM-Client/CoreRT.dll" in names
+              assert "NSM-Client/AxiomFX/ui.zip" in names
+              assert "NSM-Client/AxiomFX/ros/ros.crt" in names
+              assert "NSM-Client/AxiomFXGame.dll" in names
+              assert "NSM-Client/AxiomFX_TLSDummy.dll" in names
+              assert "NSM-Client/afx_curl_x86_64.dll" in names
+              assert "NSM-Client/AxiomFX-level-loader-five.dll" in names
+              assert not any(n.startswith("NSM-Client/citizen/") for n in names)
+              assert not any(n.startswith("NSM-Client/citizen-") for n in names)
+              assert not any(n.startswith("NSM-Client/repair-info/") for n in names)
+              assert "NSM-Client/NSM-Masterlist.exe" not in names
+              assert "NSM-Client/START-LOCALHOST.bat" not in names
+              assert "NSM-Client/START-LOCALHOST.ps1" not in names
+              assert "NSM-Client/START-LOCAL-FIRST.bat" not in names
+              assert "NSM-Client/README-LOCALTEST.txt" not in names
+              assert "NSM-Client/DIAGNOSTIC-NOTES.txt" not in names
+              assert "NSM-Client/VERSION.json" not in names
+              assert "NSM-Client/RELEASE-NOTES.md" not in names
+              assert "NSM-Client/SHA256SUMS.txt" not in names
+              leg_bytes = zcheck.read("NSM-Client/legitimacy.dll")
+              assert b"https://lambda.fivem.net/api/validate/entitlement\x00" in leg_bytes
+              assert b"https://lambda.fivem.net/api/validate/entitlement/rosfive\x00" in leg_bytes
+              assert b"https://lambda.fivem.net/api/validate/entitlement/ros2\x00" in leg_bytes
+              assert b"afx_curl_x86_64.dll" in leg_bytes
+              nsm_exe_bytes = zcheck.read("NSM-Client/NSM.exe")
+              assert "AFXCrashDump".encode("utf-16le") in nsm_exe_bytes
+              assert "CfxCrashDump".encode("utf-16le") not in nsm_exe_bytes
+              snail_ico_raw = subprocess.check_output(["git", "show", "1e5549c:code/client/launcher/snail.ico"])
+              assert snail_ico_raw[86:86+8015] not in nsm_exe_bytes
+              if "NSM-Client/NSM_Diag.exe" in names:
+                  diag_bytes = zcheck.read("NSM-Client/NSM_Diag.exe")
+                  diag_ico_raw = subprocess.check_output(["git", "show", "1e5549c:code/client/diag/diagutil.ico"])
+                  assert diag_ico_raw[102:102+270376] not in diag_bytes
+              assert zcheck.read("NSM-Client/steam_appid.txt").strip() == b"218"
+
+          # Verify the single-file NSM.exe AppData installer trailer and embedded zip
+          installer_bytes = out_installer_exe.read_bytes()
+          assert installer_bytes[:2] == b"MZ"
+          assert installer_bytes[-8:] == b"NSMSFX01"
+          p_off, p_sz, b_id, magic = struct.unpack("<QQ24s8s", installer_bytes[-48:])
+          assert magic == b"NSMSFX01"
+          assert p_off == payload_offset and p_sz == payload_size
+          with zipfile.ZipFile(io.BytesIO(installer_bytes[p_off:p_off+p_sz]), "r") as zinst:
+              assert zinst.testzip() is None
+              assert "NSM-Client/NSM.exe" in zinst.namelist()
+              assert "NSM-Client/NSM-Masterlist.exe" not in zinst.namelist()
+
+          with zipfile.ZipFile("/tmp/patched-ui.zip", "r") as zui:
+              assert zui.testzip() is None
+              app_html = zui.read("app/index.html")
+              root_html = zui.read("root.html")
+              assert b'id="nsm-client-auth-poll-v4"' in app_html
+              assert b'id="nsm-discourse-interceptor"' in app_html
+              assert b"origFetch.call" not in app_html
+              assert b"?v=nsm078b" not in app_html
+              assert b'id="nsm-discourse-interceptor"' not in root_html
+              ui_blob = b"".join(zui.read(n) for n in zui.namelist() if not n.endswith("/"))
+              assert b"discord.gg/UXj5QfCX88" not in ui_blob
+              assert b"cfx.re/join" not in ui_blob
+              assert b"nsmultiplayer.com/join" in ui_blob
+              assert b"https://nsmultiplayer.com" in ui_blob
+              assert b"init({enabled:!1,dsn:void 0,tracesSampleRate:0" in ui_blob
+
+          for asset in sorted(Path("/tmp/v078-dist").glob("*")):
+              print(f"{sha(asset.read_bytes())}  {asset.name} ({asset.stat().st_size} bytes)")
+          EOF
+
+      - name: Assemble ready-to-run NSM-Server.zip dedicated server artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download nsm-v0.2-preview -p "NSM-server-v0.8.1-localtest.zip" -D /tmp
+          git clone --depth 1 https://github.com/citizenfx/cfx-server-data.git /tmp/cfx-server-data
+          python3 tools/nsm-installer/build_server_artifact.py \
+            /tmp/NSM-server-v0.8.1-localtest.zip \
+            /tmp/cfx-server-data \
+            /tmp/v078-dist/NSM-Server.zip
+
+      - name: Upload clean release assets (NSM.exe, NSM-Server.zip, NSM-client-v0.8.0-candidate.zip, NSM-Masterlist.exe) to nsm-v0.8.0-candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp /tmp/v078-dist/NSM-client-v0.7.8-candidate.zip /tmp/v078-dist/NSM-client-v0.8.0-candidate.zip
+          if ! gh release view nsm-v0.8.0-candidate >/dev/null 2>&1; then
+            gh release create nsm-v0.8.0-candidate --target "${{ github.sha }}" --prerelease --title "NSM v0.8.0 — 100% Independent NSM/AFX Stack, Client Installer & Dedicated Server" --notes "100% independent NSM/AFX stack (website, masterlist, AFX Portal Keymaster, server feature policy, EUP/subdir_file_mapping, OneSync up to 2048 slots, and runtime/mirror caching on nsmultiplayer.com). Previous release nsm-v0.7.8-candidate is preserved unchanged."
+          fi
+          gh release upload nsm-v0.8.0-candidate \
+            /tmp/v078-dist/NSM.exe \
+            /tmp/v078-dist/NSM-Server.zip \
+            /tmp/v078-dist/NSM-client-v0.8.0-candidate.zip \
+            /tmp/NSM-Masterlist.exe \
+            --clobber

@@ -446,7 +446,7 @@ void Install_RunPostInstall()
 		fcs.dwMask = FCSM_ICONFILE;
 		fcs.pszIconFile = thisFileName;
 		fcs.cchIconFile = 0;
-		fcs.iIconIndex = -IDI_SNAIL;
+		fcs.iIconIndex = -IDI_ICON1;
 
 		SHGetSetFolderCustomSettings(&fcs, MakeRelativeCitPath(L"").c_str(), FCS_FORCEWRITE);
 
